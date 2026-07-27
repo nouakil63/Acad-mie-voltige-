@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Réserver un stage — Académie de voltige équestre · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Réservez un stage de voltige équestre à l'Académie de voltige d'Auberville en trois étapes : choix de la semaine, informations du voltigeur, confirmation.">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=19">
+  <link rel="stylesheet" href="assets/css/style.css?v=19">
+</head>
+<body class="nav-toujours-blanche">
+
+<a class="acces-rapide" href="#resa">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="index.html#academie">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="index.html#theatre">Le théâtre</a>
+    <a href="index.html#infos">Infos pratiques</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="reservation.html" aria-current="page"><span>Réserver</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="index.html#academie">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="index.html#theatre">Le théâtre</a>
+  <a href="index.html#infos">Infos pratiques</a>
+  <a href="reservation.html">Réserver</a>
+</nav>
+
+<!-- ============ En-tête de page ============ -->
+<header class="page-hero claire" style="padding-bottom:clamp(32px,5vw,48px)">
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+  </svg>
+  <div class="contenu">
+    <div>
+      <nav class="ariane" aria-label="Fil d'ariane">
+        <a href="index.html">Accueil</a><i>→</i><a href="stages.html">Les stages</a><i>→</i><span>Réserver</span>
+      </nav>
+      <h1>
+        <span class="ligne"><span>Réserver</span></span>
+        <span class="ligne"><span>un <em>stage</em>.</span></span>
+      </h1>
+      <p class="sous-titre">Trois étapes, deux minutes. Nous confirmons chaque inscription sous 48&nbsp;h.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ============ Le parcours de réservation ============ -->
+<section class="section" id="resa" style="padding-top:clamp(40px,6vw,56px)">
+  <div class="contenu">
+    <div class="resa-grille">
+      <form id="form-resa" novalidate>
+
+        <!-- fil des étapes -->
+        <div class="pas-nav" aria-label="Étapes de la réservation">
+          <div class="jalon actif" data-jalon="1"><span class="rond">1</span><span>Le stage</span></div>
+          <div class="lien-jalon" aria-hidden="true"></div>
+          <div class="jalon" data-jalon="2"><span class="rond">2</span><span>Le voltigeur</span></div>
+          <div class="lien-jalon" aria-hidden="true"></div>
+          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>Confirmation</span></div>
+        </div>
+
+        <!-- Étape 1 : le stage -->
+        <fieldset class="pas actif" data-pas="1">
+          <h2>Choisissez votre semaine.</h2>
+          <p class="aide">Les places affichées sont mises à jour à chaque inscription confirmée.</p>
+          <div class="choix-stages">
+            <label class="choix-stage">
+              <input type="radio" name="stage" value="0" required>
+              <span class="boite">
+                <span class="pastille-radio" aria-hidden="true"></span>
+                <span class="dates">Du 3 au 8 août 2026 · 6 places restantes</span>
+                <span class="nom-stage">Stage découverte, 6–10 ans</span>
+                <span class="dispo">Pension complète · Aucun niveau requis</span>
+                <span class="prix-stage">540&nbsp;€ <small>/ sem.</small></span>
+              </span>
+            </label>
+            <label class="choix-stage">
+              <input type="radio" name="stage" value="1">
+              <span class="boite">
+                <span class="pastille-radio" aria-hidden="true"></span>
+                <span class="dates">Du 10 au 15 août 2026 · Dernières places</span>
+                <span class="nom-stage">Stage perfectionnement, 11–16 ans</span>
+                <span class="dispo">Pension complète · Voltige au galop requise</span>
+                <span class="prix-stage">590&nbsp;€ <small>/ sem.</small></span>
+              </span>
+            </label>
+            <label class="choix-stage">
+              <input type="radio" name="stage" value="2">
+              <span class="boite">
+                <span class="pastille-radio" aria-hidden="true"></span>
+                <span class="dates">Du 19 au 24 octobre 2026 · 10 places restantes</span>
+                <span class="nom-stage">Stage voltige &amp; théâtre, 8–16 ans</span>
+                <span class="dispo">Pension complète · Représentation le samedi</span>
+                <span class="prix-stage">560&nbsp;€ <small>/ sem.</small></span>
+              </span>
+            </label>
+          </div>
+          <div class="btns-pas">
+            <span></span>
+            <button type="button" class="btn btn-rouge" data-suivant><span>Continuer</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Étape 2 : le voltigeur et la famille -->
+        <fieldset class="pas" data-pas="2">
+          <h2>Le voltigeur, et vous.</h2>
+          <p class="aide">Ces informations nous permettent de constituer les groupes et de vous joindre pendant la semaine.</p>
+          <div class="champs">
+            <div class="rang">
+              <div class="champ"><label for="enfant-prenom">Prénom de l'enfant <b>*</b></label><input id="enfant-prenom" name="enfant-prenom" autocomplete="given-name" required></div>
+              <div class="champ"><label for="enfant-nom">Nom de l'enfant <b>*</b></label><input id="enfant-nom" name="enfant-nom" autocomplete="family-name" required></div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="enfant-naissance">Date de naissance <b>*</b></label><input id="enfant-naissance" name="enfant-naissance" type="date" required></div>
+              <div class="champ">
+                <label for="enfant-niveau">Niveau</label>
+                <select id="enfant-niveau" name="enfant-niveau">
+                  <option value="Jamais monté">N'a jamais monté</option>
+                  <option value="Débutant">A déjà monté un peu</option>
+                  <option value="Voltige">Pratique déjà la voltige</option>
+                  <option value="Compétition">Voltige en compétition</option>
+                </select>
+              </div>
+            </div>
+            <div class="champ">
+              <label for="enfant-sante">Allergies, santé, choses à savoir</label>
+              <textarea id="enfant-sante" name="enfant-sante" placeholder="Allergies alimentaires, traitement, appréhensions…"></textarea>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="parent-nom">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
+              <div class="champ"><label for="parent-tel">Votre téléphone <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
+            </div>
+            <div class="champ">
+              <label for="parent-email">Votre e-mail <b>*</b></label>
+              <input id="parent-email" name="parent-email" type="email" autocomplete="email" required>
+              <span class="indice">La confirmation d'inscription et les infos pratiques arrivent à cette adresse.</span>
+            </div>
+          </div>
+          <div class="btns-pas">
+            <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
+            <button type="button" class="btn btn-rouge" data-suivant><span>Voir le récapitulatif</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Étape 3 : confirmation -->
+        <fieldset class="pas" data-pas="3">
+          <h2>Tout est bon ?</h2>
+          <p class="aide">Vérifiez le récapitulatif ci-contre, puis envoyez votre demande — nous revenons vers vous sous 48&nbsp;h pour la confirmer.</p>
+          <div class="champs">
+            <label class="case">
+              <input type="checkbox" id="accepte" required>
+              <span>J'ai compris que cette demande vaut pré-inscription : la place est réservée à réception de la confirmation de l'académie, qui précisera les modalités de règlement. <b>*</b></span>
+            </label>
+          </div>
+          <div class="btns-pas">
+            <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
+            <button type="submit" class="btn btn-rouge"><span>Envoyer la demande</span></button>
+          </div>
+          <p class="note-recap" style="margin-top:18px;font-size:12.5px;color:var(--texte-2)">
+            💳 Le paiement en ligne sécurisé arrive bientôt — vous pourrez alors régler l'acompte directement ici.
+          </p>
+          <div class="confirmation" id="confirmation">
+            <h3>Votre demande est prête à partir !</h3>
+            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
+          </div>
+        </fieldset>
+      </form>
+
+      <!-- récapitulatif -->
+      <aside class="recap" aria-live="polite">
+        <h3>Votre réservation</h3>
+        <div class="ligne-recap"><span>Stage</span><span id="r-stage">—</span></div>
+        <div class="ligne-recap"><span>Dates</span><span id="r-dates">—</span></div>
+        <div class="ligne-recap"><span>Voltigeur</span><span id="r-enfant">—</span></div>
+        <div class="ligne-recap"><span>Niveau</span><span id="r-niveau">—</span></div>
+        <div class="ligne-recap"><span>Contact</span><span id="r-contact">—</span></div>
+        <div class="total"><span>Total</span><b id="r-total">—</b></div>
+        <p class="note-recap">Pension complète, encadrement, chevaux et matériel compris. Aucun paiement ne vous est demandé à cette étape.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Pied de page ============ -->
+<footer class="pied">
+  <div class="contenu">
+    <div class="pied-haut">
+      <a class="marque" href="index.html" style="color:var(--texte)">
+        <img src="assets/img/logo.jpeg" alt="">
+        <span>
+          <b>Académie de voltige</b>
+          <small>Fleur &amp; Georges Cotrait</small>
+        </span>
+      </a>
+      <nav class="pied-nav" aria-label="Pied de page">
+        <a href="index.html#academie">L'académie</a>
+        <a href="stages.html">Stages</a>
+        <a href="cours.html">Cours</a>
+        <a href="index.html#theatre">Le théâtre</a>
+        <a href="index.html#infos">Infos pratiques</a>
+      </nav>
+    </div>
+    <div class="pied-bas">
+      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie</span>
+      <span class="sociaux">
+        <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.youtube.com/channel/UCVWNBdhexKOj-6WiQdvCf5g" target="_blank" rel="noopener">YouTube</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js?v=19"></script>
+<script src="assets/js/reservation.js?v=19"></script>
+</body>
+</html>
