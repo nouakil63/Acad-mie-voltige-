@@ -395,9 +395,17 @@ img{max-width:100%}
 
 @media (max-width:860px){
   .academie-grille{grid-template-columns:1fr}
-  .arches{margin-top:12px}
-  .stats{grid-template-columns:1fr;gap:0}
-  .stat{border-left:0;padding-left:0;padding-bottom:24px}
+  .arches{margin-top:16px;gap:16px;align-items:center}
+  .arche-photo{flex:1.5;max-width:none}
+  .arches > figure:nth-child(2){margin-top:0}
+  .cercle-photo{flex:1;max-width:150px;gap:10px}
+  .cercle-photo figcaption{font-size:11px}
+  .badge-academie{display:none}   /* décoratif : il gênait la légende sur petit écran */
+  .stats{grid-template-columns:1fr;gap:0;margin-top:48px}
+  .stat{border-left:0;padding:18px 0 16px}
+  .stat + .stat{border-top:1px solid var(--trait)}
+  .stat b{font-size:32px}
+  .stat span{margin-top:6px;max-width:none}
 }
 
 /* ============ Accessibilité / mouvement réduit ============ */
