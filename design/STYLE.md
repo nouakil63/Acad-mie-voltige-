@@ -1,4 +1,4 @@
-# Direction artistique — « Le Manège » (v2)
+# Direction artistique — « Le Manège » (v3)
 
 Refonte du site de l'Académie de voltige équestre Fleur & Georges Cotrait (Auberville, Normandie).
 Démo interactive : ouvrir `design/direction-artistique.html` dans un navigateur.
@@ -26,15 +26,17 @@ famille de caractères.
 Règles : le rouge est la **seule** couleur du site — pas d'accent secondaire.
 Thème sombre « soir de spectacle » : fond encre, texte voile, rouge vif pour les liens.
 
-## Typographie
+## Typographie (titrage en cours de choix — comparateur dans la démo)
 
-- **Une seule famille : Archivo** (variable — graisse 100–900, largeur 62–125 %, + italique).
-  - Titres : majuscules, largeur 118 %, graisse ~830, interlettrage -0.5 %.
-    Un mot par titre en rouge, ou « en creux » (contour blanc, `-webkit-text-stroke`) sur fond rouge.
-  - Surtitres/étiquettes : largeur 82 %, graisse 700, majuscules, `letter-spacing: .24em`.
-  - Corps : largeur 100 %, graisse 400, 17 px, interlignage 1.6, max 62 caractères.
-  - Chiffres (prix, stats) : largeur 118 %, graisse 830, `font-variant-numeric: tabular-nums`.
-- Interdits : Inter, Poppins, Space Grotesk, serifs d'apparat (Playfair, Bodoni…).
+- **Corps & UI : Hanken Grotesk** (variable 300–800 + italique) — 17 px, interlignage 1.6,
+  max 62 caractères. Surtitres/étiquettes : graisse 700, majuscules, `letter-spacing: .24em`.
+- **Titrage : trois candidates**, commutables en direct dans la démo (section 02) :
+  1. **Bricolage Grotesque** (recommandée) — graisse ~760, chasse 92 %, interlettrage -1.5 %.
+  2. **Staatliches** — affiche de cirque condensée, capitales, graisse unique.
+  3. **Syne** — large et singulière, graisse ~750.
+- Un mot par titre en rouge, ou « en creux » (contour blanc, `-webkit-text-stroke`) sur fond rouge.
+- Chiffres (prix, stats) : typo de titrage, `font-variant-numeric: tabular-nums`.
+- Interdits : Inter, Poppins, Space Grotesk, serifs d'apparat (Playfair, Bodoni…). Archivo écartée (v2).
 
 ## Formes
 
