@@ -191,9 +191,11 @@ img{max-width:100%;height:auto}
   display:flex;flex-direction:column;justify-content:flex-end;
   color:var(--blanc);background:var(--encre);
 }
-.hero-video video,.hero-fond{
+.hero-video video,.hero-fond,.hero-photo{
   position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
 }
+.hero-photo{object-position:center 32%;animation:respirer-hero 22s ease-in-out infinite alternate}
+@keyframes respirer-hero{from{transform:scale(1.03)}to{transform:scale(1.12)}}
 /* fond de secours animé tant que la vidéo n'est pas fournie */
 .hero-fond{
   background:
@@ -755,4 +757,5 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
   }
   .longe ellipse{stroke-dashoffset:0}
   .hero-video video{display:none}   /* la vidéo autoplay est coupée, le fond fixe prend le relais */
+  .hero-photo{animation:none}
 }
