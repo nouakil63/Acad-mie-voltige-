@@ -463,6 +463,39 @@ img{max-width:100%}
   .stages-tete{margin-bottom:32px}
 }
 
+/* ============ Section 4 : les cours à l'année ============ */
+.cours-liste{border-top:1px solid var(--texte)}
+.cours-ligne{
+  display:grid;grid-template-columns:150px 1.6fr 1fr auto;gap:24px;align-items:center;
+  padding:26px 12px;border-bottom:1px solid var(--trait);text-decoration:none;
+  transition:background .35s var(--galop);
+}
+.cours-ligne:hover,.cours-ligne:focus-visible{background:var(--fond-2)}
+.cours-ligne:hover .lien-fleche i{transform:translateX(6px)}
+.creneau{
+  font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--texte-2);line-height:1.7;
+}
+.creneau b{display:block;color:var(--texte);font-weight:700}
+.cours-infos h3{font-size:22px}
+.cours-infos .age{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+.cours-infos p{font-size:14.5px;color:var(--texte-2);margin-top:6px;max-width:44ch}
+.cours-tarif{
+  font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+  font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.cours-tarif small{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--texte-2)}
+.cours-cta{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:36px}
+.cours-cta .note{font-size:13.5px;color:var(--texte-2)}
+
+@media (max-width:860px){
+  .cours-ligne{grid-template-columns:1fr auto;gap:6px 16px;padding:22px 4px}
+  .creneau{grid-column:1 / -1;display:flex;gap:10px}
+  .creneau b{display:inline}
+  .cours-tarif{grid-row:2;grid-column:2;align-self:start;font-size:19px}
+  .cours-ligne .lien-fleche{grid-column:1 / -1;margin-top:4px}
+}
+
 /* ============ Accessibilité / mouvement réduit ============ */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
