@@ -7,9 +7,10 @@
 
   /* ---- Navigation : transparente sur la vidéo, blanche au défilement ---- */
   var nav = document.querySelector('.nav');
+  var claire = document.body.classList.contains('nav-toujours-blanche');
   var attente = false;
   function majNav() {
-    nav.classList.toggle('est-blanche', window.scrollY > 24);
+    nav.classList.toggle('est-blanche', claire || window.scrollY > 24);
     attente = false;
   }
   window.addEventListener('scroll', function () {
