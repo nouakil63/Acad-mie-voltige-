@@ -601,9 +601,19 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
    ============================================================ */
 /* bandeau d'en-tête rouge (la nav transparente se pose dessus) */
 .page-hero{
-  background:var(--rouge);color:var(--blanc);position:relative;overflow:hidden;
-  padding:calc(var(--nav-h) + clamp(40px,7vw,72px)) 0 clamp(48px,7vw,72px);
+  background:var(--rouge-sombre);color:var(--blanc);position:relative;overflow:hidden;
+  padding:calc(var(--nav-h) + clamp(56px,9vw,104px)) 0 clamp(56px,9vw,96px);
+  display:flex;align-items:flex-end;min-height:min(68vh,560px);
 }
+.page-hero-photo{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%;
+  animation:respirer-hero 22s ease-in-out infinite alternate;
+}
+.page-voile{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg, rgba(165,8,31,.82) 0%, rgba(120,10,26,.55) 45%, rgba(29,18,22,.55) 100%);
+}
+.page-hero .contenu{position:relative;width:100%}
 .page-hero .longe{right:-24%;top:30%;width:min(70vw,560px)}
 .page-hero .eyebrow{color:var(--blanc);opacity:.85}
 .page-hero h1{font-size:clamp(38px,7vw,76px);margin:14px 0 18px;max-width:16ch}
@@ -692,8 +702,8 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .faq details[open] summary::after{transform:rotate(45deg)}
 .faq details p{padding:0 4px 24px;color:var(--texte-2);max-width:62ch}
 
-/* photo en arche dans l'en-tête de page */
-.page-hero .contenu{display:grid;grid-template-columns:1fr auto;gap:clamp(24px,5vw,72px);align-items:center}
+/* photo en arche dans l'en-tête de page (variante non utilisée par la page cours) */
+.page-hero.avec-arche .contenu{display:grid;grid-template-columns:1fr auto;gap:clamp(24px,5vw,72px);align-items:center}
 .page-arche{
   width:clamp(160px,21vw,260px);aspect-ratio:3/4;margin:0;
   border-radius:999px 999px 0 0;overflow:hidden;position:relative;
@@ -706,8 +716,8 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 }
 .page-arche img{width:100%;height:100%;object-fit:cover;display:block}
 @media (max-width:640px){
-  .page-hero .contenu{grid-template-columns:1fr}
-  .page-arche{width:min(58vw,230px);justify-self:end;margin-top:6px}
+  .page-hero.avec-arche .contenu{grid-template-columns:1fr}
+  .page-hero.avec-arche .page-arche{width:min(58vw,230px);justify-self:end;margin-top:6px}
 }
 
 /* respiration lente des photos (Ken Burns discret) */
@@ -757,5 +767,5 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
   }
   .longe ellipse{stroke-dashoffset:0}
   .hero-video video{display:none}   /* la vidéo autoplay est coupée, le fond fixe prend le relais */
-  .hero-photo{animation:none}
+  .hero-photo,.page-hero-photo{animation:none}
 }
