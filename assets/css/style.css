@@ -46,13 +46,13 @@ h1,h2,h3{
 }
 p{margin:0}
 a{color:inherit}
-img{max-width:100%}
+img{max-width:100%;height:auto}
 
 .eyebrow{
   font-size:12px;font-weight:700;letter-spacing:.24em;
   text-transform:uppercase;color:var(--accent);
 }
-.contenu{max-width:1080px;margin:0 auto;padding:0 24px}
+.contenu{max-width:1080px;margin:0 auto;padding:0 clamp(18px,4.5vw,24px)}
 
 .acces-rapide{
   position:absolute;left:-9999px;top:0;z-index:100;
@@ -227,7 +227,7 @@ img{max-width:100%}
 
 .hero-contenu{
   position:relative;max-width:1080px;width:100%;margin:0 auto;
-  padding:calc(var(--nav-h) + 40px) 24px 96px;
+  padding:calc(var(--nav-h) + 40px) 24px clamp(72px,12vw,96px);
 }
 .hero-contenu .eyebrow{color:var(--blanc);opacity:.85}
 .hero-contenu h1{
@@ -300,7 +300,8 @@ img{max-width:100%}
 @keyframes defiler{to{transform:translateX(-50%)}}
 
 /* ============ Section suivante (ébauche) ============ */
-.section{padding:96px 0}
+.section{padding:clamp(64px,9vw,96px) 0}
+section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .section-head{display:flex;flex-direction:column;gap:14px;max-width:660px;margin-bottom:40px}
 .section-head h2{font-size:clamp(30px,4.5vw,46px)}
 .section-head p{color:var(--texte-2)}
@@ -352,7 +353,7 @@ img{max-width:100%}
 }
 .cercle-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .cercle-photo figcaption{
-  text-align:center;font-size:12.5px;font-weight:650;letter-spacing:.08em;
+  text-align:center;text-wrap:balance;font-size:12.5px;font-weight:650;letter-spacing:.08em;
   text-transform:uppercase;color:var(--texte-2);
 }
 .photo-note{
@@ -395,10 +396,10 @@ img{max-width:100%}
 
 @media (max-width:860px){
   .academie-grille{grid-template-columns:1fr}
-  .arches{margin-top:16px;gap:16px;align-items:center}
-  .arche-photo{flex:1.5;max-width:none}
+  .arches{margin-top:16px;gap:clamp(16px,4vw,28px);align-items:center;justify-content:center}
+  .arche-photo{flex:1.5;max-width:min(56vw,320px)}
   .arches > figure:nth-child(2){margin-top:0}
-  .cercle-photo{flex:1;max-width:150px;gap:10px}
+  .cercle-photo{flex:1;max-width:min(38vw,190px);gap:10px}
   .cercle-photo figcaption{font-size:11px}
   .badge-academie{display:none}   /* décoratif : il gênait la légende sur petit écran */
   .stats{grid-template-columns:1fr;gap:0;margin-top:48px}
@@ -490,8 +491,8 @@ img{max-width:100%}
 
 @media (max-width:860px){
   .cours-ligne{grid-template-columns:1fr auto;gap:6px 16px;padding:22px 4px}
-  .creneau{grid-column:1 / -1;display:flex;gap:10px}
-  .creneau b{display:inline}
+  .creneau{grid-column:1 / -1;display:block}
+  .creneau b{display:inline;margin-right:4px}
   .cours-tarif{grid-row:2;grid-column:2;align-self:start;font-size:19px}
   .cours-ligne .lien-fleche{grid-column:1 / -1;margin-top:4px}
 }
@@ -543,7 +544,7 @@ img{max-width:100%}
 
 @media (max-width:860px){
   .theatre-grille{grid-template-columns:1fr}
-  .theatre-arche{width:min(78vw,300px)}
+  .theatre-arche{width:min(68vw,280px)}
 }
 
 /* ============ Section 6 : infos pratiques ============ */
