@@ -546,6 +546,53 @@ img{max-width:100%}
   .theatre-arche{width:min(78vw,300px)}
 }
 
+/* ============ Section 6 : infos pratiques ============ */
+.infos-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;border-top:1px solid var(--texte)}
+.info-bloc{padding:28px 24px 8px;border-left:1px solid var(--trait);display:flex;flex-direction:column;gap:12px}
+.info-bloc:first-child{border-left:0;padding-left:0}
+.info-bloc .eyebrow{color:var(--accent)}
+.info-bloc p{color:var(--texte);line-height:1.75}
+.info-bloc p b{font-weight:700}
+.info-bloc .note{color:var(--texte-2);font-size:13.5px}
+.info-bloc .lien-fleche{color:var(--accent);margin-top:auto}
+@media (max-width:860px){
+  .infos-grille{grid-template-columns:1fr}
+  .info-bloc{border-left:0;padding:22px 0 18px}
+  .info-bloc + .info-bloc{border-top:1px solid var(--trait)}
+}
+
+/* ============ Bande d'appel finale ============ */
+.bande-cta{
+  background:var(--rouge);color:var(--blanc);
+  padding:clamp(56px,8vw,88px) 24px;text-align:left;
+}
+.bande-cta .contenu{display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap}
+.bande-cta h2{font-size:clamp(30px,4.6vw,52px);max-width:14ch}
+.bande-cta h2 .creux{color:transparent;-webkit-text-stroke:2px var(--blanc);paint-order:stroke}
+@supports not (-webkit-text-stroke: 2px white){.bande-cta h2 .creux{color:var(--blanc)}}
+.bande-cta .actions{display:flex;gap:14px;flex-wrap:wrap}
+
+/* ============ Pied de page ============ */
+.pied{background:var(--fond);border-top:1px solid var(--trait);padding:56px 0 40px}
+.pied-haut{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:32px;flex-wrap:wrap;
+  padding-bottom:36px;border-bottom:1px solid var(--trait);
+}
+.pied .marque img{border-color:var(--trait)}
+.pied-nav{display:flex;gap:22px;flex-wrap:wrap}
+.pied-nav a{
+  font-size:12.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;
+  text-decoration:none;color:var(--texte-2);
+}
+.pied-nav a:hover,.pied-nav a:focus-visible{color:var(--accent)}
+.pied-bas{
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  padding-top:24px;font-size:12.5px;color:var(--texte-2);
+}
+.pied-bas .sociaux{display:flex;gap:18px}
+.pied-bas .sociaux a{text-decoration:none;font-weight:650;color:var(--texte-2)}
+.pied-bas .sociaux a:hover,.pied-bas .sociaux a:focus-visible{color:var(--accent)}
+
 /* ============ Accessibilité / mouvement réduit ============ */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
