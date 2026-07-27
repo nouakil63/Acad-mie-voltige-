@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
+  <meta name="description" content="Stages et cours de voltige équestre pour les 6–16 ans à Auberville, entre Villers-sur-Mer et Deauville. Sport-études voltige & théâtre. Réservation en ligne.">
+  <link rel="stylesheet" href="assets/css/fonts.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="acces-rapide" href="#accueil">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="#accueil">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="#academie">L'académie</a>
+    <a href="#stages">Stages</a>
+    <a href="#cours">Cours</a>
+    <a href="#theatre">Le théâtre</a>
+    <a href="#infos">Infos pratiques</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="#stages"><span>Réserver</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="#academie">L'académie</a>
+  <a href="#stages">Stages</a>
+  <a href="#cours">Cours</a>
+  <a href="#theatre">Le théâtre</a>
+  <a href="#infos">Infos pratiques</a>
+  <a href="#stages">Réserver</a>
+</nav>
+
+<!-- ============ Section 1 : hero vidéo ============ -->
+<section class="hero-video" id="accueil">
+  <div class="hero-fond" aria-hidden="true"></div>
+  <!-- Déposer la vidéo dans assets/video/hero.mp4 (voir assets/video/README.md).
+       Tant qu'elle est absente, le fond animé ci-dessus prend le relais. -->
+  <video autoplay muted loop playsinline preload="metadata" poster="assets/video/poster.jpg" aria-hidden="true">
+    <source src="assets/video/hero.webm" type="video/webm">
+    <source src="assets/video/hero.mp4" type="video/mp4">
+  </video>
+  <div class="hero-voile" aria-hidden="true"></div>
+
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+    <ellipse class="int" cx="300" cy="300" rx="225" ry="160" transform="rotate(-14 300 300)"/>
+  </svg>
+
+  <div class="hero-contenu">
+    <p class="eyebrow">Auberville · Normandie · Depuis 2003</p>
+    <h1>
+      <span class="ligne"><span>L'art de la</span></span>
+      <span class="ligne"><span><span class="creux">voltige</span> équestre,</span></span>
+      <span class="ligne"><span>face à la mer.</span></span>
+    </h1>
+    <p class="hero-sub">Stages et cours pour les 6–16 ans, de l'initiation au perfectionnement, entre Villers-sur-Mer et Deauville. <span class="cadence" aria-hidden="true"><i></i><i></i><i></i></span></p>
+    <div class="hero-cta">
+      <a class="btn btn-plein" href="#stages"><span>Réserver un stage</span></a>
+      <a class="btn btn-contour" href="#academie"><span>Découvrir l'académie</span></a>
+    </div>
+  </div>
+
+  <a class="defile" href="#academie" aria-label="Faire défiler vers le contenu">
+    <span>Défiler</span><i aria-hidden="true"></i>
+  </a>
+  <span class="video-note">Emplacement vidéo · assets/video/hero.mp4</span>
+</section>
+
+<!-- bandeau d'actualités -->
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-piste">
+    <span>Stages été <b>Juillet — Août 2026</b></span><span>·</span>
+    <span>Sport-études <b>voltige &amp; théâtre</b></span><span>·</span>
+    <span>Auberville <b>Normandie</b></span><span>·</span>
+    <span>Inscriptions <b>ouvertes</b></span><span>·</span>
+    <span>Stages été <b>Juillet — Août 2026</b></span><span>·</span>
+    <span>Sport-études <b>voltige &amp; théâtre</b></span><span>·</span>
+    <span>Auberville <b>Normandie</b></span><span>·</span>
+    <span>Inscriptions <b>ouvertes</b></span><span>·</span>
+  </div>
+</div>
+
+<!-- ============ Section suivante (ébauche, pour tester le défilement) ============ -->
+<section class="section" id="academie">
+  <div class="contenu">
+    <div class="section-head">
+      <p class="eyebrow reveal">L'académie</p>
+      <h2 class="reveal">Une école de voltige unique en France.</h2>
+      <p class="reveal">Fondée en 2003 par Georges Cotrait, l'académie accueille les enfants de 6 à 16 ans pendant les vacances scolaires et forme une filière sport-études mêlant voltige et théâtre. — Section à construire ensuite : cette ébauche sert à tester la navigation qui devient blanche au défilement.</p>
+    </div>
+  </div>
+</section>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>
