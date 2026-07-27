@@ -203,7 +203,7 @@ img{max-width:100%}
 /* voile de lisibilité au-dessus de la vidéo */
 .hero-voile{
   position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to top, rgba(29,18,22,.78) 0%, rgba(29,18,22,.25) 45%, rgba(29,18,22,.15) 100%);
+  background:linear-gradient(to top, rgba(29,18,22,.85) 0%, rgba(29,18,22,.38) 45%, rgba(29,18,22,.25) 100%);
 }
 /* le cercle de longe, tracé à l'arrivée */
 .longe{
