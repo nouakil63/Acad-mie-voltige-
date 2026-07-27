@@ -707,7 +707,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .page-arche img{width:100%;height:100%;object-fit:cover;display:block}
 @media (max-width:640px){
   .page-hero .contenu{grid-template-columns:1fr}
-  .page-arche{display:none}
+  .page-arche{width:min(58vw,230px);justify-self:end;margin-top:6px}
 }
 
 /* respiration lente des photos (Ken Burns discret) */
