@@ -80,6 +80,13 @@ img{max-width:100%}
 .btn-contour{border-color:color-mix(in srgb, currentColor 55%, transparent);color:inherit;background:transparent}
 .btn:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 
+.lien-fleche{
+  font-size:13px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
+  text-decoration:none;display:inline-flex;gap:8px;align-items:center;
+}
+.lien-fleche i{font-style:normal;transition:transform .35s var(--galop)}
+.lien-fleche:hover i,.lien-fleche:focus-visible i{transform:translateX(6px)}
+
 /* ============================================================
    Navigation — transparente sur la vidéo, blanche au défilement
    ============================================================ */
@@ -327,7 +334,27 @@ img{max-width:100%}
   content:"";position:absolute;inset:12px 12px 0;z-index:1;pointer-events:none;
   border-radius:999px 999px 0 0;border:1px solid rgba(255,255,255,.5);border-bottom:0;
 }
-.arche-photo:nth-child(2){margin-top:56px}
+.arches > figure{margin:0}
+.arches > figure:nth-child(2){margin-top:56px}
+
+/* portrait en cercle — le cercle de longe du logo */
+.cercle-photo{
+  flex:1;max-width:220px;aspect-ratio:1;align-self:center;
+  display:flex;flex-direction:column;gap:12px;
+}
+.cercle-photo .rond{
+  width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;position:relative;
+  background:radial-gradient(ellipse at 50% 110%, var(--rouge-vif) 0%, var(--rouge) 55%, var(--rouge-sombre) 100%);
+}
+.cercle-photo .rond::before{
+  content:"";position:absolute;inset:10px;z-index:1;pointer-events:none;
+  border-radius:50%;border:1px solid rgba(255,255,255,.5);
+}
+.cercle-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.cercle-photo figcaption{
+  text-align:center;font-size:12.5px;font-weight:650;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--texte-2);
+}
 .photo-note{
   position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:2;
   white-space:nowrap;font-size:10px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;
