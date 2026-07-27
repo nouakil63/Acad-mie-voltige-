@@ -433,7 +433,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
   width:74%;height:48px;border-radius:50%;
   border:1.2px solid color-mix(in srgb, var(--blanc) 75%, transparent);
 }
-.carte-visuel img{width:100%;height:100%;object-fit:cover;display:block;position:relative}
+.carte-visuel img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .carte-visuel .places{
   position:absolute;top:14px;left:14px;z-index:2;
   font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
@@ -709,7 +709,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 }
 
 /* respiration lente des photos (Ken Burns discret) */
-.arche-photo img,.page-arche img,.bp img{animation:respirer 16s ease-in-out infinite alternate}
+.arche-photo img,.page-arche img,.bp img,.theatre-arche img,.carte-visuel img{animation:respirer 16s ease-in-out infinite alternate}
 @keyframes respirer{from{transform:scale(1.02)}to{transform:scale(1.1)}}
 
 /* bande de photos défilante */
@@ -740,7 +740,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 @media (prefers-reduced-motion: reduce){
   .page-hero .ligne > span{transform:none !important}
   .page-arche{opacity:1 !important;transform:none !important}
-  .arche-photo img,.page-arche img,.bp img{animation:none}
+  .arche-photo img,.page-arche img,.bp img,.theatre-arche img,.carte-visuel img{animation:none}
   .bande-photos .piste{animation:none}
 }
 
