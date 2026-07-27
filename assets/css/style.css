@@ -408,6 +408,61 @@ img{max-width:100%}
   .stat span{margin-top:6px;max-width:none}
 }
 
+/* ============ Section 3 : les stages ============ */
+.section-stages{background:var(--fond-2);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
+.stages-tete{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:40px;flex-wrap:wrap}
+.stages-tete .section-head{margin-bottom:0}
+
+.grille-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.carte-stage{
+  display:flex;flex-direction:column;
+  border:1px solid var(--trait);background:var(--fond);overflow:hidden;
+  transition:transform .5s var(--galop),box-shadow .5s var(--galop);
+}
+.carte-stage:hover{
+  transform:translateY(-6px);
+  box-shadow:0 24px 48px -24px color-mix(in srgb, var(--encre) 45%, transparent);
+}
+.carte-visuel{
+  height:150px;position:relative;
+  background:radial-gradient(ellipse 120% 90% at 50% 115%, var(--rouge-vif) 0%, var(--rouge) 45%, var(--rouge-sombre) 100%);
+}
+.carte-visuel::after{
+  content:"";position:absolute;left:50%;bottom:20px;transform:translateX(-50%);
+  width:74%;height:48px;border-radius:50%;
+  border:1.2px solid color-mix(in srgb, var(--blanc) 75%, transparent);
+}
+.carte-visuel img{width:100%;height:100%;object-fit:cover;display:block;position:relative}
+.carte-visuel .places{
+  position:absolute;top:14px;left:14px;z-index:2;
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--blanc);color:var(--encre);padding:7px 13px;border-radius:999px;
+}
+.carte-visuel .places.alerte{background:var(--encre);color:var(--blanc)}
+.carte-corps{padding:22px 22px 24px;display:flex;flex-direction:column;gap:11px;flex:1}
+.carte-corps .dates{
+  font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+}
+.carte-corps h3{font-size:23px}
+.carte-corps p{font-size:14.5px;color:var(--texte-2);flex:1}
+.carte-pied{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-top:1px solid var(--trait);padding-top:16px;margin-top:6px;
+}
+.carte-pied .prix{
+  font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+  font-size:23px;font-variant-numeric:tabular-nums;
+}
+.carte-pied .prix small{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--texte-2)}
+.carte-pied .lien-fleche{color:var(--accent)}
+
+.stages-note{margin-top:28px;font-size:13.5px;color:var(--texte-2);max-width:60ch}
+
+@media (max-width:960px){
+  .grille-stages{grid-template-columns:1fr;max-width:440px;margin:0 auto}
+  .stages-tete{margin-bottom:32px}
+}
+
 /* ============ Accessibilité / mouvement réduit ============ */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
