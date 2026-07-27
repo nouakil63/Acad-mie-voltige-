@@ -496,6 +496,56 @@ img{max-width:100%}
   .cours-ligne .lien-fleche{grid-column:1 / -1;margin-top:4px}
 }
 
+/* ============ Section 5 : le théâtre — soir de spectacle ============ */
+.section-theatre{
+  position:relative;overflow:hidden;
+  background:var(--encre);color:var(--voile);
+}
+.section-theatre .longe-theatre{
+  position:absolute;left:-18%;bottom:-30%;width:min(70vw,700px);aspect-ratio:1;
+  pointer-events:none;opacity:.35;
+}
+.section-theatre .longe-theatre ellipse{fill:none;stroke:var(--rouge-vif);stroke-width:1.2}
+.theatre-grille{
+  position:relative;display:grid;grid-template-columns:1fr .85fr;
+  gap:clamp(40px,6vw,80px);align-items:center;
+}
+.theatre-texte{display:flex;flex-direction:column;gap:18px;max-width:56ch}
+.theatre-texte .eyebrow{color:var(--rouge-vif)}
+.theatre-texte h2{font-size:clamp(32px,4.6vw,50px)}
+.theatre-texte h2 .creux{color:transparent;-webkit-text-stroke:1.6px var(--voile);paint-order:stroke}
+@supports not (-webkit-text-stroke: 1.6px white){.theatre-texte h2 .creux{color:var(--voile)}}
+.theatre-texte p{color:color-mix(in srgb, var(--voile) 72%, var(--encre))}
+.theatre-texte .lien-fleche{color:var(--rouge-vif);margin-top:8px}
+.theatre-citation{
+  border-left:1.4px solid var(--rouge-vif);padding-left:18px;margin-top:10px;
+  font-family:var(--display);font-weight:600;font-stretch:96%;
+  font-size:19px;line-height:1.4;color:var(--voile);
+}
+.theatre-citation small{
+  display:block;margin-top:8px;font-family:var(--sans);font-size:12px;font-weight:650;
+  letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb, var(--voile) 55%, var(--encre));
+}
+.theatre-arche{
+  justify-self:center;width:min(100%,340px);aspect-ratio:3/4;
+  border-radius:999px 999px 0 0;overflow:hidden;position:relative;
+  background:
+    radial-gradient(ellipse 120% 70% at 50% 108%, color-mix(in srgb, var(--rouge-vif) 60%, var(--encre)) 0%, transparent 60%),
+    linear-gradient(170deg, #3A1017 0%, var(--rouge-sombre) 130%);
+}
+.theatre-arche::before{
+  content:"";position:absolute;inset:12px 12px 0;z-index:1;pointer-events:none;
+  border-radius:999px 999px 0 0;border:1px solid color-mix(in srgb, var(--voile) 40%, transparent);border-bottom:0;
+}
+.theatre-arche img{width:100%;height:100%;object-fit:cover;display:block}
+.theatre-arche .photo-note{color:color-mix(in srgb, var(--voile) 70%, transparent);border-color:color-mix(in srgb, var(--voile) 30%, transparent)}
+.theatre-arche:has(img) .photo-note{display:none}
+
+@media (max-width:860px){
+  .theatre-grille{grid-template-columns:1fr}
+  .theatre-arche{width:min(78vw,300px)}
+}
+
 /* ============ Accessibilité / mouvement réduit ============ */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
