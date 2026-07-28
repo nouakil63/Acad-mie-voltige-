@@ -65,15 +65,18 @@
     } else {
       try { sessionStorage.setItem('chargeur-vu', '1'); } catch (e) {}
       var fini = false;
+      var debut = Date.now();
       var termine = function () {
         if (fini) { return; }
+        var reste = Math.max(0, 2050 - (Date.now() - debut));
+        if (reste > 0) { setTimeout(termine, reste); return; }
         fini = true;
         chargeur.classList.add('fini');
         lancerEntree();
         setTimeout(function () { chargeur.remove(); }, 700);
       };
-      window.addEventListener('load', function () { setTimeout(termine, 500); });
-      setTimeout(termine, 2200);
+      window.addEventListener('load', function () { setTimeout(termine, 300); });
+      setTimeout(termine, 2600);
     }
   } else {
     lancerEntree();
