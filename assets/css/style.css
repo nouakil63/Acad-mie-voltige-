@@ -733,6 +733,27 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .arche-photo img,.page-arche img,.bp img,.theatre-arche img,.carte-visuel img{animation:respirer 16s ease-in-out infinite alternate}
 @keyframes respirer{from{transform:scale(1.02)}to{transform:scale(1.1)}}
 
+/* listes à faire / à prévoir */
+.regles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.regles{grid-template-columns:1fr}}
+.regle{border:1px solid var(--trait);background:var(--fond-2);padding:28px}
+.regle h3{font-size:20px;margin-bottom:16px}
+.regle ul{
+  margin:0;padding:0;list-style:none;
+  display:flex;flex-direction:column;gap:10px;font-size:15px;color:var(--texte-2);
+}
+.regle li{padding-left:22px;position:relative}
+.regle.oui li::before{content:"—";position:absolute;left:0;color:var(--accent)}
+
+/* le sac de la semaine : listes + photo */
+.sac-grille{display:grid;grid-template-columns:1fr auto;gap:clamp(24px,4vw,56px);align-items:center}
+.sac-grille .regles{grid-template-columns:1fr}
+.sac-photo{width:min(30vw,300px);aspect-ratio:3/4;margin:0}
+@media (max-width:900px){
+  .sac-grille{grid-template-columns:1fr}
+  .sac-photo{width:min(62vw,280px);justify-self:center}
+}
+
 /* bande de photos défilante */
 .bande-photos{overflow:hidden;padding:clamp(40px,6vw,64px) 0;border-top:1px solid var(--trait);background:var(--fond)}
 .bande-photos .piste{display:flex;gap:clamp(12px,2vw,20px);width:max-content;animation:defiler 36s linear infinite}
