@@ -962,6 +962,55 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .confirmation h3{font-size:21px;color:var(--rouge)}
 .confirmation p{font-size:14.5px;color:var(--texte-2)}
 
+/* ============ Loader d'arrivée ============ */
+.chargeur{
+  position:fixed;inset:0;z-index:200;background:var(--blanc);
+  display:flex;align-items:center;justify-content:center;
+}
+.chargeur .noyau{position:relative;width:150px;height:150px;display:grid;place-items:center}
+.chargeur img{width:76px;height:76px;border-radius:50%;object-fit:cover}
+.chargeur svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.chargeur circle{
+  fill:none;stroke:var(--rouge);stroke-width:2;stroke-linecap:round;
+  stroke-dasharray:440;stroke-dashoffset:440;
+  animation:trace-chargeur 1.4s var(--galop) forwards;
+}
+@keyframes trace-chargeur{to{stroke-dashoffset:0}}
+.chargeur .cadence{position:absolute;left:50%;bottom:-38px;transform:translateX(-50%);color:var(--rouge)}
+.chargeur.fini{opacity:0;visibility:hidden;transition:opacity .55s var(--galop),visibility 0s .55s}
+
+/* ============ Popup d'inscription aux actualités ============ */
+.surgi{
+  position:fixed;inset:0;z-index:150;
+  background:color-mix(in srgb, var(--encre) 55%, transparent);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.surgi[hidden]{display:none}
+.surgi .carte-surgi{
+  position:relative;background:var(--blanc);max-width:430px;width:100%;
+  border:1.4px solid var(--encre);padding:clamp(26px,5vw,36px);
+  display:flex;flex-direction:column;gap:14px;
+  animation:surgi-entre .5s var(--galop);
+}
+@keyframes surgi-entre{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:none}}
+.surgi h3{font-size:clamp(23px,3vw,28px)}
+.surgi h3 em{font-style:normal;color:var(--accent)}
+.surgi p{font-size:14.5px;color:var(--texte-2)}
+.surgi form{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.surgi input[type="email"]{
+  font:inherit;font-size:15px;padding:13px 15px;border:1.4px solid var(--trait);border-radius:0;width:100%;
+}
+.surgi input[type="email"]:focus{outline:none;border-color:var(--rouge)}
+.surgi .note-surgi{font-size:12px;color:var(--texte-2)}
+.fermer-surgi{
+  position:absolute;top:10px;right:10px;width:38px;height:38px;
+  background:none;border:0;cursor:pointer;font-size:22px;line-height:1;color:var(--texte-2);
+}
+.fermer-surgi:hover,.fermer-surgi:focus-visible{color:var(--rouge)}
+.surgi .merci{display:none;color:var(--rouge);font-weight:700;font-size:14.5px}
+.surgi.envoye form{display:none}
+.surgi.envoye .merci{display:block}
+
 /* ============ Accessibilité / mouvement réduit ============ */
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
@@ -974,6 +1023,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
   .longe ellipse{stroke-dashoffset:0}
   .hero-video video{display:none}   /* la vidéo autoplay est coupée, le fond fixe prend le relais */
   .hero-photo,.page-hero-photo{animation:none}
+  .chargeur{display:none}
   .cercle-hero .rond-photo{opacity:1 !important;transform:none !important}
   .cercle-hero .rond-photo img{animation:none}
 }

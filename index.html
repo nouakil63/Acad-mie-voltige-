@@ -6,12 +6,37 @@
   <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
   <meta name="theme-color" content="#D00828">
   <meta name="description" content="Stages et cours de voltige équestre pour les 6–16 ans à Auberville, à 15 minutes de Deauville. Sport-études voltige & théâtre. Réservation en ligne.">
-  <link rel="stylesheet" href="assets/css/fonts.css?v=28">
-  <link rel="stylesheet" href="assets/css/style.css?v=28">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=29">
+  <link rel="stylesheet" href="assets/css/style.css?v=29">
 </head>
 <body>
 
 <a class="acces-rapide" href="#accueil">Aller au contenu</a>
+
+<!-- loader d'arrivée -->
+<div class="chargeur" id="chargeur" aria-hidden="true">
+  <div class="noyau">
+    <img src="assets/img/logo.jpeg" alt="">
+    <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="70"/></svg>
+    <span class="cadence"><i></i><i></i><i></i></span>
+  </div>
+</div>
+
+<!-- popup d'inscription aux actualités -->
+<div class="surgi" id="surgi" role="dialog" aria-modal="true" aria-labelledby="surgi-titre" hidden>
+  <div class="carte-surgi">
+    <button class="fermer-surgi" type="button" aria-label="Fermer">✕</button>
+    <p class="eyebrow">Les actualités de l'académie</p>
+    <h3 id="surgi-titre">Les dates de stages, <em>avant tout le monde</em>.</h3>
+    <p>Laissez votre e-mail et recevez les dates de stages, les places qui se libèrent et les représentations du théâtre.</p>
+    <form id="form-surgi" novalidate>
+      <input type="email" id="surgi-email" placeholder="votre@email.fr" autocomplete="email" required aria-label="Votre e-mail">
+      <button type="submit" class="btn btn-rouge" style="justify-content:center"><span>Recevoir les infos</span></button>
+    </form>
+    <p class="merci">Merci ! Votre messagerie s'est ouverte — appuyez sur « Envoyer » pour confirmer.</p>
+    <p class="note-surgi">Quelques e-mails par an, jamais de publicité. Désinscription en un mot.</p>
+  </div>
+</div>
 
 <!-- ============ Navigation ============ -->
 <header class="nav">
@@ -361,6 +386,6 @@
   </div>
 </footer>
 
-<script src="assets/js/main.js?v=28"></script>
+<script src="assets/js/main.js?v=29"></script>
 </body>
 </html>
