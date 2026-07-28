@@ -209,12 +209,18 @@ img{max-width:100%;height:auto}
   from{background-position:0% 0%}
   to{background-position:100% 100%}
 }
-/* vidéo YouTube en fond du hero */
-.hero-yt{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+/* vidéo YouTube en fond du hero — dimensionnée sur le bloc, pas sur l'écran */
+.hero-yt{position:absolute;inset:0;overflow:hidden;pointer-events:none;container-type:size}
 .hero-yt iframe{
   position:absolute;top:50%;left:50%;border:0;
   width:max(100vw, 177.78svh);height:max(100svh, 56.25vw);
   transform:translate(-50%,-50%);
+}
+@supports (container-type: size){
+  .hero-yt iframe{
+    width:max(100.5cqw, 178.5cqh);
+    height:max(100.5cqh, 56.6cqw);
+  }
 }
 @media (prefers-reduced-motion: reduce){.hero-yt{display:none}}
 
