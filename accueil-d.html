@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr" class="page-d">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Une journée à l'Académie de voltige équestre d'Auberville : les écuries, le manège, le théâtre, le spectacle. Stages et cours dès 6 ans, à 15 minutes de Deauville.">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=24">
+  <link rel="stylesheet" href="assets/css/style.css?v=24">
+  <style>
+    /* ============ Variante D : la journée en chapitres ============ */
+    .page-d{scroll-snap-type:y proximity}
+    .accueil-d{background:var(--encre)}
+
+    .chapitre{
+      position:relative;min-height:100svh;overflow:hidden;
+      display:flex;align-items:center;
+      scroll-snap-align:start;
+      color:var(--blanc);
+    }
+    .chapitre .fond{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .chapitre .voile-ch{position:absolute;inset:0}
+    .chapitre .cadre-ch{
+      position:relative;max-width:1080px;width:100%;margin:0 auto;
+      padding:calc(var(--nav-h) + 24px) clamp(20px,5vw,48px) 64px;
+    }
+    /* l'heure fantôme, immense */
+    .heure-fantome{
+      position:absolute;right:-1vw;bottom:-4vw;z-index:0;pointer-events:none;
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(120px,26vw,360px);line-height:1;color:transparent;
+      -webkit-text-stroke:1.5px rgba(255,255,255,.22);
+      font-variant-numeric:tabular-nums;white-space:nowrap;
+    }
+    .chapitre .recit{position:relative;max-width:30ch;display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+    .chapitre.droite .recit{margin-left:auto;text-align:right;align-items:flex-end}
+    .chapitre .heure-ch{
+      font-size:13px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--rouge-vif);
+    }
+    .chapitre h2{font-size:clamp(34px,5.6vw,60px);text-wrap:balance}
+    .chapitre h2 .creux{color:transparent;-webkit-text-stroke:2px var(--blanc);paint-order:stroke}
+    .chapitre .texte-ch{font-size:16.5px;color:rgba(255,255,255,.88);max-width:44ch}
+    .chapitre .lien-fleche{color:var(--rouge-vif)}
+    .chapitre .apparait{opacity:0;transform:translateY(22px)}
+    .chapitre.vu .apparait{opacity:1;transform:none;transition:opacity .8s var(--galop),transform .8s var(--galop)}
+    .chapitre.vu .apparait:nth-child(2){transition-delay:.12s}
+    .chapitre.vu .apparait:nth-child(3){transition-delay:.24s}
+    .chapitre.vu .apparait:nth-child(4){transition-delay:.36s}
+
+    /* rail des heures */
+    .rail{
+      position:fixed;right:clamp(10px,2vw,26px);top:50%;transform:translateY(-50%);z-index:40;
+      display:flex;flex-direction:column;gap:16px;
+    }
+    .rail a{
+      display:flex;align-items:center;gap:10px;text-decoration:none;
+      color:rgba(255,255,255,.55);font-size:10.5px;font-weight:700;letter-spacing:.16em;
+    }
+    .rail a i{
+      width:9px;height:9px;border-radius:50%;border:1.4px solid currentColor;background:transparent;
+      font-style:normal;flex-shrink:0;transition:background .3s var(--galop),transform .3s var(--galop);
+    }
+    .rail a span{opacity:0;transform:translateX(6px);transition:opacity .3s var(--galop),transform .3s var(--galop)}
+    .rail a.actif{color:var(--rouge-vif)}
+    .rail a.actif i{background:var(--rouge-vif);transform:scale(1.25)}
+    .rail a.actif span,.rail a:hover span{opacity:1;transform:none}
+    .rail{flex-direction:column-reverse}
+    .rail{flex-direction:column}
+    @media (max-width:700px){.rail a span{display:none}}
+
+    /* ouverture */
+    .ch-ouverture .voile-ch{background:linear-gradient(to bottom, rgba(29,18,22,.55), rgba(29,18,22,.75))}
+    .ch-ouverture .recit{max-width:none;align-items:center;text-align:center;margin:0 auto}
+    .ch-ouverture h1{font-size:clamp(40px,7.4vw,88px);max-width:14ch;text-wrap:balance}
+    .ch-ouverture h1 .creux{color:transparent;-webkit-text-stroke:2px var(--blanc);paint-order:stroke}
+    .ch-ouverture .texte-ch{max-width:52ch;text-align:center}
+    .ch-ouverture .descendre{
+      position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;
+      font-size:10.5px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.7);
+    }
+    .ch-ouverture .descendre i{width:1.4px;height:34px;background:rgba(255,255,255,.5);overflow:hidden;position:relative;font-style:normal}
+    .ch-ouverture .descendre i::after{content:"";position:absolute;left:0;top:-100%;width:100%;height:100%;background:var(--blanc);animation:goutte 2.2s var(--galop) infinite}
+
+    /* teintes par chapitre */
+    .ch-ecuries .voile-ch{background:linear-gradient(100deg, rgba(29,18,22,.82) 0%, rgba(29,18,22,.35) 65%, rgba(29,18,22,.2) 100%)}
+    .ch-manege .voile-ch{background:linear-gradient(280deg, rgba(29,18,22,.82) 0%, rgba(29,18,22,.35) 65%, rgba(29,18,22,.2) 100%)}
+    .ch-theatre{background:var(--encre)}
+    .ch-theatre .fond{opacity:.5;filter:saturate(.85)}
+    .ch-theatre .voile-ch{background:radial-gradient(ellipse 90% 80% at 50% 100%, rgba(165,8,31,.5) 0%, transparent 55%), linear-gradient(to bottom, rgba(29,18,22,.6), rgba(29,18,22,.75))}
+    .ch-theatre .recit{max-width:none;align-items:center;text-align:center;margin:0 auto}
+    .ch-theatre .texte-ch{text-align:center}
+    .ch-spectacle .voile-ch{background:linear-gradient(100deg, rgba(120,10,26,.8) 0%, rgba(29,18,22,.55) 70%)}
+
+    /* programme intégré au chapitre stages */
+    .mini-programme{display:flex;flex-direction:column;gap:1px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.18);min-width:min(100%,400px)}
+    .mini-programme a{
+      display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+      background:rgba(29,18,22,.72);padding:13px 16px;text-decoration:none;color:var(--blanc);
+      font-size:13.5px;transition:background .3s var(--galop);
+    }
+    .mini-programme a:hover{background:rgba(29,18,22,.5)}
+    .mini-programme b{font-weight:700}
+    .mini-programme small{color:rgba(255,255,255,.65)}
+    .mini-programme .p{color:var(--rouge-vif);font-weight:700;white-space:nowrap}
+
+    /* fin : écran coupé en deux */
+    .ch-demain{display:grid;grid-template-columns:1fr 1fr;min-height:100svh;padding:0}
+    @media (max-width:760px){.ch-demain{grid-template-columns:1fr}}
+    .moitie{
+      position:relative;overflow:hidden;display:flex;align-items:flex-end;
+      text-decoration:none;color:var(--blanc);min-height:50svh;
+    }
+    .moitie img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1s var(--galop)}
+    .moitie:hover img{transform:scale(1.06)}
+    .moitie .voile-m{position:absolute;inset:0;background:linear-gradient(to top, rgba(29,18,22,.85), rgba(29,18,22,.25));transition:background .5s var(--galop)}
+    .moitie:hover .voile-m{background:linear-gradient(to top, rgba(165,8,31,.85), rgba(29,18,22,.3))}
+    .moitie .dedans-m{position:relative;padding:clamp(28px,4vw,48px);display:flex;flex-direction:column;gap:10px}
+    .moitie .sur{font-size:12px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--rouge-vif)}
+    .moitie:hover .sur{color:var(--blanc)}
+    .moitie h2{font-size:clamp(30px,3.8vw,46px)}
+    .moitie p{font-size:15px;color:rgba(255,255,255,.85);max-width:40ch}
+    .moitie .lien-fleche{color:var(--blanc);margin-top:6px}
+
+    .pied-d{
+      background:var(--encre);color:rgba(255,255,255,.6);font-size:12.5px;
+      display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+      padding:20px clamp(20px,5vw,48px);border-top:1px solid rgba(255,255,255,.14);
+    }
+    .pied-d a{color:rgba(255,255,255,.75);text-decoration:none;font-weight:650}
+    .pied-d a:hover{color:var(--rouge-vif)}
+    .pied-d .liens-d{display:flex;gap:18px;flex-wrap:wrap}
+
+    @media (prefers-reduced-motion: reduce){
+      .chapitre .apparait{opacity:1 !important;transform:none !important}
+    }
+  </style>
+</head>
+<body class="accueil-d">
+
+<a class="acces-rapide" href="#ouverture">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="index.html#theatre">Le théâtre</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="index.html#theatre">Le théâtre</a>
+  <a href="contact.html">Contact</a>
+  <a href="inscription.html">Inscription</a>
+</nav>
+
+<!-- rail des heures -->
+<nav class="rail" aria-label="La journée">
+  <a href="#ouverture" data-ch="ouverture"><i></i><span>AUBERVILLE</span></a>
+  <a href="#ecuries" data-ch="ecuries"><i></i><span>08H30</span></a>
+  <a href="#manege" data-ch="manege"><i></i><span>10H00</span></a>
+  <a href="#theatre-ch" data-ch="theatre-ch"><i></i><span>14H00</span></a>
+  <a href="#stages-ch" data-ch="stages-ch"><i></i><span>16H00</span></a>
+  <a href="#spectacle" data-ch="spectacle"><i></i><span>19H00</span></a>
+  <a href="#demain" data-ch="demain"><i></i><span>DEMAIN</span></a>
+</nav>
+
+<!-- ============ Ouverture ============ -->
+<section class="chapitre ch-ouverture" id="ouverture">
+  <img class="fond" src="assets/img/voltige-pyramide.jpeg" alt="" style="object-position:center 30%">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <div class="cadre-ch">
+    <div class="recit">
+      <p class="heure-ch apparait">Auberville · Normandie</p>
+      <h1 class="apparait">Une journée à l'académie de <span class="creux">voltige</span>.</h1>
+      <p class="texte-ch apparait">Faites défiler : voici, heure par heure, ce que vit un enfant chez nous — des écuries au spectacle. Stages pendant les vacances, cours toute l'année, dès 6 ans.</p>
+    </div>
+  </div>
+  <a class="descendre" href="#ecuries">08h30 <i aria-hidden="true"></i></a>
+</section>
+
+<!-- ============ 08h30 — Les écuries ============ -->
+<section class="chapitre ch-ecuries" id="ecuries">
+  <img class="fond" src="assets/img/voltige-planche.jpeg" alt="" loading="lazy">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <span class="heure-fantome" aria-hidden="true">08:30</span>
+  <div class="cadre-ch">
+    <div class="recit">
+      <p class="heure-ch apparait">08h30 — Les écuries</p>
+      <h2 class="apparait">On commence par dire bonjour aux chevaux.</h2>
+      <p class="texte-ch apparait">Brosser, préparer, remercier. Avant de monter, on apprend à connaître son cheval — c'est le premier geste de la méthode Cotrait, depuis cinquante ans.</p>
+      <a class="lien-fleche apparait" href="histoire.html">Notre histoire <i>→</i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10h00 — Le manège ============ -->
+<section class="chapitre droite ch-manege" id="manege">
+  <img class="fond" src="assets/img/voltige-longe.jpeg" alt="" loading="lazy">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <span class="heure-fantome" style="right:auto;left:-1vw" aria-hidden="true">10:00</span>
+  <div class="cadre-ch">
+    <div class="recit">
+      <p class="heure-ch apparait">10h00 — Le manège</p>
+      <h2 class="apparait">En cercle, à la longe, en confiance.</h2>
+      <p class="texte-ch apparait">Le cheval tourne, l'enseignant tient la longe, l'enfant n'a plus qu'à trouver son équilibre — puis à se tenir debout. Aucun niveau requis pour commencer.</p>
+      <a class="lien-fleche apparait" href="cours.html">Les cours à l'année <i>→</i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14h00 — Le théâtre ============ -->
+<section class="chapitre ch-theatre" id="theatre-ch">
+  <img class="fond" src="assets/img/voltige-duo.jpeg" alt="" loading="lazy">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <div class="cadre-ch">
+    <div class="recit">
+      <p class="heure-ch apparait">14h00 — Le théâtre</p>
+      <h2 class="apparait">Quand le manège devient une <span class="creux">scène</span>.</h2>
+      <p class="texte-ch apparait">L'après-midi, on répète : costumes, lumières, mise en scène. Un théâtre équestre de 70 places au milieu des écuries — il n'en existe pas d'autre en France.</p>
+      <a class="lien-fleche apparait" href="index.html#theatre">Le théâtre de l'académie <i>→</i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16h00 — Les stages ============ -->
+<section class="chapitre droite ch-manege" id="stages-ch">
+  <img class="fond" src="assets/img/voltige-solo.jpeg" alt="" style="object-position:center 20%" loading="lazy">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <span class="heure-fantome" style="right:auto;left:-1vw" aria-hidden="true">16:00</span>
+  <div class="cadre-ch">
+    <div class="recit" style="max-width:none;width:min(100%,440px)">
+      <p class="heure-ch apparait">16h00 — Le grand air</p>
+      <h2 class="apparait">Une semaine comme ça, en stage.</h2>
+      <div class="mini-programme apparait">
+        <a href="reservation.html?stage=0"><span><b>Découverte</b> <small>· 6–10 ans · 3–8 août</small></span><span class="p">540 €</span></a>
+        <a href="reservation.html?stage=1"><span><b>Perfectionnement</b> <small>· 11–16 ans · 10–15 août</small></span><span class="p">590 €</span></a>
+        <a href="reservation.html?stage=2"><span><b>Voltige &amp; théâtre</b> <small>· 8–16 ans · 19–24 oct.</small></span><span class="p">560 €</span></a>
+      </div>
+      <a class="lien-fleche apparait" href="stages.html">Tout sur les stages <i>→</i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 19h00 — Le spectacle ============ -->
+<section class="chapitre ch-spectacle" id="spectacle">
+  <img class="fond" src="assets/img/voltige-pyramide.jpeg" alt="" loading="lazy">
+  <div class="voile-ch" aria-hidden="true"></div>
+  <span class="heure-fantome" aria-hidden="true">19:00</span>
+  <div class="cadre-ch">
+    <div class="recit">
+      <p class="heure-ch apparait" style="color:var(--blanc)">19h00 — Le spectacle</p>
+      <h2 class="apparait">Le samedi, les familles s'assoient. Les enfants entrent en piste.</h2>
+      <p class="texte-ch apparait">Chaque stage et chaque saison se terminent sur scène, devant les parents. On dépose un enfant le lundi — on retrouve un artiste le samedi.</p>
+      <a class="lien-fleche apparait" href="inscription.html" style="color:var(--blanc)">Offrir ça à mon enfant <i>→</i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Demain — le choix ============ -->
+<section class="chapitre ch-demain" id="demain">
+  <a class="moitie" href="stages.html">
+    <img src="assets/img/voltige-solo.jpeg" alt="" style="object-position:center 25%" loading="lazy">
+    <span class="voile-m" aria-hidden="true"></span>
+    <span class="dedans-m">
+      <span class="sur">Pendant les vacances</span>
+      <h2>Un stage</h2>
+      <p>Une semaine en pension complète, dès 6 ans, sans niveau requis. À partir de 540 €.</p>
+      <span class="lien-fleche">Choisir ma semaine <i>→</i></span>
+    </span>
+  </a>
+  <a class="moitie" href="cours.html">
+    <img src="assets/img/voltige-longe.jpeg" alt="" loading="lazy">
+    <span class="voile-m" aria-hidden="true"></span>
+    <span class="dedans-m">
+      <span class="sur">Toute l'année</span>
+      <h2>Les cours</h2>
+      <p>Chaque semaine de septembre à juin. Premier cours d'essai sans engagement. À partir de 390 €/an.</p>
+      <span class="lien-fleche">Choisir ma formule <i>→</i></span>
+    </span>
+  </a>
+</section>
+
+<!-- pied minimal -->
+<footer class="pied-d">
+  <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie</span>
+  <span class="liens-d">
+    <a href="histoire.html">Notre histoire</a>
+    <a href="contact.html">Contact</a>
+    <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+    <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+  </span>
+</footer>
+
+<script src="assets/js/main.js?v=24"></script>
+<script>
+(function () {
+  'use strict';
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var chapitres = document.querySelectorAll('.chapitre');
+  var liens = document.querySelectorAll('.rail a');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entrees) {
+      entrees.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('vu');
+          var id = e.target.id;
+          liens.forEach(function (l) {
+            l.classList.toggle('actif', l.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { threshold: 0.45 });
+    chapitres.forEach(function (c) { io.observe(c); });
+  } else {
+    chapitres.forEach(function (c) { c.classList.add('vu'); });
+  }
+  if (reduced) { chapitres.forEach(function (c) { c.classList.add('vu'); }); }
+})();
+</script>
+</body>
+</html>
