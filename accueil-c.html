@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="L'Académie de voltige équestre d'Auberville, en Normandie : stages pendant les vacances, cours à l'année dès 6 ans, et un théâtre équestre unique en France.">
+  <link rel="stylesheet" href="assets/css/style.css?v=24">
+  <style>
+    /* ============ Variante C : classique, serif, cadres ============ */
+    @font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:300 700;font-display:swap;src:url('assets/fonts/cormorant-normal.woff2') format('woff2')}
+    @font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:300 700;font-display:swap;src:url('assets/fonts/cormorant-italic.woff2') format('woff2')}
+    @font-face{font-family:'Lora';font-style:normal;font-weight:400 700;font-display:swap;src:url('assets/fonts/lora-normal.woff2') format('woff2')}
+    @font-face{font-family:'Lora';font-style:italic;font-weight:400 700;font-display:swap;src:url('assets/fonts/lora-italic.woff2') format('woff2')}
+
+    .accueil-c{
+      --display:'Cormorant Garamond', Georgia, serif;
+      --sans:'Lora', Georgia, serif;
+      --display-wght:560;
+      --display-stretch:100%;
+      --display-track:0;
+      background:var(--voile);
+      font-family:var(--sans);font-size:17.5px;line-height:1.75;
+    }
+    .accueil-c h1,.accueil-c h2,.accueil-c h3{line-height:1.14;font-weight:560}
+
+    /* boutons : rectangles droits, petites capitales espacées */
+    .accueil-c .btn{
+      border-radius:0;font-family:var(--sans);font-size:12.5px;font-weight:600;
+      letter-spacing:.24em;padding:15px 30px;
+    }
+    .accueil-c .btn::before{border-radius:0}
+    .accueil-c .btn-c-plein{background:var(--rouge);color:var(--blanc);border:1px solid var(--rouge)}
+    .accueil-c .btn-c-contour{background:transparent;color:var(--texte);border:1px solid var(--texte)}
+    .accueil-c .eyebrow{font-family:var(--sans);font-weight:600;letter-spacing:.3em;font-size:11.5px}
+
+    /* la nav héritera des serifs par les variables */
+    .accueil-c .marque small,.accueil-c .nav-liens a,.accueil-c .btn-nav{font-family:var(--sans)}
+    .accueil-c .nav-liens a{font-size:12.5px;letter-spacing:.12em;font-weight:600}
+    .accueil-c .btn-nav{border-radius:0}
+
+    /* ornement : filet — losange — filet */
+    .ornement{display:flex;align-items:center;gap:16px;justify-content:center;margin:0 auto}
+    .ornement::before,.ornement::after{content:"";height:1px;width:min(120px,26vw);background:var(--texte)}
+    .ornement i{
+      width:8px;height:8px;background:var(--rouge);transform:rotate(45deg);flex-shrink:0;
+    }
+
+    /* cadre à double filet */
+    .cadre-double{border:1px solid var(--texte);padding:6px;background:var(--fond)}
+    .cadre-double > .dedans{border:1px solid var(--trait);padding:clamp(28px,5vw,56px)}
+
+    /* hero encadré, centré */
+    .hero-c{padding:calc(var(--nav-h) + clamp(32px,6vw,64px)) clamp(16px,4vw,24px) 0}
+    .hero-c .cadre-double{max-width:900px;margin:0 auto}
+    .hero-c .dedans{text-align:center;display:flex;flex-direction:column;align-items:center;gap:22px}
+    .hero-c h1{font-size:clamp(40px,6.6vw,72px);max-width:16ch;text-wrap:balance}
+    .hero-c h1 em{font-style:italic;color:var(--rouge)}
+    .hero-c .sous{font-style:italic;font-size:18.5px;color:var(--texte-2);max-width:46ch}
+    .hero-c .actions{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+    .hero-c .dedans > *{opacity:0;transform:translateY(14px)}
+    .loaded .hero-c .dedans > *{opacity:1;transform:none;transition:opacity .9s var(--galop),transform .9s var(--galop)}
+    .loaded .hero-c .dedans > *:nth-child(2){transition-delay:.12s}
+    .loaded .hero-c .dedans > *:nth-child(3){transition-delay:.24s}
+    .loaded .hero-c .dedans > *:nth-child(4){transition-delay:.36s}
+    .loaded .hero-c .dedans > *:nth-child(5){transition-delay:.48s}
+
+    /* photo rectangulaire à cadre décalé */
+    .photo-encadree{position:relative;max-width:900px;margin:clamp(36px,6vw,56px) auto 0;padding:0 clamp(16px,4vw,24px)}
+    .photo-encadree .cadre{position:relative;display:block;border:1px solid var(--texte);background:var(--fond);padding:10px}
+    .photo-encadree .cadre::after{
+      content:"";position:absolute;inset:0;transform:translate(14px,14px);
+      border:1px solid var(--rouge);z-index:-1;
+    }
+    .photo-encadree img{width:100%;height:clamp(240px,42vw,460px);object-fit:cover;object-position:center 30%;display:block;filter:sepia(.12) saturate(.95)}
+    .photo-encadree figcaption{
+      text-align:center;font-style:italic;font-size:14px;color:var(--texte-2);padding-top:12px;
+    }
+
+    /* lettrine */
+    .lettrine{max-width:640px;margin:0 auto;text-align:justify;text-align-last:center}
+    .lettrine p{font-size:18px;line-height:1.9}
+    .lettrine p::first-letter{
+      font-family:var(--display);font-weight:600;color:var(--rouge);
+      font-size:4.2em;line-height:.8;float:left;padding:8px 12px 0 0;
+    }
+
+    /* offres en cadres */
+    .offres-c{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2.5vw,26px)}
+    @media (max-width:860px){.offres-c{grid-template-columns:1fr;max-width:440px;margin:0 auto}}
+    .offre-c{border:1px solid var(--texte);background:var(--fond);padding:8px;text-decoration:none;display:flex;flex-direction:column;transition:transform .5s var(--galop),box-shadow .5s var(--galop)}
+    .offre-c:hover{transform:translateY(-5px);box-shadow:10px 10px 0 -4px color-mix(in srgb, var(--rouge) 30%, transparent)}
+    .offre-c .dedans-o{border:1px solid var(--trait);padding:20px;display:flex;flex-direction:column;gap:13px;flex:1;text-align:center;align-items:center}
+    .offre-c img{width:100%;height:190px;object-fit:cover;display:block;filter:sepia(.12) saturate(.95)}
+    .offre-c h3{font-size:26px}
+    .offre-c p{font-size:15px;color:var(--texte-2);flex:1}
+    .offre-c .petit-lien{
+      font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--rouge);
+      border-bottom:1px solid var(--rouge);padding-bottom:3px;
+    }
+
+    /* chiffres entre filets */
+    .chiffres-c{
+      border-top:1px solid var(--texte);border-bottom:1px solid var(--texte);
+      display:grid;grid-template-columns:repeat(3,1fr);text-align:center;
+    }
+    @media (max-width:640px){.chiffres-c{grid-template-columns:1fr}}
+    .chiffre-c{padding:clamp(24px,4vw,40px) 16px;border-left:1px solid var(--trait)}
+    .chiffre-c:first-child{border-left:0}
+    @media (max-width:640px){.chiffre-c{border-left:0;border-top:1px solid var(--trait)}.chiffre-c:first-child{border-top:0}}
+    .chiffre-c b{
+      display:block;font-family:var(--display);font-weight:560;font-size:clamp(44px,6vw,64px);
+      line-height:1;color:var(--rouge);
+    }
+    .chiffre-c span{font-size:14px;font-style:italic;color:var(--texte-2)}
+
+    /* citation centrale */
+    .citation-c{max-width:720px;margin:0 auto;text-align:center;display:flex;flex-direction:column;gap:18px;align-items:center}
+    .citation-c blockquote{
+      margin:0;font-family:var(--display);font-style:italic;font-weight:500;
+      font-size:clamp(24px,3.6vw,34px);line-height:1.4;
+    }
+    .citation-c cite{font-style:normal;font-size:12.5px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--texte-2)}
+
+    /* le programme des stages : une table classique */
+    .programme{max-width:860px;margin:0 auto;border-top:1px solid var(--texte)}
+    .ligne-prog{
+      display:grid;grid-template-columns:150px 1fr auto auto;gap:10px 24px;align-items:baseline;
+      padding:22px 6px;border-bottom:1px solid var(--trait);text-decoration:none;
+      transition:background .35s var(--galop);
+    }
+    .ligne-prog:hover{background:var(--fond)}
+    .ligne-prog .date-prog{font-style:italic;font-size:14.5px;color:var(--texte-2)}
+    .ligne-prog .nom-prog{font-family:var(--display);font-weight:600;font-size:22px;color:var(--texte)}
+    .ligne-prog .nom-prog small{display:block;font-family:var(--sans);font-weight:400;font-size:13.5px;font-style:italic;color:var(--texte-2)}
+    .ligne-prog .prix-prog{font-family:var(--display);font-weight:600;font-size:21px;color:var(--texte);white-space:nowrap}
+    .ligne-prog .resa-prog{font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--rouge);border-bottom:1px solid var(--rouge);padding-bottom:3px}
+    @media (max-width:680px){
+      .ligne-prog{grid-template-columns:1fr auto}
+      .ligne-prog .date-prog{grid-column:1 / -1}
+      .ligne-prog .resa-prog{grid-column:1 / -1;justify-self:start;margin-top:4px}
+    }
+
+    /* pied hérite des serifs ; sections */
+    .accueil-c .section{padding:clamp(56px,8vw,88px) 0}
+    .accueil-c .pied{background:var(--voile)}
+    .accueil-c .pied-nav a,.accueil-c .pied-bas{font-family:var(--sans);letter-spacing:.1em}
+  </style>
+</head>
+<body class="accueil-c nav-toujours-blanche">
+
+<a class="acces-rapide" href="#accueil">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="index.html#theatre">Le théâtre</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="index.html#theatre">Le théâtre</a>
+  <a href="contact.html">Contact</a>
+  <a href="inscription.html">Inscription</a>
+</nav>
+
+<!-- ============ Hero encadré ============ -->
+<section class="hero-c" id="accueil">
+  <div class="cadre-double">
+    <div class="dedans">
+      <p class="eyebrow" style="color:var(--rouge)">Auberville · Normandie · Depuis 2003</p>
+      <h1>Académie de <em>voltige</em> équestre</h1>
+      <div class="ornement" aria-hidden="true"><i></i></div>
+      <p class="sous">Stages, cours et théâtre équestre pour les enfants de 6 à 16 ans, sous la conduite de Fleur &amp; Georges Cotrait.</p>
+      <div class="actions">
+        <a class="btn btn-c-plein" href="inscription.html"><span>Inscription</span></a>
+        <a class="btn btn-c-contour" href="histoire.html"><span>Notre histoire</span></a>
+      </div>
+    </div>
+  </div>
+  <figure class="photo-encadree">
+    <span class="cadre">
+      <img src="assets/img/voltige-pyramide.jpeg" alt="Pyramide de trois voltigeuses sur un cheval, en plein ciel">
+    </span>
+    <figcaption>La pyramide — figure d'équipe, présentée en concours et sur scène.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ L'école, en lettrine ============ -->
+<section class="section">
+  <div class="contenu">
+    <div class="ornement reveal" style="margin-bottom:40px" aria-hidden="true"><i></i></div>
+    <div class="lettrine reveal">
+      <p>Fondée en 2003 par Georges Cotrait et sa fille Fleur, l'académie est une école comme il n'en existe pas d'autre en France : on y apprend la voltige — l'art de monter un cheval en cercle, jusqu'à s'y tenir debout — et l'on y apprend la scène, dans un théâtre de 70 places bâti au milieu des écuries. Vingt-deux champions de France s'y sont formés ; tous les enfants, champions ou non, y grandissent.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Les trois offres ============ -->
+<section class="section" style="padding-top:0">
+  <div class="contenu">
+    <div class="section-head" style="text-align:center;max-width:none;margin-bottom:40px;align-items:center;display:flex;flex-direction:column;gap:12px">
+      <p class="eyebrow reveal" style="color:var(--rouge)">Ce que nous proposons</p>
+      <h2 class="reveal" style="font-size:clamp(30px,4.4vw,44px)">Stages, cours &amp; spectacle</h2>
+    </div>
+    <div class="offres-c">
+      <a class="offre-c reveal" href="stages.html">
+        <span class="dedans-o">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-solo.jpeg" alt="" style="object-position:center 25%">
+          <h3>Les stages</h3>
+          <p>Une semaine en pension complète pendant les vacances scolaires. Voltige le matin, théâtre l'après-midi, représentation le samedi.</p>
+          <span class="petit-lien">Les prochaines dates</span>
+        </span>
+      </a>
+      <a class="offre-c reveal" href="cours.html">
+        <span class="dedans-o">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-longe.jpeg" alt="">
+          <h3>Les cours</h3>
+          <p>Chaque semaine de septembre à juin, de l'éveil dès 6 ans à la compétition. Le premier cours est un essai sans engagement.</p>
+          <span class="petit-lien">Les formules de l'année</span>
+        </span>
+      </a>
+      <a class="offre-c reveal" href="index.html#theatre">
+        <span class="dedans-o">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-duo.jpeg" alt="">
+          <h3>Le théâtre</h3>
+          <p>La signature de la maison : un théâtre équestre où chevaux, costumes et lumières racontent de vraies histoires aux familles.</p>
+          <span class="petit-lien">Les représentations</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Les chiffres ============ -->
+<section class="section" style="padding-top:0">
+  <div class="contenu">
+    <div class="chiffres-c reveal">
+      <div class="chiffre-c"><b>22</b><span>champions de France formés</span></div>
+      <div class="chiffre-c"><b>70</b><span>places dans notre théâtre</span></div>
+      <div class="chiffre-c"><b>6–16</b><span>ans, de l'éveil à la compétition</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Citation ============ -->
+<section class="section" style="padding-top:0">
+  <div class="contenu">
+    <div class="citation-c reveal">
+      <div class="ornement" aria-hidden="true"><i></i></div>
+      <blockquote>« On n'apprend pas le cheval aux enfants par la technique. On l'apprend par la confiance — le reste suit. »</blockquote>
+      <cite>La méthode Cotrait</cite>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Le programme des stages ============ -->
+<section class="section" style="background:var(--fond);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)">
+  <div class="contenu">
+    <div class="section-head" style="text-align:center;max-width:none;margin-bottom:36px;align-items:center;display:flex;flex-direction:column;gap:12px">
+      <p class="eyebrow reveal" style="color:var(--rouge)">La saison</p>
+      <h2 class="reveal" style="font-size:clamp(30px,4.4vw,44px)">Programme des stages</h2>
+    </div>
+    <div class="programme reveal">
+      <a class="ligne-prog" href="reservation.html?stage=0">
+        <span class="date-prog">Du 3 au 8 août 2026</span>
+        <span class="nom-prog">Stage découverte <small>6–10 ans · aucun niveau requis · 6 places restantes</small></span>
+        <span class="prix-prog">540&nbsp;€</span>
+        <span class="resa-prog">Réserver</span>
+      </a>
+      <a class="ligne-prog" href="reservation.html?stage=1">
+        <span class="date-prog">Du 10 au 15 août 2026</span>
+        <span class="nom-prog">Stage perfectionnement <small>11–16 ans · voltige au galop · dernières places</small></span>
+        <span class="prix-prog">590&nbsp;€</span>
+        <span class="resa-prog">Réserver</span>
+      </a>
+      <a class="ligne-prog" href="reservation.html?stage=2">
+        <span class="date-prog">Du 19 au 24 octobre 2026</span>
+        <span class="nom-prog">Stage voltige &amp; théâtre <small>8–16 ans · représentation le samedi · 10 places</small></span>
+        <span class="prix-prog">560&nbsp;€</span>
+        <span class="resa-prog">Réserver</span>
+      </a>
+    </div>
+    <p class="reveal" style="text-align:center;margin-top:26px;font-style:italic;font-size:14.5px;color:var(--texte-2)">Pension complète, encadrement, chevaux et matériel compris.</p>
+  </div>
+</section>
+
+<!-- ============ Invitation ============ -->
+<section class="section">
+  <div class="contenu">
+    <div class="cadre-double reveal" style="max-width:760px;margin:0 auto">
+      <div class="dedans" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+        <p class="eyebrow" style="color:var(--rouge)">Envie d'essayer ?</p>
+        <h2 style="font-size:clamp(28px,4vw,40px)">Venez passer une heure au manège.</h2>
+        <div class="ornement" aria-hidden="true"><i></i></div>
+        <p style="color:var(--texte-2);max-width:48ch;font-style:italic">Le premier cours est un essai sans engagement, et nos stages n'exigent aucun niveau. Le plus simple est de venir — les chevaux feront le reste.</p>
+        <div class="actions" style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+          <a class="btn btn-c-plein" href="inscription.html"><span>Inscrire mon enfant</span></a>
+          <a class="btn btn-c-contour" href="contact.html"><span>Nous écrire</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Pied de page ============ -->
+<footer class="pied">
+  <div class="contenu">
+    <div class="pied-haut">
+      <a class="marque" href="index.html" style="color:var(--texte)">
+        <img src="assets/img/logo.jpeg" alt="">
+        <span>
+          <b>Académie de voltige</b>
+          <small>Fleur &amp; Georges Cotrait</small>
+        </span>
+      </a>
+      <nav class="pied-nav" aria-label="Pied de page">
+        <a href="histoire.html">Notre histoire</a>
+        <a href="stages.html">Stages</a>
+        <a href="cours.html">Cours</a>
+        <a href="index.html#theatre">Le théâtre</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+    <div class="pied-bas">
+      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie</span>
+      <span class="sociaux">
+        <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.youtube.com/channel/UCVWNBdhexKOj-6WiQdvCf5g" target="_blank" rel="noopener">YouTube</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js?v=24"></script>
+</body>
+</html>
