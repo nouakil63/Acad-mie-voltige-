@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Une école familiale de voltige équestre à Auberville, à 15 minutes de Deauville. Stages pendant les vacances, cours à l'année dès 6 ans, théâtre équestre.">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=24">
+  <link rel="stylesheet" href="assets/css/style.css?v=24">
+  <style>
+    /* ============ Variante B : familiale & classique ============ */
+    .accueil-b{
+      --display-wght:640;
+      --display-stretch:100%;
+      --display-track:-0.005em;
+      background:var(--voile);
+    }
+    .accueil-b h1,.accueil-b h2,.accueil-b h3{line-height:1.12}
+
+    /* hero photo doux, centré */
+    .hero-b{
+      position:relative;min-height:78svh;overflow:hidden;
+      display:flex;align-items:center;justify-content:center;text-align:center;
+      color:var(--blanc);background:var(--encre);
+    }
+    .hero-b .photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%;
+      animation:respirer-hero 24s ease-in-out infinite alternate}
+    .hero-b .voile-doux{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(29,18,22,.45), rgba(29,18,22,.55))}
+    .hero-b .contenu-hero{position:relative;max-width:720px;padding:calc(var(--nav-h) + 40px) 24px 72px;display:flex;flex-direction:column;align-items:center;gap:18px}
+    .hero-b .bienvenue{
+      font-size:12.5px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;opacity:0;
+    }
+    .hero-b h1{font-size:clamp(34px,5.6vw,58px);text-wrap:balance;opacity:0;transform:translateY(18px)}
+    .hero-b .sous{font-size:17.5px;color:rgba(255,255,255,.92);max-width:52ch;opacity:0}
+    .hero-b .actions{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:8px;opacity:0}
+    .loaded .hero-b .bienvenue{opacity:.85;transition:opacity .9s var(--galop) .1s}
+    .loaded .hero-b h1{opacity:1;transform:none;transition:opacity .9s var(--galop) .25s,transform .9s var(--galop) .25s}
+    .loaded .hero-b .sous{opacity:1;transition:opacity .9s var(--galop) .45s}
+    .loaded .hero-b .actions{opacity:1;transition:opacity .9s var(--galop) .6s}
+    .hero-b .filet-or{width:56px;height:2px;background:var(--rouge-vif);border:0;margin:0}
+
+    /* le mot de la famille : une lettre */
+    .lettre{max-width:680px;margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
+    .lettre .medaillon{width:110px;height:110px;border-radius:50%;overflow:hidden;border:1.4px solid var(--trait);background:var(--fond)}
+    .lettre .medaillon img{width:100%;height:100%;object-fit:cover}
+    .lettre h2{font-size:clamp(26px,3.6vw,36px)}
+    .lettre p{color:var(--texte-2);font-size:16.5px;line-height:1.8}
+    .lettre .signature{
+      font-family:var(--display);font-weight:640;font-size:21px;color:var(--texte);
+      display:flex;flex-direction:column;gap:2px;align-items:center;
+    }
+    .lettre .signature small{font-family:var(--sans);font-size:12px;font-weight:650;letter-spacing:.16em;text-transform:uppercase;color:var(--texte-2)}
+
+    /* trois piliers classiques */
+    .piliers{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(18px,3vw,32px);text-align:center}
+    @media (max-width:820px){.piliers{grid-template-columns:1fr;max-width:420px;margin:0 auto}}
+    .pilier{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px}
+    .pilier .medaillon{width:150px;height:150px;border-radius:50%;overflow:hidden;position:relative;border:1.4px solid var(--trait)}
+    .pilier .medaillon::after{content:"";position:absolute;inset:7px;border-radius:50%;border:1px solid rgba(255,255,255,.55)}
+    .pilier .medaillon img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--galop)}
+    .pilier:hover .medaillon img{transform:scale(1.07)}
+    .pilier h3{font-size:22px}
+    .pilier p{color:var(--texte-2);font-size:15px;max-width:34ch}
+    .pilier .lien-fleche{color:var(--accent);margin-top:2px}
+
+    /* témoignages */
+    .temoignages{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.5vw,26px)}
+    @media (max-width:760px){.temoignages{grid-template-columns:1fr}}
+    .temoignage{
+      background:var(--fond);border:1px solid var(--trait);padding:30px;
+      display:flex;flex-direction:column;gap:14px;
+    }
+    .temoignage blockquote{
+      margin:0;font-family:var(--display);font-weight:600;font-size:18.5px;line-height:1.55;color:var(--texte);
+    }
+    .temoignage .qui{font-size:13px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--texte-2)}
+    .temoignage .qui b{color:var(--accent)}
+
+    /* sections alternées douces */
+    .accueil-b .section-blanche{background:var(--fond);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
+    .accueil-b .section-head-centre{text-align:center;max-width:640px;margin:0 auto 44px;display:flex;flex-direction:column;gap:12px;align-items:center}
+    .accueil-b .section-head-centre h2{font-size:clamp(28px,4vw,40px)}
+    .accueil-b .section-head-centre p{color:var(--texte-2)}
+
+    /* invitation douce */
+    .invitation{
+      background:var(--fond);border:1.4px solid var(--trait);
+      max-width:760px;margin:0 auto;padding:clamp(32px,5vw,52px);text-align:center;
+      display:flex;flex-direction:column;align-items:center;gap:16px;
+    }
+    .invitation h2{font-size:clamp(26px,3.6vw,36px)}
+    .invitation p{color:var(--texte-2);max-width:50ch}
+    .invitation .actions{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  </style>
+</head>
+<body class="accueil-b">
+
+<a class="acces-rapide" href="#accueil">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="index.html#theatre">Le théâtre</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="index.html#theatre">Le théâtre</a>
+  <a href="contact.html">Contact</a>
+  <a href="inscription.html">Inscription</a>
+</nav>
+
+<!-- ============ Hero doux, centré ============ -->
+<section class="hero-b" id="accueil">
+  <img class="photo" src="assets/img/voltige-longe.jpeg" alt="" aria-hidden="true">
+  <div class="voile-doux" aria-hidden="true"></div>
+  <div class="contenu-hero">
+    <p class="bienvenue">Auberville · Normandie</p>
+    <h1>Bienvenue à l'Académie de voltige, une école familiale depuis 2003.</h1>
+    <hr class="filet-or" aria-hidden="true">
+    <p class="sous">Ici, les enfants de 6 à 16 ans apprennent le cheval par la confiance — en stage pendant les vacances, ou chaque semaine de l'année. Et le samedi, tout devient spectacle.</p>
+    <div class="actions">
+      <a class="btn btn-plein" href="inscription.html"><span>Inscrire mon enfant</span></a>
+      <a class="btn btn-contour" href="histoire.html"><span>Notre histoire</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Le mot de la famille ============ -->
+<section class="section">
+  <div class="contenu">
+    <div class="lettre">
+      <span class="medaillon reveal"><img src="assets/img/georges-cotrait.jpeg" alt="Portrait de Georges Cotrait"></span>
+      <h2 class="reveal">Le mot de la famille</h2>
+      <p class="reveal">« Depuis cinquante ans, nous apprenons le cheval aux enfants — pas par la technique, par la confiance. À l'académie, votre enfant est accueilli comme à la maison : on y brosse les poneys le matin, on y monte en cercle dans la journée, on y répète le spectacle le soir. Certains de nos élèves sont devenus champions de France. Tous sont repartis plus grands qu'ils n'étaient arrivés. »</p>
+      <div class="signature reveal">
+        Fleur &amp; Georges Cotrait
+        <small>Fondateurs de l'académie</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Trois piliers ============ -->
+<section class="section section-blanche">
+  <div class="contenu">
+    <div class="section-head-centre">
+      <p class="eyebrow reveal">Ce que nous proposons</p>
+      <h2 class="reveal">Trois façons de nous rejoindre.</h2>
+    </div>
+    <div class="piliers">
+      <a class="pilier reveal" href="stages.html" style="text-decoration:none">
+        <span class="medaillon"><img loading="lazy" decoding="async" src="assets/img/voltige-solo.jpeg" alt="" style="object-position:center 25%"></span>
+        <h3>Les stages</h3>
+        <p>Une semaine en pension complète pendant les vacances scolaires, dès 6 ans, sans niveau requis.</p>
+        <span class="lien-fleche">Voir les prochaines dates <i>→</i></span>
+      </a>
+      <a class="pilier reveal" href="cours.html" style="text-decoration:none">
+        <span class="medaillon"><img loading="lazy" decoding="async" src="assets/img/voltige-longe.jpeg" alt=""></span>
+        <h3>Les cours à l'année</h3>
+        <p>Chaque semaine de septembre à juin, de l'éveil à la compétition. Premier cours d'essai sans engagement.</p>
+        <span class="lien-fleche">Découvrir les formules <i>→</i></span>
+      </a>
+      <a class="pilier reveal" href="index.html#theatre" style="text-decoration:none">
+        <span class="medaillon"><img loading="lazy" decoding="async" src="assets/img/voltige-duo.jpeg" alt=""></span>
+        <h3>Le théâtre</h3>
+        <p>Notre signature : un vrai théâtre équestre de 70 places, où chaque saison se termine sur scène.</p>
+        <span class="lien-fleche">Assister à une représentation <i>→</i></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Témoignages ============ -->
+<section class="section">
+  <div class="contenu">
+    <div class="section-head-centre">
+      <p class="eyebrow reveal">Ils nous font confiance</p>
+      <h2 class="reveal">Ce que disent les familles.</h2>
+    </div>
+    <div class="temoignages">
+      <div class="temoignage reveal">
+        <blockquote>« Notre fille n'avait jamais approché un cheval. En une semaine de stage, elle montait debout au pas — et surtout, elle n'a pas arrêté d'en parler de l'année. »</blockquote>
+        <span class="qui"><b>Exemple de témoignage</b> · À remplacer par un vrai</span>
+      </div>
+      <div class="temoignage reveal">
+        <blockquote>« Le spectacle du samedi devant les familles, c'est un moment qu'on n'oublie pas. On dépose un enfant le lundi, on retrouve un artiste le samedi. »</blockquote>
+        <span class="qui"><b>Exemple de témoignage</b> · À remplacer par un vrai</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Prochains stages ============ -->
+<section class="section section-blanche" id="stages">
+  <div class="contenu">
+    <div class="section-head-centre">
+      <p class="eyebrow reveal">Les prochaines dates</p>
+      <h2 class="reveal">Nos stages des vacances.</h2>
+    </div>
+    <div class="grille-stages">
+      <article class="carte-stage reveal">
+        <div class="carte-visuel">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-longe.jpeg" alt="">
+          <span class="places">6 places restantes</span>
+        </div>
+        <div class="carte-corps">
+          <span class="dates">Du 3 au 8 août 2026</span>
+          <h3>Stage découverte<br>6–10 ans</h3>
+          <p>Premiers pas sur le cheval en cercle : équilibre, confiance, jeux de voltige. Aucun niveau requis.</p>
+          <div class="carte-pied">
+            <span class="prix">540&nbsp;€ <small>/ semaine</small></span>
+            <a class="lien-fleche" href="reservation.html?stage=0">Réserver <i>→</i></a>
+          </div>
+        </div>
+      </article>
+      <article class="carte-stage reveal">
+        <div class="carte-visuel">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-solo.jpeg" alt="">
+          <span class="places alerte">Dernières places</span>
+        </div>
+        <div class="carte-corps">
+          <span class="dates">Du 10 au 15 août 2026</span>
+          <h3>Stage perfectionnement<br>11–16 ans</h3>
+          <p>Figures imposées et libres, travail au galop, préparation aux compétitions et au spectacle de fin de stage.</p>
+          <div class="carte-pied">
+            <span class="prix">590&nbsp;€ <small>/ semaine</small></span>
+            <a class="lien-fleche" href="reservation.html?stage=1">Réserver <i>→</i></a>
+          </div>
+        </div>
+      </article>
+      <article class="carte-stage reveal">
+        <div class="carte-visuel">
+          <img loading="lazy" decoding="async" src="assets/img/voltige-pyramide.jpeg" alt="">
+          <span class="places">10 places restantes</span>
+        </div>
+        <div class="carte-corps">
+          <span class="dates">Du 19 au 24 octobre 2026</span>
+          <h3>Stage voltige &amp; théâtre<br>8–16 ans</h3>
+          <p>La signature de l'académie : acrobatie équestre le matin, mise en scène l'après-midi, représentation le samedi.</p>
+          <div class="carte-pied">
+            <span class="prix">560&nbsp;€ <small>/ semaine</small></span>
+            <a class="lien-fleche" href="reservation.html?stage=2">Réserver <i>→</i></a>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Invitation douce ============ -->
+<section class="section">
+  <div class="contenu">
+    <div class="invitation reveal">
+      <span class="eyebrow">Envie d'essayer ?</span>
+      <h2>Venez passer une heure au manège.</h2>
+      <p>Le premier cours est un essai sans engagement — et pour les stages, aucun niveau n'est demandé. Le plus simple est encore de venir voir, sentir l'odeur du foin, et rencontrer les chevaux.</p>
+      <div class="actions">
+        <a class="btn btn-rouge" href="inscription.html"><span>Inscrire mon enfant</span></a>
+        <a class="btn btn-contour" href="contact.html"><span>Poser une question</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Pied de page ============ -->
+<footer class="pied" style="background:var(--voile)">
+  <div class="contenu">
+    <div class="pied-haut">
+      <a class="marque" href="index.html" style="color:var(--texte)">
+        <img src="assets/img/logo.jpeg" alt="">
+        <span>
+          <b>Académie de voltige</b>
+          <small>Fleur &amp; Georges Cotrait</small>
+        </span>
+      </a>
+      <nav class="pied-nav" aria-label="Pied de page">
+        <a href="histoire.html">Notre histoire</a>
+        <a href="stages.html">Stages</a>
+        <a href="cours.html">Cours</a>
+        <a href="index.html#theatre">Le théâtre</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+    <div class="pied-bas">
+      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie</span>
+      <span class="sociaux">
+        <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.youtube.com/channel/UCVWNBdhexKOj-6WiQdvCf5g" target="_blank" rel="noopener">YouTube</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js?v=24"></script>
+</body>
+</html>
