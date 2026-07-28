@@ -242,8 +242,8 @@ img{max-width:100%;height:auto}
 }
 .hero-contenu .eyebrow{color:var(--blanc);opacity:.85}
 .hero-contenu h1{
-  font-size:clamp(46px,8.6vw,110px);
-  margin:18px 0 24px;max-width:11ch;
+  font-size:clamp(38px,6vw,76px);
+  margin:18px 0 24px;max-width:20ch;
 }
 .hero-contenu h1 .ligne{display:block;overflow:hidden;padding:.04em 0}
 .hero-contenu h1 .ligne > span{
