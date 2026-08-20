@@ -5,8 +5,7 @@
 
   var FORMULES = [
     { nom: 'Éveil', creneau: 'Mercredi 14h00 — 15h30', tarif: '390 € / an' },
-    { nom: 'Voltige', creneau: 'Mercredi 16h00 ou samedi 10h00', tarif: '450 € / an' },
-    { nom: 'Sport-études', creneau: 'Semaine complète, scolarité aménagée', tarif: 'Sur dossier' }
+    { nom: 'Voltige', creneau: 'Mercredi 16h00 ou samedi 10h00', tarif: '450 € / an' }
   ];
 
   var form = document.getElementById('form-cours');
