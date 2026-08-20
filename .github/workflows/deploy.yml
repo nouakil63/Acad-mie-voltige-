@@ -27,6 +27,8 @@ jobs:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          # Site en construction : seule la page d'attente est publiée.
+          # Pour mettre le site complet en ligne, remettre « path: . »
+          path: construction
       - id: deployment
         uses: actions/deploy-pages@v4
