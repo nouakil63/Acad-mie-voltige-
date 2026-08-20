@@ -4,10 +4,9 @@
   'use strict';
 
   var FORMULES = [
-    { nom: 'Éveil voltige', creneau: 'Mercredi 14h00 — 15h30', tarif: '390 € / an' },
-    { nom: 'Voltige loisir', creneau: 'Mercredi 16h00 ou samedi 10h00', tarif: '450 € / an' },
-    { nom: 'Voltige compétition', creneau: 'Samedi 14h00 — 16h00', tarif: '560 € / an' },
-    { nom: 'Sport-études voltige & théâtre', creneau: 'Semaine complète, scolarité aménagée', tarif: 'Sur dossier' }
+    { nom: 'Éveil', creneau: 'Mercredi 14h00 — 15h30', tarif: '390 € / an' },
+    { nom: 'Voltige', creneau: 'Mercredi 16h00 ou samedi 10h00', tarif: '450 € / an' },
+    { nom: 'Sport-études', creneau: 'Semaine complète, scolarité aménagée', tarif: 'Sur dossier' }
   ];
 
   var form = document.getElementById('form-cours');
