@@ -4,9 +4,8 @@
   'use strict';
 
   var STAGES = [
-    { nom: 'Stage découverte, 6–10 ans', dates: 'Du 3 au 8 août 2026', prix: 540 },
-    { nom: 'Stage perfectionnement, 11–16 ans', dates: 'Du 10 au 15 août 2026', prix: 590 },
-    { nom: 'Stage voltige & théâtre, 8–16 ans', dates: 'Du 19 au 24 octobre 2026', prix: 560 }
+    { nom: 'Stage de la Toussaint — semaine 1, 6–14 ans', dates: 'Du 19 au 24 octobre 2026', prix: 840 },
+    { nom: 'Stage de la Toussaint — semaine 2, 6–14 ans', dates: 'Du 26 au 31 octobre 2026', prix: 840 }
   ];
 
   var form = document.getElementById('form-resa');
