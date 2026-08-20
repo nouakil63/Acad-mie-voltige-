@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Académie de voltige équestre — Fleur &amp; Georges Cotrait · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Le nouveau site de l'Académie de voltige équestre arrive dans les prochains jours. Renseignements : 06 08 24 71 90 · academiedevoltige@gmail.com">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <style>
+    @font-face{
+      font-family:'Bricolage Grotesque';
+      src:url('bricolage.woff2') format('woff2');
+      font-weight:200 800;font-stretch:75% 100%;font-display:swap;
+    }
+    @font-face{
+      font-family:'Hanken Grotesk';
+      src:url('hanken-normal.woff2') format('woff2');
+      font-weight:100 900;font-display:swap;
+    }
+    :root{
+      --rouge:#D00828;
+      --blanc:#FFFFFF;
+      --voile:#F7F3F0;
+      --encre:#1D1216;
+      --texte-2:#645257;
+      --galop:cubic-bezier(.32,.94,.60,1);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      font-family:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
+      background:var(--blanc);color:var(--encre);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      text-align:center;padding:32px 20px;gap:0;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    /* ---- logo animé : le cheval, la longe qui se trace, la chambrière ---- */
+    .noyau{position:relative;width:clamp(150px,32vw,200px);height:clamp(150px,32vw,200px)}
+    .lg{width:100%;height:100%;fill:var(--rouge)}
+    .lg-cheval{
+      opacity:0;transform:scale(.96);transform-origin:center;
+      animation:lg-fondu .55s var(--galop) .1s forwards;
+    }
+    @keyframes lg-fondu{to{opacity:1;transform:none}}
+    .lg-longe{
+      fill:var(--rouge);fill-opacity:0;
+      stroke:var(--rouge);stroke-width:26;stroke-linecap:round;
+      stroke-dasharray:1;stroke-dashoffset:1;
+      animation:lg-trace 1.15s var(--galop) .35s forwards,
+                lg-rempli .45s var(--galop) 1.4s forwards;
+    }
+    @keyframes lg-trace{to{stroke-dashoffset:0}}
+    @keyframes lg-rempli{to{fill-opacity:1;stroke-opacity:0}}
+    .lg-fouet{
+      opacity:0;transform-box:fill-box;transform-origin:15% 92%;
+      animation:lg-fouet-entre .3s var(--galop) 1.15s forwards,
+                lg-claque .55s var(--galop) 1.5s;
+    }
+    @keyframes lg-fouet-entre{from{opacity:0;transform:rotate(-14deg)}to{opacity:1;transform:none}}
+    @keyframes lg-claque{0%,100%{transform:none}35%{transform:rotate(-7deg)}70%{transform:rotate(3deg)}}
+
+    /* ---- badge circulaire tournant ---- */
+    .badge{
+      position:absolute;right:-26px;bottom:-10px;width:92px;height:92px;color:var(--rouge);
+      opacity:0;animation:apparait .8s var(--galop) 1.9s forwards, tourne 26s linear infinite;
+    }
+    .badge text{
+      font-family:'Hanken Grotesk',sans-serif;font-size:12.5px;font-weight:700;
+      letter-spacing:.32em;text-transform:uppercase;fill:currentColor;
+    }
+    @keyframes tourne{to{rotate:360deg}}
+
+    /* ---- textes ---- */
+    .apparition{opacity:0;animation:apparait .9s var(--galop) forwards}
+    @keyframes apparait{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+    .eyebrow{
+      margin-top:44px;font-size:11.5px;font-weight:700;letter-spacing:.24em;
+      text-transform:uppercase;color:var(--rouge);
+      animation-delay:1.7s;
+    }
+    h1{
+      font-family:'Bricolage Grotesque','Hanken Grotesk',sans-serif;
+      font-weight:760;font-stretch:92%;letter-spacing:-.015em;line-height:1.04;
+      font-size:clamp(34px,7vw,58px);max-width:15ch;margin-top:16px;
+      animation-delay:1.85s;
+    }
+    h1 em{font-style:normal;color:var(--rouge)}
+    .sous{
+      margin-top:18px;max-width:44ch;font-size:17px;line-height:1.6;color:var(--texte-2);
+      animation-delay:2.05s;
+    }
+
+    /* ---- cadence à trois temps ---- */
+    .cadence{display:inline-flex;gap:7px;align-items:center;margin-left:4px;color:var(--rouge);vertical-align:middle}
+    .cadence i{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.25;animation:battue 1.8s infinite}
+    .cadence i:nth-child(2){animation-delay:.22s}
+    .cadence i:nth-child(3){animation-delay:.44s}
+    @keyframes battue{0%,60%,100%{opacity:.25;transform:none}8%{opacity:1;transform:translateY(-4px)}}
+
+    /* ---- contacts ---- */
+    .contacts{
+      margin-top:34px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+      animation-delay:2.25s;
+    }
+    .contacts a{
+      display:inline-flex;align-items:center;gap:10px;
+      padding:14px 26px;border-radius:999px;text-decoration:none;
+      font-weight:700;font-size:16px;letter-spacing:.01em;
+      transition:transform .35s var(--galop),background .35s var(--galop),color .35s var(--galop);
+    }
+    .tel{background:var(--rouge);color:var(--blanc)}
+    .tel:hover,.tel:focus-visible{background:#A5081F;transform:translateY(-2px)}
+    .mail{border:1px solid var(--encre);color:var(--encre);background:transparent}
+    .mail:hover,.mail:focus-visible{background:var(--encre);color:var(--blanc);transform:translateY(-2px)}
+
+    .pied{
+      margin-top:52px;font-size:12.5px;letter-spacing:.06em;color:var(--texte-2);
+      animation-delay:2.5s;
+    }
+
+    @media (max-width:520px){
+      .badge{right:-14px;width:78px;height:78px}
+      .contacts a{width:100%;justify-content:center}
+      .contacts{flex-direction:column;width:min(100%,340px)}
+    }
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none !important}
+      .lg-cheval,.lg-fouet,.badge,.apparition{opacity:1;transform:none}
+      .lg-longe{fill-opacity:1;stroke-opacity:0;stroke-dashoffset:0}
+      .cadence i{opacity:.6}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="noyau">
+    <svg class="lg" viewBox="0 0 376.000000 377.000000" aria-label="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe" role="img">
+      <g transform="translate(0.000000,377.000000) scale(0.100000,-0.100000)">
+        <g class="lg-cheval">
+          <path d="M1460 2992 c0 -37 11 -91 30 -151 17 -52 29 -96 27 -98 -8 -7 -122 128
+-135 160 -18 42 -32 20 -32 -54 0 -100 33 -149 100 -149 20 0 30 -5 30 -15 0
+-26 -28 -71 -54 -89 -39 -25 -29 -76 15 -76 31 0 30 -30 -1 -62 -26 -26 -36
+-29 -64 -24 -37 7 -46 -3 -46 -55 0 -16 -9 -38 -21 -50 -28 -28 -18 -34 36
+-22 24 6 47 8 50 5 10 -11 5 -32 -9 -32 -23 0 -38 -27 -40 -72 l-1 -43 -76
+-36 c-83 -40 -129 -86 -147 -147 -7 -20 -23 -50 -37 -66 -14 -16 -25 -35 -25
+-42 0 -7 -3 -20 -7 -29 -5 -15 0 -17 45 -10 55 7 58 5 41 -27 -8 -15 -8 -26 1
+-43 6 -12 10 -35 8 -51 -2 -24 -8 -29 -35 -32 -30 -3 -32 -1 -38 35 -10 60
+-12 63 -49 63 -31 0 -66 -20 -66 -38 0 -13 15 -29 38 -41 14 -7 22 -21 22 -37
+0 -38 16 -61 51 -73 45 -16 136 -14 197 4 59 18 67 33 64 115 -2 43 2 63 20
+93 28 44 98 104 174 147 58 34 67 54 30 71 -19 9 -37 5 -100 -20 -90 -36 -86
+-35 -86 -17 0 8 23 35 52 60 63 56 84 57 181 15 85 -38 140 -47 164 -28 9 8
+26 34 37 59 18 38 21 67 22 180 1 75 6 136 11 137 26 9 32 -32 37 -252 7 -337
+38 -492 164 -810 55 -141 67 -165 83 -165 5 0 34 36 65 80 32 46 63 80 72 80
+9 0 28 -9 41 -19 l24 -18 -43 -81 c-24 -44 -59 -99 -79 -122 -35 -40 -38 -42
+-54 -26 -9 9 -21 25 -27 34 -9 15 -12 15 -29 -8 -46 -58 -48 -70 -17 -97 l28
+-24 22 20 c44 41 76 17 76 -57 0 -22 -16 -84 -36 -138 -29 -82 -36 -112 -35
+-174 1 -97 11 -180 22 -180 14 0 44 33 89 101 60 90 242 266 318 309 235 132
+390 313 442 516 20 76 29 280 14 318 -4 9 -36 36 -73 60 -36 24 -97 76 -136
+115 -38 39 -73 71 -78 71 -4 0 -18 -11 -30 -24 -18 -20 -27 -23 -44 -16 -30
+12 -30 47 0 82 21 24 26 26 42 14 17 -12 21 -11 36 8 9 11 24 35 33 53 15 31
+15 33 -5 43 -11 7 -22 10 -23 8 -16 -26 -59 -78 -64 -78 -12 0 -90 122 -116
+181 -18 42 -43 72 -100 123 -53 48 -89 91 -120 144 -48 84 -78 116 -173 184
+-109 80 -265 127 -379 115 l-53 -5 -112 116 c-61 64 -116 127 -122 140 -20 42
+-37 26 -37 -36z m54 -588 c31 -12 18 -57 -25 -86 -43 -31 -59 -35 -59 -15 0
+19 37 89 52 99 16 9 13 9 32 2z m1132 -536 c16 -12 7 -42 -33 -108 -57 -96
+-67 -106 -97 -92 -14 6 -26 18 -26 26 0 8 24 55 53 105 53 93 65 100 103 69z
+m-152 -252 l29 -24 -24 -33 c-13 -18 -44 -69 -69 -113 -37 -66 -50 -82 -72
+-84 -29 -3 -68 13 -68 28 0 13 160 250 168 250 4 -1 20 -11 36 -24z m386 -297
+c0 -44 -56 -140 -125 -216 -101 -110 -337 -295 -355 -277 -18 18 28 71 137
+163 168 143 220 198 275 294 51 88 67 97 68 36z"/>
+          <path d="M1245 2480 c-10 -11 -24 -20
+-30 -20 -8 0 -14 -26 -17 -77 -6 -96 -62 -236 -162 -402 -65 -109 -75 -131
+-57 -131 13 0 62 80 119 195 81 163 194 434 186 447 -8 13 -20 9 -39 -12z"/>
+        </g>
+        <g class="lg-fouet">
+          <path d="M1980 918 c-19 -29 -56 -82 -82 -117 -26 -35 -48 -67 -48 -70 0 -13 62 -43 70
+-35 4 5 42 61 84 124 l76 115 -21 18 c-32 26 -43 21 -79 -35z"/>
+          <path d="M1760 603 c-80
+-116 -179 -231 -203 -237 -32 -8 -57 -55 -45 -86 14 -38 38 -59 74 -66 44 -8
+64 9 64 55 0 29 21 67 110 200 61 89 110 167 110 171 0 9 -39 40 -50 40 -3 0
+-30 -35 -60 -77z"/>
+        </g>
+        <path class="lg-longe" d="M2147 3508 c-325 -27 -707 -229 -1018 -538 -199 -199 -312 -355 -430
+-595 -191 -391 -229 -729 -110 -971 53 -105 113 -171 209 -229 67 -40 213 -95
+251 -95 10 0 11 -10 4 -43 -4 -23 -8 -85 -8 -137 1 -80 5 -104 27 -151 53
+-116 142 -171 275 -172 49 -1 88 4 94 10 9 9 -9 11 -67 10 -87 -1 -142 17
+-202 68 -65 55 -108 184 -99 300 8 109 4 105 116 105 188 1 344 63 472 189 63
+63 80 86 94 133 31 98 -5 141 -121 139 -128 -1 -290 -77 -399 -186 -62 -61
+-145 -177 -145 -201 0 -5 -4 -15 -9 -22 -12 -19 -143 18 -234 66 -131 68 -208
+159 -255 300 -23 67 -26 94 -26 212 0 180 38 349 127 555 118 275 238 455 437
+655 262 264 561 450 849 528 83 22 116 26 246 26 171 1 224 -11 340 -75 174
+-95 289 -254 325 -450 18 -96 14 -270 -10 -392 -20 -102 -85 -308 -116 -370
+-9 -16 -14 -30 -12 -32 2 -1 12 -7 24 -13 19 -10 23 -6 52 61 133 303 162 668
+72 896 -48 123 -150 245 -264 316 -137 85 -297 119 -489 103z m-432 -2029 c22
+-18 26 -27 21 -51 -8 -42 -55 -106 -124 -170 -98 -90 -286 -158 -441 -158 -32
+0 -60 3 -64 6 -14 14 61 142 122 208 111 118 250 183 397 185 48 1 67 -4 89
+-20z" pathLength="1"/>
+      </g>
+    </svg>
+    <svg class="badge" viewBox="0 0 108 108" aria-hidden="true">
+      <defs><path id="cercleBadge" d="M54,54 m-42,0 a42,42 0 1,1 84,0 a42,42 0 1,1 -84,0"/></defs>
+      <text><textPath href="#cercleBadge">Bientôt en ligne · Auberville · </textPath></text>
+    </svg>
+  </div>
+
+  <p class="eyebrow apparition">Académie de voltige équestre · Fleur &amp; Georges Cotrait</p>
+
+  <h1 class="apparition">Notre nouveau site arrive au <em>galop</em>.</h1>
+
+  <p class="sous apparition">Le site de l'académie fait peau neuve — il sera en ligne dans les prochains jours.
+  <span class="cadence" aria-hidden="true"><i></i><i></i><i></i></span><br>
+  En attendant, pour tout renseignement sur les stages et les cours :</p>
+
+  <div class="contacts apparition">
+    <a class="tel" href="tel:+33608247190">06&nbsp;08&nbsp;24&nbsp;71&nbsp;90</a>
+    <a class="mail" href="mailto:academiedevoltige@gmail.com">academiedevoltige@gmail.com</a>
+  </div>
+
+  <p class="pied apparition">© 2026 Académie de voltige équestre · Auberville, Normandie</p>
+
+</body>
+</html>
