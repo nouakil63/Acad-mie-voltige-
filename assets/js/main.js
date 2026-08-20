@@ -5,6 +5,11 @@
 
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ---- Adresse propre : masque le /index.html dans la barre ---- */
+  if (location.pathname.endsWith('/index.html')) {
+    history.replaceState(null, '', location.pathname.slice(0, -10) + location.search + location.hash);
+  }
+
   /* ---- Navigation : transparente sur la vidéo, blanche au défilement ---- */
   var nav = document.querySelector('.nav');
   var claire = document.body.classList.contains('nav-toujours-blanche');
