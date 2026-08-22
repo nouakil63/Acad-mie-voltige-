@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le Manège — éditeur du site</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
+  <link rel="stylesheet" href="../assets/css/fonts.css">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body>
+
+<!-- ============ Barre supérieure ============ -->
+<header class="barre">
+  <div class="barre-marque">
+    <img src="../assets/img/logo.jpeg" alt="">
+    <span><b>Le Manège</b><small>Éditeur du site</small></span>
+  </div>
+
+  <div class="barre-groupe" id="choix-page-groupe">
+    <label class="sr-only" for="choix-page">Page en cours</label>
+    <select id="choix-page" title="Changer de page"></select>
+  </div>
+
+  <div class="barre-groupe appareils" role="group" aria-label="Taille d'aperçu">
+    <button type="button" data-appareil="bureau" class="actif" title="Aperçu ordinateur">
+      <svg viewBox="0 0 24 24"><path d="M3 5h18v11H3zM9 19h6M12 16v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" data-appareil="tablette" title="Aperçu tablette">
+      <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" data-appareil="mobile" title="Aperçu mobile">
+      <svg viewBox="0 0 24 24"><rect x="7.5" y="2.5" width="9" height="19" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M11 18.5h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="barre-groupe">
+    <button type="button" id="btn-annuler" title="Annuler (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24"><path d="M8 5 4 9l4 4M4 9h10a6 6 0 0 1 0 12h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" id="btn-retablir" title="Rétablir (Ctrl+Maj+Z)" disabled>
+      <svg viewBox="0 0 24 24"><path d="m16 5 4 4-4 4M20 9H10a6 6 0 0 0 0 12h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="barre-fin">
+    <span class="etat-brouillon" id="etat-brouillon" hidden>Modifications non publiées</span>
+    <button type="button" class="btn-secondaire" id="btn-telecharger" title="Télécharger les pages modifiées">Télécharger</button>
+    <button type="button" class="btn-publier" id="btn-publier">
+      Publier <span class="pastille" id="pastille-publier" hidden>0</span>
+    </button>
+  </div>
+</header>
+
+<div class="atelier">
+
+  <!-- ============ Panneau gauche : pages & sections ============ -->
+  <aside class="panneau panneau-gauche">
+    <div class="panneau-bloc">
+      <h2>Pages</h2>
+      <ul class="liste-pages" id="liste-pages"></ul>
+    </div>
+    <div class="panneau-bloc bloc-sections">
+      <h2>Sections <small>glisser pour réordonner</small></h2>
+      <ul class="liste-sections" id="liste-sections"></ul>
+    </div>
+    <p class="panneau-astuce">
+      <b>Astuces</b> — Cliquez sur un élément pour le sélectionner.
+      Double-cliquez sur un texte pour l'écrire. <kbd>Échap</kbd> pour désélectionner,
+      <kbd>Suppr</kbd> pour retirer la section choisie.
+    </p>
+  </aside>
+
+  <!-- ============ Canevas central ============ -->
+  <main class="canevas" id="canevas">
+    <div class="cadre" id="cadre">
+      <div class="chargement" id="chargement"><span></span>Chargement de la page…</div>
+      <iframe id="apercu" title="Aperçu de la page en cours de modification"></iframe>
+    </div>
+  </main>
+
+  <!-- ============ Panneau droit : propriétés ============ -->
+  <aside class="panneau panneau-droit" id="panneau-droit"></aside>
+</div>
+
+<!-- ============ Fenêtre de publication ============ -->
+<div class="voile-modale" id="modale-publier" hidden>
+  <div class="modale" role="dialog" aria-modal="true" aria-labelledby="titre-publier">
+    <button type="button" class="fermer-modale" data-fermer aria-label="Fermer">✕</button>
+    <h2 id="titre-publier">Publier sur le site</h2>
+    <p class="modale-intro">Les fichiers modifiés seront envoyés sur GitHub, et le site se mettra à jour automatiquement en une à deux minutes.</p>
+
+    <div class="modale-fichiers" id="modale-fichiers"></div>
+
+    <label class="champ-modale">
+      <span>Message de publication</span>
+      <input type="text" id="message-commit" placeholder="Ex. : Nouvelles dates de stages" value="Mise à jour du contenu via l'éditeur">
+    </label>
+
+    <details class="reglages-github" id="reglages-github">
+      <summary>Réglages GitHub</summary>
+      <label class="champ-modale">
+        <span>Jeton d'accès GitHub <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">(en créer un)</a></span>
+        <input type="password" id="gh-jeton" placeholder="github_pat_… ou ghp_…" autocomplete="off">
+        <small>Il reste enregistré uniquement dans ce navigateur. Le jeton doit avoir l'accès « Contents : Read and write » sur le dépôt.</small>
+      </label>
+      <div class="rang-modale">
+        <label class="champ-modale"><span>Dépôt</span><input type="text" id="gh-depot"></label>
+        <label class="champ-modale"><span>Branche</span><input type="text" id="gh-branche"></label>
+      </div>
+    </details>
+
+    <p class="modale-erreur" id="modale-erreur" hidden></p>
+
+    <div class="modale-actions">
+      <button type="button" class="btn-secondaire" data-fermer>Annuler</button>
+      <button type="button" class="btn-publier" id="btn-confirmer-publier">Publier maintenant</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif" hidden></div>
+
+<script src="builder.js"></script>
+</body>
+</html>
