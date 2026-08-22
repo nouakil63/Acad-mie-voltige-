@@ -11,7 +11,7 @@
   var CONFIG = {
     proprietaire: 'nouakil63',
     depot: 'Acad-mie-voltige-',
-    branche: 'main',
+    branche: 'claude/academie-voltige-style-x4qbuv', /* branche par défaut du dépôt (celle du site en ligne) */
     pages: [
       { fichier: 'index.html', nom: 'Accueil' },
       { fichier: 'histoire.html', nom: "L'académie" },
