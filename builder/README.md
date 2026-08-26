@@ -29,6 +29,7 @@ Le jour où le site complet est mis en ligne, l'éditeur bascule tout seul sur l
 | Cliquer sur une photo | La remplacer (fichier de l'ordinateur ou photothèque du site), changer son cadrage et son texte alternatif |
 | Sélectionner une section | La monter, descendre, dupliquer, masquer ou supprimer |
 | Glisser dans la liste « Sections » | Réordonner la page |
+| Sélectionner un bandeau défilant | Régler sa vitesse de défilement (et la rotation des badges ronds) |
 | Onglet « Design du site » | Changer les couleurs de tout le site |
 | Onglet « Cette page » | Titre et description Google, réinitialisation de la page |
 | `Ctrl+Z` / `Ctrl+Maj+Z` | Annuler / rétablir |
