@@ -33,6 +33,10 @@
     <span><b>Le Manège</b><small>Éditeur du site</small></span>
   </div>
 
+  <button type="button" class="btn-panneau" id="btn-sections" aria-label="Pages et sections" title="Pages et sections">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+
   <div class="barre-groupe" id="choix-page-groupe">
     <label class="sr-only" for="choix-page">Page en cours</label>
     <select id="choix-page" title="Changer de page"></select>
@@ -61,6 +65,9 @@
 
   <div class="barre-fin">
     <span class="etat-brouillon" id="etat-brouillon" hidden>Modifications non publiées</span>
+    <button type="button" class="btn-panneau" id="btn-reglages" aria-label="Réglages" title="Réglages">
+      <svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+    </button>
     <button type="button" class="btn-secondaire" id="btn-telecharger" title="Télécharger les pages modifiées">Télécharger</button>
     <button type="button" class="btn-publier" id="btn-publier">
       Publier <span class="pastille" id="pastille-publier" hidden>0</span>
@@ -96,7 +103,10 @@
   </main>
 
   <!-- ============ Panneau droit : propriétés ============ -->
-  <aside class="panneau panneau-droit" id="panneau-droit"></aside>
+  <aside class="panneau panneau-droit" id="boite-droite">
+    <button type="button" class="fermer-panneau" id="fermer-panneau" aria-label="Fermer les réglages">✕</button>
+    <div id="panneau-droit"></div>
+  </aside>
 </div>
 
 <!-- ============ Fenêtre de publication ============ -->

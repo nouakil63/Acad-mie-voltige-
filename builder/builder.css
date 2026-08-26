@@ -44,6 +44,14 @@ kbd{
 .barre-marque b{font-family:var(--display);font-weight:760;font-size:15px;display:block;line-height:1.05}
 .barre-marque small{font-size:9.5px;font-weight:650;letter-spacing:.18em;text-transform:uppercase;color:var(--craie-2)}
 
+.btn-panneau{
+  all:unset;cursor:pointer;display:none;place-items:center;
+  width:34px;height:34px;border-radius:8px;color:var(--craie-2);
+  transition:background .25s var(--galop),color .25s var(--galop);
+}
+.btn-panneau svg{width:19px;height:19px}
+.btn-panneau:hover{background:var(--coulisse-2);color:var(--craie)}
+
 .barre-groupe{display:flex;align-items:center;gap:4px}
 .barre-groupe button{
   all:unset;cursor:pointer;display:grid;place-items:center;
@@ -100,7 +108,15 @@ kbd{
   display:flex;flex-direction:column;overflow-y:auto;
 }
 .panneau-gauche{border-right:1px solid var(--trait)}
-.panneau-droit{width:296px;border-left:1px solid var(--trait)}
+.panneau-droit{width:296px;border-left:1px solid var(--trait);position:relative}
+#panneau-droit{display:flex;flex-direction:column;min-height:0}
+
+.fermer-panneau{
+  all:unset;cursor:pointer;display:none;place-items:center;
+  position:sticky;top:6px;align-self:flex-end;margin:6px 10px -38px 0;z-index:6;
+  width:32px;height:32px;border-radius:8px;color:var(--craie-2);background:var(--coulisse);
+}
+.fermer-panneau:hover{background:var(--coulisse-2);color:#fff}
 .panneau::-webkit-scrollbar{width:8px}
 .panneau::-webkit-scrollbar-thumb{background:var(--coulisse-2);border-radius:4px}
 
@@ -355,12 +371,32 @@ kbd{
 .notif.erreur{background:var(--rouge);color:#fff}
 @keyframes notif-entre{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
 
-/* petits écrans : l'éditeur reste utilisable en dépannage */
+/* ============ Petits écrans : panneaux coulissants ============ */
 @media (max-width:1080px){
-  .panneau-gauche{display:none}
-  #choix-page-groupe{display:flex}
+  #btn-sections{display:grid}
+  .panneau-gauche{
+    position:fixed;left:0;top:var(--barre-h);bottom:0;z-index:36;
+    width:min(300px,88vw);
+    transform:translateX(-105%);transition:transform .35s var(--galop);
+    box-shadow:24px 0 60px rgba(0,0,0,.55);
+  }
+  .panneau-gauche.ouvert{transform:none}
 }
 @media (max-width:800px){
-  .panneau-droit{position:fixed;right:0;top:var(--barre-h);bottom:0;z-index:30;box-shadow:-20px 0 50px rgba(0,0,0,.5)}
+  #btn-reglages{display:grid}
+  .panneau-droit{
+    position:fixed;right:0;top:var(--barre-h);bottom:0;z-index:36;
+    width:min(320px,92vw);
+    transform:translateX(105%);transition:transform .35s var(--galop);
+    box-shadow:-24px 0 60px rgba(0,0,0,.55);
+  }
+  .panneau-droit.ouvert{transform:none}
+  .fermer-panneau{display:grid}
   .appareils{display:none}
+  .btn-secondaire{display:none}
+  .etat-brouillon{display:none}
+  .barre{gap:8px;padding:0 10px}
+  .barre-marque span{display:none}
+  #choix-page{max-width:140px}
+  .canevas{padding:10px}
 }
