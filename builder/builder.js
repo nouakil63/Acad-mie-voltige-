@@ -86,7 +86,32 @@
     compteurId: 0
   };
 
+  /* D'où viennent les pages ? Tant que le site en ligne n'affiche que la
+     page d'attente, le déploiement place une copie du vrai site sous
+     /builder/site/ : on la préfère si elle existe, sinon on lit à la
+     racine du site (site complet en ligne, ou serveur local). */
   var racineSite = new URL('..', location.href).href;
+  var SOURCES = [new URL('site/', location.href).href, racineSite];
+  var baseSite = racineSite;
+
+  function recupererPage(fichier) {
+    function essayer(i) {
+      if (i >= SOURCES.length) {
+        return Promise.reject(new Error('page introuvable sur le site et dans la copie de l’éditeur'));
+      }
+      return fetch(SOURCES[i] + fichier, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) { return essayer(i + 1); }
+        return r.text().then(function (texte) {
+          /* la page d'attente ne référence pas la feuille de style du site :
+             si le marqueur manque, ce n'est pas une vraie page */
+          if (texte.indexOf('assets/css/style.css') === -1) { return essayer(i + 1); }
+          baseSite = SOURCES[i];
+          return texte;
+        });
+      }, function () { return essayer(i + 1); });
+    }
+    return essayer(0);
+  }
 
   /* ============ Raccourcis DOM ============ */
   function $(s, r) { return (r || document).querySelector(s); }
@@ -169,7 +194,7 @@
   function preparer(html) {
     var out = endormirScripts(html);
     out = out.replace(/<head([^>]*)>/i, function (m, a) {
-      return '<head' + a + '><base href="' + racineSite + '" data-av-editeur>';
+      return '<head' + a + '><base href="' + baseSite + '" data-av-editeur>';
     });
     out = out.replace(/<\/head>/i, STYLE_EDITEUR + stylePalette() + '</head>');
     return out;
@@ -186,11 +211,7 @@
     if (p && p.travail) { rendre(p.travail); return; }
 
     chargEl.classList.remove('fini');
-    fetch(racineSite + fichier, { cache: 'no-store' })
-      .then(function (r) {
-        if (!r.ok) { throw new Error('HTTP ' + r.status); }
-        return r.text();
-      })
+    recupererPage(fichier)
       .then(function (texte) {
         var brouillon = null;
         try { brouillon = localStorage.getItem('av:brouillon:' + fichier); } catch (e) {}
@@ -206,7 +227,7 @@
       })
       .catch(function (err) {
         chargEl.classList.add('fini');
-        notifier('Impossible de charger « ' + fichier + ' » — ouvrez l’éditeur depuis le site (http), pas depuis un fichier local. (' + err.message + ')', 'erreur');
+        notifier('Impossible de charger « ' + fichier + ' » — vérifiez votre connexion, ou ouvrez l’éditeur depuis le site (http), pas depuis un fichier local. (' + err.message + ')', 'erreur');
       });
   }
 
@@ -846,8 +867,9 @@
         '<p class="note-prop">C’est le petit texte affiché sous le titre dans les résultats de recherche.</p></div>' +
         '<div class="groupe-prop"><div class="libelle">Page</div>' +
         '<div class="actions-prop">' +
-        '<button type="button" id="prop-voir">Voir en ligne</button>' +
-        '<button type="button" class="danger" id="prop-raz-page">Réinitialiser la page</button>' +
+        (baseSite === racineSite ? '<button type="button" id="prop-voir">Voir en ligne</button>' : '') +
+        '<button type="button" class="danger" id="prop-raz-page"' +
+        (baseSite === racineSite ? '' : ' style="grid-column:1/-1"') + '>Réinitialiser la page</button>' +
         '</div>' +
         '<p class="note-prop">« Réinitialiser » abandonne toutes les modifications non publiées de cette page.</p></div>' +
         '<div class="prop-vide"><h3>Pour modifier la page</h3>' +
@@ -879,9 +901,12 @@
         var m = idoc() && idoc().querySelector('meta[name="description"]');
         if (m) { m.setAttribute('content', v); }
       });
-      $('#prop-voir', panneauDroit).addEventListener('click', function () {
-        window.open(racineSite + etat.fichier, '_blank');
-      });
+      var btnVoir = $('#prop-voir', panneauDroit);
+      if (btnVoir) {
+        btnVoir.addEventListener('click', function () {
+          window.open(racineSite + etat.fichier, '_blank');
+        });
+      }
       $('#prop-raz-page', panneauDroit).addEventListener('click', function () {
         if (!confirm('Abandonner toutes les modifications non publiées de cette page ?')) { return; }
         var p = pageCourante();
@@ -1093,7 +1118,7 @@
       '<p class="note-prop">Formats conseillés : JPEG ou WebP, 2000 px de large maximum pour un site rapide.</p></div>' +
       '<div class="groupe-prop"><div class="libelle">Photos du site</div><div class="galerie" id="prop-galerie">' +
       toutes.map(function (chemin) {
-        var src = etat.actifs[chemin] ? 'data:' + etat.actifs[chemin].type + ';base64,' + etat.actifs[chemin].b64 : racineSite + chemin;
+        var src = etat.actifs[chemin] ? 'data:' + etat.actifs[chemin].type + ';base64,' + etat.actifs[chemin].b64 : baseSite + chemin;
         return '<button type="button" data-chemin="' + echapper(chemin) + '" title="' + echapper(chemin.split('/').pop()) + '">' +
           '<img loading="lazy" src="' + echapper(src) + '" alt=""></button>';
       }).join('') +
@@ -1231,11 +1256,7 @@
       if (etat.paletteSale) {
         /* les autres pages doivent recevoir le lien custom.css */
         var base = page ? page.original : null;
-        var pr = base ? Promise.resolve(base) :
-          fetch(racineSite + pg.fichier, { cache: 'no-store' }).then(function (r) {
-            if (!r.ok) { throw new Error(pg.fichier + ' : HTTP ' + r.status); }
-            return r.text();
-          });
+        var pr = base ? Promise.resolve(base) : recupererPage(pg.fichier);
         return pr.then(function (texte) {
           var avecLien = assurerLienCustom(texte);
           if (avecLien !== texte) {

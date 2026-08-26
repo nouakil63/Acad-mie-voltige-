@@ -14,6 +14,12 @@ Il tourne entièrement dans le navigateur : aucune installation, aucun serveur, 
 
   (L'éditeur ne fonctionne pas en ouvrant le fichier directement — il a besoin de `http` pour charger les pages.)
 
+L'éditeur fonctionne **même pendant que le site affiche la page d'attente** : le déploiement
+publie la page d'attente à la racine, l'éditeur sur `/builder/`, et une copie du vrai site sous
+`/builder/site/` (non référencée, exclue des moteurs de recherche) dans laquelle l'éditeur charge
+les pages et les photos. Chaque publication redéclenche le déploiement, la copie reste donc à jour.
+Le jour où le site complet est mis en ligne, l'éditeur bascule tout seul sur les vraies pages.
+
 ## Ce qu'on peut faire
 
 | Geste | Effet |

@@ -5,8 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Le Manège — éditeur du site</title>
   <meta name="robots" content="noindex, nofollow">
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
-  <link rel="stylesheet" href="../assets/css/fonts.css">
+  <link rel="icon" type="image/png" sizes="32x32" href="site/assets/img/favicon-32.png">
+  <style>
+    /* Polices du site — deux chemins essayés : ../assets (site complet ou
+       serveur local) puis site/assets (déploiement « page d'attente »). */
+    @font-face{
+      font-family:'Bricolage Grotesque';font-style:normal;font-weight:200 800;
+      font-stretch:75% 100%;font-display:swap;
+      src:url('../assets/fonts/bricolage.woff2') format('woff2'),
+          url('site/assets/fonts/bricolage.woff2') format('woff2');
+    }
+    @font-face{
+      font-family:'Hanken Grotesk';font-style:normal;font-weight:300 800;font-display:swap;
+      src:url('../assets/fonts/hanken-normal.woff2') format('woff2'),
+          url('site/assets/fonts/hanken-normal.woff2') format('woff2');
+    }
+  </style>
   <link rel="stylesheet" href="builder.css">
 </head>
 <body>
@@ -14,7 +28,8 @@
 <!-- ============ Barre supérieure ============ -->
 <header class="barre">
   <div class="barre-marque">
-    <img src="../assets/img/logo.jpeg" alt="">
+    <img src="../assets/img/logo.jpeg" alt=""
+         onerror="this.onerror=null;this.src='site/assets/img/logo.jpeg'">
     <span><b>Le Manège</b><small>Éditeur du site</small></span>
   </div>
 
