@@ -1372,15 +1372,28 @@
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (json) {
         if (!r.ok) {
-          var m = json && json.message ? json.message : ('HTTP ' + r.status);
-          if (r.status === 401) { m = 'Jeton refusé — vérifiez le jeton GitHub dans les réglages.'; }
-          if (r.status === 403) { m = 'Accès refusé — le jeton n’a pas le droit « Contents : Read and write » sur ce dépôt.'; }
-          if (r.status === 404) { m = 'Introuvable — vérifiez le nom du dépôt, la branche, et que le jeton a bien accès à ce dépôt.'; }
+          var brut = json && json.message ? json.message : ('HTTP ' + r.status);
+          var m = brut;
+          if (r.status === 401) {
+            m = 'Jeton refusé par GitHub — il est peut-être expiré ou mal copié. Recréez-le et collez-le à nouveau.\n(GitHub : ' + brut + ')';
+          }
+          if (r.status === 403 || r.status === 404) {
+            m = 'Le jeton n’a pas accès en écriture à ce dépôt. En le créant, vérifiez ces trois choix :\n' +
+              '· Resource owner : ' + CONFIG.proprietaire + '\n' +
+              '· Repository access : « Only select repositories » → ' + CONFIG.depot + '\n' +
+              '· Permissions → Repository permissions → Contents : « Read and write »\n' +
+              '(GitHub : ' + brut + ')';
+          }
           throw new Error(m);
         }
         return json;
       });
     });
+  }
+
+  function cheminRef(branche) {
+    /* garde les / du nom de branche dans l'URL, encode le reste */
+    return branche.split('/').map(encodeURIComponent).join('/');
   }
 
   function publier() {
@@ -1410,7 +1423,16 @@
     $('#modale-erreur').hidden = true;
 
     var shaCommitBase, shaArbreBase;
-    gh(jeton, 'GET', base + '/git/ref/heads/' + encodeURIComponent(branche))
+    /* d'abord un contrôle du jeton : accès au dépôt, et droit d'écriture */
+    gh(jeton, 'GET', base)
+      .then(function (depot) {
+        if (depot.permissions && depot.permissions.push === false) {
+          throw new Error('Le jeton permet de lire ce dépôt mais pas d’y écrire.\n' +
+            'Recréez-le avec « Permissions → Repository permissions → Contents : Read and write » ' +
+            'et « Repository access : Only select repositories → ' + CONFIG.depot + ' ».');
+        }
+        return gh(jeton, 'GET', base + '/git/ref/heads/' + cheminRef(branche));
+      })
       .then(function (ref) {
         shaCommitBase = ref.object.sha;
         return gh(jeton, 'GET', base + '/git/commits/' + shaCommitBase);
@@ -1434,7 +1456,7 @@
         });
       })
       .then(function (commit) {
-        return gh(jeton, 'PATCH', base + '/git/refs/heads/' + encodeURIComponent(branche), { sha: commit.sha });
+        return gh(jeton, 'PATCH', base + '/git/refs/heads/' + cheminRef(branche), { sha: commit.sha });
       })
       .then(function () {
         /* tout est en ligne : on repart propre */
