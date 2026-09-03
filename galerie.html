@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La galerie — Académie de voltige équestre · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Les plus beaux moments de l'Académie de voltige en images : stages, cours à l'année et spectacles du théâtre équestre, à Auberville en Normandie.">
+  <link rel="canonical" href="https://academiedevoltige.com/galerie.html">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Académie de voltige équestre Fleur &amp; Georges Cotrait">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="La galerie">
+  <meta property="og:description" content="Les plus beaux moments de l'Académie de voltige en images : stages, cours à l'année et spectacles du théâtre équestre, à Auberville en Normandie.">
+  <meta property="og:url" content="https://academiedevoltige.com/galerie.html">
+  <meta property="og:image" content="https://academiedevoltige.com/assets/img/partage.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=30">
+  <link rel="stylesheet" href="assets/css/style.css?v=30">
+  <style>
+    /* ============ La galerie ============ */
+    .galerie-grille{columns:3;column-gap:14px}
+    .galerie-photo{
+      margin:0 0 14px;break-inside:avoid;overflow:hidden;position:relative;
+      border-radius:14px;cursor:zoom-in;background:var(--fond-2);
+    }
+    /* quelques arches, la signature de la maison */
+    .galerie-photo:nth-child(4n+1){border-radius:999px 999px 14px 14px}
+    .galerie-photo:nth-child(4n+1)::before{
+      content:"";position:absolute;inset:9px 9px 40%;z-index:1;pointer-events:none;
+      border-radius:999px 999px 0 0;border:1px solid color-mix(in srgb, var(--blanc) 55%, transparent);border-bottom:0;
+    }
+    .galerie-photo img{width:100%;height:auto;display:block;transition:transform .6s var(--galop)}
+    .galerie-photo:hover img,.galerie-photo:focus-visible img{transform:scale(1.045)}
+    @media (max-width:900px){.galerie-grille{columns:2}}
+
+    /* ============ La visionneuse ============ */
+    .visionneuse{
+      position:fixed;inset:0;z-index:180;display:none;
+      align-items:center;justify-content:center;flex-direction:column;gap:16px;
+      background:color-mix(in srgb, var(--encre) 94%, transparent);padding:24px;
+    }
+    .visionneuse.ouverte{display:flex;animation:vis-entre .35s var(--galop)}
+    @keyframes vis-entre{from{opacity:0}to{opacity:1}}
+    .visionneuse img{
+      max-width:min(1100px,92vw);max-height:82vh;display:block;
+      border-radius:10px;box-shadow:0 30px 80px rgba(0,0,0,.6);
+      animation:vis-photo .4s var(--galop);
+    }
+    @keyframes vis-photo{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+    .visionneuse figcaption{
+      color:color-mix(in srgb, var(--voile) 75%, transparent);
+      font-size:12.5px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;text-align:center;
+    }
+    .vis-fermer,.vis-nav{
+      position:fixed;z-index:2;width:46px;height:46px;border-radius:50%;
+      border:1px solid color-mix(in srgb, var(--voile) 35%, transparent);
+      background:color-mix(in srgb, var(--encre) 60%, transparent);color:var(--voile);
+      font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center;
+      transition:background .25s var(--galop),border-color .25s var(--galop);
+    }
+    .vis-fermer:hover,.vis-nav:hover{background:var(--rouge);border-color:var(--rouge)}
+    .vis-fermer{top:18px;right:18px}
+    .vis-nav{top:50%;transform:translateY(-50%)}
+    .vis-nav.prec{left:14px}
+    .vis-nav.suiv{right:14px}
+    @media (max-width:640px){.vis-nav{display:none}}
+  </style>
+</head>
+<body class="nav-toujours-blanche">
+
+<a class="acces-rapide" href="#photos">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="theatre.html">Le théâtre</a>
+    <a href="galerie.html" aria-current="page">Galerie</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="theatre.html">Le théâtre</a>
+  <a href="galerie.html">Galerie</a>
+  <a href="contact.html">Contact</a>
+  <a href="inscription.html">Inscription</a>
+</nav>
+
+<!-- ============ En-tête de page ============ -->
+<header class="page-hero claire" style="padding-bottom:clamp(32px,5vw,48px)">
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+  </svg>
+  <div class="contenu">
+    <div>
+      <nav class="ariane" aria-label="Fil d'ariane">
+        <a href="index.html">Accueil</a><i>→</i><span>La galerie</span>
+      </nav>
+      <h1>
+        <span class="ligne"><span>Des années</span></span>
+        <span class="ligne"><span>de <em>voltige</em>.</span></span>
+      </h1>
+      <p class="sous-titre">Stages, cours et soirs de spectacle : les plus beaux moments de l'académie, en images. La galerie s'agrandit au fil des saisons.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ============ Les photos ============ -->
+<section class="section" id="photos" style="padding-top:clamp(40px,6vw,56px)">
+  <div class="contenu">
+    <div class="section-head">
+      <p class="eyebrow reveal">La galerie</p>
+      <h2 class="reveal">En piste, en images.</h2>
+      <p class="reveal">Cliquez sur une photo pour l'agrandir.</p>
+    </div>
+    <div class="galerie-grille reveal">
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-pyramide.jpeg" alt="Pyramide de voltigeuses sur un cheval"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-duo.jpeg" alt="Duo de voltigeuses en costumes bleus sur un cheval gris"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-solo.jpeg" alt="Jeune voltigeuse bras ouverts sur un cheval au galop"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-longe.jpeg" alt="Travail à la longe sur le cercle"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-planche.jpeg" alt="Voltigeuse en planche sur un cheval au galop"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/voltige-figure.jpeg" alt="Voltigeuse en figure allongée sur un cheval palomino"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-theatre.jpg" alt="Représentation de théâtre à l'académie"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/salon-du-cheval.jpg" alt="L'académie au Salon du cheval"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-fleur-et-george.jpg" alt="Fleur et Georges Cotrait"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-enfant-deguise.jpg" alt="Enfant costumé pour le spectacle"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/image-figure.jpg" alt="Figure de voltige"></figure>
+      <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-enfant-cantine.jpg" alt="Le repas des enfants pendant un stage"></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Bande d'appel finale ============ -->
+<section class="bande-cta">
+  <div class="contenu">
+    <h2>Envie d'être sur la <span class="creux">photo</span> ?</h2>
+    <div class="actions">
+      <a class="btn btn-plein" href="stages.html"><span>Réserver un stage</span></a>
+      <a class="btn btn-contour" href="inscription-cours.html"><span>S'inscrire aux cours</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Pied de page ============ -->
+<footer class="pied">
+  <div class="contenu">
+    <div class="pied-haut">
+      <a class="marque" href="index.html" style="color:var(--texte)">
+        <img src="assets/img/logo.jpeg" alt="">
+        <span>
+          <b>Académie de voltige</b>
+          <small>Fleur &amp; Georges Cotrait</small>
+        </span>
+      </a>
+      <nav class="pied-nav" aria-label="Pied de page">
+        <a href="histoire.html">L'académie</a>
+        <a href="stages.html">Stages</a>
+        <a href="cours.html">Cours</a>
+        <a href="theatre.html">Le théâtre</a>
+        <a href="galerie.html">Galerie</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+    <div class="pied-bas">
+      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie · <a href="mentions-legales.html" style="color:inherit">Mentions légales</a> · <a href="confidentialite.html" style="color:inherit">Confidentialité</a></span>
+      <span class="sociaux">
+        <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.youtube.com/channel/UCVWNBdhexKOj-6WiQdvCf5g" target="_blank" rel="noopener">YouTube</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<!-- visionneuse plein écran -->
+<div class="visionneuse" id="visionneuse" role="dialog" aria-modal="true" aria-label="Photo agrandie">
+  <button class="vis-fermer" type="button" aria-label="Fermer">✕</button>
+  <button class="vis-nav prec" type="button" aria-label="Photo précédente">←</button>
+  <figure style="margin:0;display:flex;flex-direction:column;gap:14px;align-items:center">
+    <img src="" alt="">
+    <figcaption></figcaption>
+  </figure>
+  <button class="vis-nav suiv" type="button" aria-label="Photo suivante">→</button>
+</div>
+
+<script src="assets/js/main.js?v=32"></script>
+<script src="assets/js/galerie.js?v=1"></script>
+</body>
+</html>

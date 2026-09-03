@@ -18,6 +18,7 @@
       { fichier: 'stages.html', nom: 'Les stages' },
       { fichier: 'cours.html', nom: 'Les cours' },
       { fichier: 'theatre.html', nom: 'Le théâtre' },
+      { fichier: 'galerie.html', nom: 'Galerie' },
       { fichier: 'contact.html', nom: 'Contact' },
       { fichier: 'inscription.html', nom: 'Inscription' },
       { fichier: 'inscription-cours.html', nom: 'Inscription aux cours' },
@@ -34,6 +35,14 @@
       'assets/img/voltige-planche.jpeg',
       'assets/img/voltige-figure.jpeg',
       'assets/img/georges-cotrait.jpeg',
+      'assets/img/photo-theatre.jpg',
+      'assets/img/salon-du-cheval.jpg',
+      'assets/img/photo-fleur-et-george.jpg',
+      'assets/img/photo-fleur-et-george-2.jpg',
+      'assets/img/photo-enfant-deguise.jpg',
+      'assets/img/photo-enfant-cantine.jpg',
+      'assets/img/image-figure.jpg',
+      'assets/img/images-de-voltige-nicole-025-2.jpg',
       'assets/img/logo.jpeg',
       'assets/video/poster.jpg'
     ],
@@ -976,6 +985,7 @@
       var m = yt && /embed\/([\w-]{6,})/.exec(yt.getAttribute('src') || '');
       ytId = m ? m[1] : '';
     }
+    var grille = sec.querySelector('.galerie-grille');
 
     panneauDroit.innerHTML =
       '<div class="prop-tete"><span class="type">Section' + (verrou ? ' · protégée' : '') + '</span>' +
@@ -995,6 +1005,11 @@
         '<div class="groupe-prop"><label>Vidéo YouTube de fond</label>' +
         '<input type="text" class="champ-texte" id="prop-yt" value="' + echapper(ytId) + '" placeholder="Identifiant, ex. S66yaWydw9w">' +
         '<p class="note-prop">Collez l’identifiant de la vidéo (les caractères après « watch?v= » dans l’adresse YouTube).</p></div>' : '') +
+      (grille ?
+        '<div class="groupe-prop"><div class="libelle">Galerie</div>' +
+        '<button type="button" class="btn-remplacer" id="prop-ajout-photo">➕ Ajouter des photos…</button>' +
+        '<input type="file" id="prop-ajout-fichier" accept="image/*" multiple hidden>' +
+        '<p class="note-prop">Les nouvelles photos arrivent en fin de galerie. Cliquez ensuite sur une photo pour la déplacer ou la retirer.</p></div>' : '') +
       (piste ?
         curseurHtml('vitesse', 'Vitesse de défilement', 25, 300, vitesseActuelle(piste, pisteDefaut), ' %') : '') +
       (badge ?
@@ -1007,6 +1022,37 @@
     $$('[data-act]', panneauDroit).forEach(function (b) {
       b.addEventListener('click', function () { actionSection(b.dataset.act, sec); });
     });
+
+    if (grille) {
+      var ajoutFichier = $('#prop-ajout-fichier', panneauDroit);
+      $('#prop-ajout-photo', panneauDroit).addEventListener('click', function () { ajoutFichier.click(); });
+      ajoutFichier.addEventListener('change', function () {
+        var fs = Array.prototype.slice.call(ajoutFichier.files);
+        if (!fs.length) { return; }
+        var avant = serialiser(idoc(), 'travail');
+        var pousse = false;
+        var total = 0;
+        fs.forEach(function (f) {
+          importerImage(f, function (url, chemin) {
+            var fig = idoc().createElement('figure');
+            fig.className = 'galerie-photo';
+            var im = idoc().createElement('img');
+            im.setAttribute('loading', 'lazy');
+            im.setAttribute('decoding', 'async');
+            im.setAttribute('alt', '');
+            im.setAttribute('src', url);
+            im.setAttribute('data-av-asset', chemin);
+            fig.appendChild(im);
+            grille.appendChild(fig);
+            if (!pousse) { pousse = true; pousserHistorique(avant); }
+            total++;
+            notifier(total > 1 ? total + ' photos ajoutées — pensez à publier pour les mettre en ligne.'
+              : 'Photo ajoutée à la galerie — pensez à publier pour la mettre en ligne.');
+          });
+        });
+        ajoutFichier.value = '';
+      });
+    }
 
     var champYt = $('#prop-yt', panneauDroit);
     if (champYt) {
@@ -1145,10 +1191,32 @@
     });
   }
 
+  /* ---- import d'une image choisie sur l'ordinateur ---- */
+  function importerImage(f, rappel) {
+    if (!/^image\//.test(f.type)) { notifier('« ' + f.name + ' » n’est pas une image.', 'erreur'); return; }
+    var lecteur = new FileReader();
+    lecteur.onload = function () {
+      var url = String(lecteur.result);
+      var b64 = url.slice(url.indexOf(',') + 1);
+      var nom = f.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') || 'photo.jpg';
+      if (!/\.[a-z0-9]+$/.test(nom)) { nom += '.jpg'; }
+      var chemin = 'assets/img/' + nom;
+      var i = 2;
+      while (etat.actifs[chemin] || CONFIG.imagesConnues.indexOf(chemin) !== -1) {
+        chemin = 'assets/img/' + nom.replace(/(\.[a-z0-9]+)$/, '-' + (i++) + '$1');
+      }
+      etat.actifs[chemin] = { b64: b64, type: f.type };
+      rappel(url, chemin);
+    };
+    lecteur.readAsDataURL(f);
+  }
+
   /* ---- panneau : image ---- */
   function panneauImage(img) {
     var pos = /center (\d+)%/.exec(img.style.objectPosition || '');
     var toutes = CONFIG.imagesConnues.concat(Object.keys(etat.actifs));
+    var figure = img.closest('figure.galerie-photo');
 
     panneauDroit.innerHTML =
       '<div class="prop-tete"><span class="type">Photo</span>' +
@@ -1170,6 +1238,12 @@
       '<input type="text" class="champ-texte" id="prop-alt" value="' + echapper(img.getAttribute('alt') || '') + '" placeholder="Décrivez la photo en quelques mots">' +
       '</div>' +
       curseurHtml('cadrage', 'Cadrage vertical', 0, 100, pos ? +pos[1] : 50, ' %') +
+      (figure ?
+        '<div class="groupe-prop"><div class="libelle">Photo de la galerie</div><div class="actions-prop">' +
+        '<button type="button" id="prop-gal-prec">◀ Reculer</button>' +
+        '<button type="button" id="prop-gal-suiv">Avancer ▶</button>' +
+        '<button type="button" class="danger" id="prop-gal-retirer" style="grid-column:1/-1">✕ Retirer de la galerie</button>' +
+        '</div></div>' : '') +
       '</div>';
 
     var fichier = $('#prop-fichier', panneauDroit);
@@ -1177,27 +1251,14 @@
     fichier.addEventListener('change', function () {
       var f = fichier.files[0];
       if (!f) { return; }
-      if (!/^image\//.test(f.type)) { notifier('Ce fichier n’est pas une image.', 'erreur'); return; }
-      var lecteur = new FileReader();
-      lecteur.onload = function () {
-        var avant = serialiser(idoc(), 'travail');
-        var url = String(lecteur.result);
-        var b64 = url.slice(url.indexOf(',') + 1);
-        var nom = f.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-          .replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') || 'photo.jpg';
-        var chemin = 'assets/img/' + nom;
-        var i = 2;
-        while (etat.actifs[chemin] || CONFIG.imagesConnues.indexOf(chemin) !== -1) {
-          chemin = 'assets/img/' + nom.replace(/(\.[a-z0-9]+)$/, '-' + (i++) + '$1');
-        }
-        etat.actifs[chemin] = { b64: b64, type: f.type };
+      var avant = serialiser(idoc(), 'travail');
+      importerImage(f, function (url, chemin) {
         img.setAttribute('src', url);
         img.setAttribute('data-av-asset', chemin);
         pousserHistorique(avant);
         panneauImage(img);
         notifier('Photo remplacée — elle sera envoyée sur le site à la publication.');
-      };
-      lecteur.readAsDataURL(f);
+      });
     });
 
     $('#prop-galerie', panneauDroit).addEventListener('click', function (e) {
@@ -1215,6 +1276,30 @@
       pousserHistorique(avant);
       $('#prop-apercu-img', panneauDroit).src = img.src;
     });
+
+    if (figure) {
+      $('#prop-gal-prec', panneauDroit).addEventListener('click', function () {
+        var prec = figure.previousElementSibling;
+        if (!prec) { notifier('La photo est déjà en tête de galerie.'); return; }
+        var avant = serialiser(idoc(), 'travail');
+        figure.parentNode.insertBefore(figure, prec);
+        pousserHistorique(avant);
+      });
+      $('#prop-gal-suiv', panneauDroit).addEventListener('click', function () {
+        var suiv = figure.nextElementSibling;
+        if (!suiv) { notifier('La photo est déjà en fin de galerie.'); return; }
+        var avant = serialiser(idoc(), 'travail');
+        figure.parentNode.insertBefore(suiv, figure);
+        pousserHistorique(avant);
+      });
+      $('#prop-gal-retirer', panneauDroit).addEventListener('click', function () {
+        var avant = serialiser(idoc(), 'travail');
+        figure.remove();
+        pousserHistorique(avant);
+        selectionner(null);
+        notifier('Photo retirée de la galerie.');
+      });
+    }
 
     lierChampTexte($('#prop-alt', panneauDroit), function (v) { img.setAttribute('alt', v); });
 
