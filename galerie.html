@@ -37,6 +37,10 @@
     }
     .galerie-photo img{width:100%;height:auto;display:block;transition:transform .6s var(--galop)}
     .galerie-photo:hover img,.galerie-photo:focus-visible img{transform:scale(1.045)}
+    /* vidéos : lecture dans la page, pas d'arche ni de zoom */
+    .galerie-video{cursor:default;border-radius:14px!important}
+    .galerie-video::before{display:none!important}
+    .galerie-video iframe,.galerie-video video{width:100%;aspect-ratio:16/9;height:auto;border:0;display:block;background:#000}
     @media (max-width:900px){.galerie-grille{columns:2}}
 
     /* ============ La visionneuse ============ */
@@ -150,6 +154,7 @@
       <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-enfant-deguise.jpg" alt="Enfant costumé pour le spectacle"></figure>
       <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/image-figure.jpg" alt="Figure de voltige"></figure>
       <figure class="galerie-photo"><img loading="lazy" decoding="async" src="assets/img/photo-enfant-cantine.jpg" alt="Le repas des enfants pendant un stage"></figure>
+      <figure class="galerie-photo galerie-video"><iframe src="https://www.youtube-nocookie.com/embed/S66yaWydw9w?rel=0" title="Vidéo YouTube" loading="lazy" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe></figure>
     </div>
   </div>
 </section>
@@ -208,6 +213,6 @@
 </div>
 
 <script src="assets/js/main.js?v=32"></script>
-<script src="assets/js/galerie.js?v=1"></script>
+<script src="assets/js/galerie.js?v=2"></script>
 </body>
 </html>

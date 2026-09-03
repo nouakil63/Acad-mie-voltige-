@@ -155,6 +155,8 @@
     '.reveal{opacity:1!important;transform:none!important}' +
     '.chargeur,.surgi,.acces-rapide,.defile{display:none!important}' +
     '.marquee-piste,.bande-photos .piste{animation-play-state:paused}' +
+    /* dans l’aperçu, un clic sur une vidéo la sélectionne (au lieu de la lire) */
+    '.galerie-video iframe,.galerie-video video{pointer-events:none}' +
     '.hero-photo,.page-hero-photo,.arche-photo img,.page-arche img,.bp img,.theatre-arche img,' +
     '.carte-visuel img,.cercle-hero .rond-photo img,.photo-frise img,.carte-parcours .visuel img{animation:none!important}' +
     '.hero-contenu h1 .ligne>span,.page-hero .ligne>span{transform:none!important}' +
@@ -380,6 +382,8 @@
   function cible(el) {
     if (!el || el.nodeType !== 1) { return null; }
     if (el.closest && el.closest('[data-av-editeur]')) { return null; }
+    var vid = el.closest ? el.closest('.galerie-video') : null;
+    if (vid) { return { el: vid, type: 'video' }; }
     var img = el.closest ? el.closest('img') : null;
     if (img) { return { el: img, type: 'image' }; }
     var txt = cibleTexte(el);
@@ -639,7 +643,7 @@
     });
     if (mode !== 'travail') {
       $$('[data-av-id]', racine).forEach(function (n) { n.removeAttribute('data-av-id'); });
-      $$('img[data-av-asset]', racine).forEach(function (n) {
+      $$('img[data-av-asset],video[data-av-asset]', racine).forEach(function (n) {
         if (mode === 'publier') { n.setAttribute('src', n.getAttribute('data-av-asset')); }
         n.removeAttribute('data-av-asset');
       });
@@ -779,6 +783,7 @@
     if (!etat.sel) { panneauAccueil(); return; }
     var t = etat.sel.type;
     if (t === 'image') { panneauImage(etat.sel.el); }
+    else if (t === 'video') { panneauVideo(etat.sel.el); }
     else if (t === 'lien') { panneauTexte(etat.sel.el, true); }
     else if (t === 'texte') { panneauTexte(etat.sel.el, false); }
     else { panneauSection(etat.sel.el); }
@@ -973,6 +978,14 @@
     return isNaN(d) || d <= 0 ? 100 : Math.round(defaut / d * 100);
   }
 
+  /* accepte un lien YouTube complet (watch, youtu.be, embed, shorts) ou l'identifiant seul (11 caractères) */
+  function extraireIdYouTube(v) {
+    v = String(v).trim();
+    var m = /(?:watch\?v=|youtu\.be\/|embed\/|shorts\/|live\/)([\w-]{6,})/.exec(v);
+    if (m) { return m[1]; }
+    return /^[\w-]{11}$/.test(v) ? v : null;
+  }
+
   function panneauSection(sec) {
     var verrou = estVerrouillee(sec);
     var pad = parseInt(sec.style.paddingTop, 10);
@@ -1009,7 +1022,13 @@
         '<div class="groupe-prop"><div class="libelle">Galerie</div>' +
         '<button type="button" class="btn-remplacer" id="prop-ajout-photo">➕ Ajouter des photos…</button>' +
         '<input type="file" id="prop-ajout-fichier" accept="image/*" multiple hidden>' +
-        '<p class="note-prop">Les nouvelles photos arrivent en fin de galerie. Cliquez ensuite sur une photo pour la déplacer ou la retirer.</p></div>' : '') +
+        '<button type="button" class="btn-remplacer" id="prop-ajout-video">🎬 Ajouter une vidéo (fichier)…</button>' +
+        '<input type="file" id="prop-ajout-video-fichier" accept="video/*" hidden>' +
+        '<label for="prop-ajout-yt" style="margin-top:10px">Ou une vidéo YouTube</label>' +
+        '<input type="text" class="champ-texte" id="prop-ajout-yt" placeholder="Collez le lien de la vidéo YouTube…">' +
+        '<button type="button" class="btn-remplacer" id="prop-ajout-yt-btn">▶ Ajouter la vidéo YouTube</button>' +
+        '<p class="note-prop">Photos et vidéos arrivent en fin de galerie. Cliquez ensuite dessus pour les déplacer ou les retirer. ' +
+        'Vidéo fichier : 30 Mo maximum — au-delà, passez par YouTube.</p></div>' : '') +
       (piste ?
         curseurHtml('vitesse', 'Vitesse de défilement', 25, 300, vitesseActuelle(piste, pisteDefaut), ' %') : '') +
       (badge ?
@@ -1052,14 +1071,60 @@
         });
         ajoutFichier.value = '';
       });
+
+      var ajoutVideo = $('#prop-ajout-video-fichier', panneauDroit);
+      $('#prop-ajout-video', panneauDroit).addEventListener('click', function () { ajoutVideo.click(); });
+      ajoutVideo.addEventListener('change', function () {
+        var f = ajoutVideo.files[0];
+        ajoutVideo.value = '';
+        if (!f) { return; }
+        var avant = serialiser(idoc(), 'travail');
+        importerVideo(f, function (url, chemin) {
+          var fig = idoc().createElement('figure');
+          fig.className = 'galerie-photo galerie-video';
+          var v = idoc().createElement('video');
+          v.setAttribute('controls', '');
+          v.setAttribute('playsinline', '');
+          v.setAttribute('preload', 'metadata');
+          v.setAttribute('src', url);
+          v.setAttribute('data-av-asset', chemin);
+          fig.appendChild(v);
+          grille.appendChild(fig);
+          pousserHistorique(avant);
+          notifier('Vidéo ajoutée à la galerie — pensez à publier pour la mettre en ligne.');
+        });
+      });
+
+      var champAjoutYt = $('#prop-ajout-yt', panneauDroit);
+      $('#prop-ajout-yt-btn', panneauDroit).addEventListener('click', function () {
+        var id = extraireIdYouTube(champAjoutYt.value);
+        if (!id) {
+          notifier('Ce lien YouTube n’est pas reconnu. Collez l’adresse complète de la vidéo (youtube.com/watch?v=… ou youtu.be/…).', 'erreur');
+          return;
+        }
+        var avant = serialiser(idoc(), 'travail');
+        var fig = idoc().createElement('figure');
+        fig.className = 'galerie-photo galerie-video';
+        var cadre = idoc().createElement('iframe');
+        cadre.setAttribute('src', 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0');
+        cadre.setAttribute('title', 'Vidéo YouTube');
+        cadre.setAttribute('loading', 'lazy');
+        cadre.setAttribute('allowfullscreen', '');
+        cadre.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        fig.appendChild(cadre);
+        grille.appendChild(fig);
+        pousserHistorique(avant);
+        champAjoutYt.value = '';
+        notifier('Vidéo YouTube ajoutée à la galerie — pensez à publier pour la mettre en ligne.');
+      });
     }
 
     var champYt = $('#prop-yt', panneauDroit);
     if (champYt) {
       lierChampTexte(champYt, function (v) {
-        var id = v.trim().replace(/^.*(?:watch\?v=|youtu\.be\/|embed\/)/, '').replace(/[?&].*$/, '');
+        var id = extraireIdYouTube(v);
         var yt = sec.querySelector('.hero-yt iframe');
-        if (yt && /^[\w-]{6,}$/.test(id)) {
+        if (yt && id) {
           yt.setAttribute('src', 'https://www.youtube-nocookie.com/embed/' + id +
             '?autoplay=1&mute=1&loop=1&playlist=' + id +
             '&controls=0&rel=0&playsinline=1&disablekb=1&iv_load_policy=3&modestbranding=1');
@@ -1191,25 +1256,39 @@
     });
   }
 
-  /* ---- import d'une image choisie sur l'ordinateur ---- */
-  function importerImage(f, rappel) {
-    if (!/^image\//.test(f.type)) { notifier('« ' + f.name + ' » n’est pas une image.', 'erreur'); return; }
+  /* ---- import d'un fichier choisi sur l'ordinateur (photo ou vidéo) ---- */
+  function importerFichier(f, dossier, extDefaut, rappel) {
     var lecteur = new FileReader();
     lecteur.onload = function () {
       var url = String(lecteur.result);
       var b64 = url.slice(url.indexOf(',') + 1);
       var nom = f.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') || 'photo.jpg';
-      if (!/\.[a-z0-9]+$/.test(nom)) { nom += '.jpg'; }
-      var chemin = 'assets/img/' + nom;
+        .replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '') || 'fichier' + extDefaut;
+      if (!/\.[a-z0-9]+$/.test(nom)) { nom += extDefaut; }
+      var chemin = dossier + nom;
       var i = 2;
       while (etat.actifs[chemin] || CONFIG.imagesConnues.indexOf(chemin) !== -1) {
-        chemin = 'assets/img/' + nom.replace(/(\.[a-z0-9]+)$/, '-' + (i++) + '$1');
+        chemin = dossier + nom.replace(/(\.[a-z0-9]+)$/, '-' + (i++) + '$1');
       }
       etat.actifs[chemin] = { b64: b64, type: f.type };
       rappel(url, chemin);
     };
     lecteur.readAsDataURL(f);
+  }
+
+  function importerImage(f, rappel) {
+    if (!/^image\//.test(f.type)) { notifier('« ' + f.name + ' » n’est pas une image.', 'erreur'); return; }
+    importerFichier(f, 'assets/img/', '.jpg', rappel);
+  }
+
+  function importerVideo(f, rappel) {
+    if (!/^video\//.test(f.type)) { notifier('« ' + f.name + ' » n’est pas une vidéo.', 'erreur'); return; }
+    if (f.size > 30 * 1024 * 1024) {
+      notifier('Cette vidéo pèse ' + Math.round(f.size / 1024 / 1024) + ' Mo — trop lourd pour le site (30 Mo maximum). ' +
+        'Mettez-la sur YouTube, puis collez son lien ici.', 'erreur');
+      return;
+    }
+    importerFichier(f, 'assets/video/', '.mp4', rappel);
   }
 
   /* ---- panneau : image ---- */
@@ -1311,6 +1390,61 @@
     });
   }
 
+  /* ---- panneau : vidéo de la galerie ---- */
+  function panneauVideo(fig) {
+    var cadre = fig.querySelector('iframe');
+    var video = fig.querySelector('video');
+    var nom = cadre ? 'Vidéo YouTube'
+      : (video && (video.getAttribute('data-av-asset') || video.getAttribute('src') || '').split('/').pop().split('?')[0].slice(0, 34)) || 'Vidéo';
+    var idActuel = cadre ? (extraireIdYouTube(cadre.getAttribute('src') || '') || '') : null;
+
+    panneauDroit.innerHTML =
+      '<div class="prop-tete"><span class="type">Vidéo</span>' +
+      '<span class="nom">' + echapper(nom) + '</span></div>' +
+      '<div class="prop-corps">' +
+      (cadre ?
+        '<div class="groupe-prop"><label>Vidéo YouTube</label>' +
+        '<input type="text" class="champ-texte" id="prop-vid-yt" value="' + echapper(idActuel) + '" placeholder="Lien ou identifiant YouTube">' +
+        '<p class="note-prop">Collez un autre lien YouTube pour changer la vidéo.</p></div>' :
+        '<p class="note-prop">Vidéo hébergée sur le site. Elle se lit directement dans la page.</p>') +
+      '<div class="groupe-prop"><div class="libelle">Vidéo de la galerie</div><div class="actions-prop">' +
+      '<button type="button" id="prop-gal-prec">◀ Reculer</button>' +
+      '<button type="button" id="prop-gal-suiv">Avancer ▶</button>' +
+      '<button type="button" class="danger" id="prop-gal-retirer" style="grid-column:1/-1">✕ Retirer de la galerie</button>' +
+      '</div></div>' +
+      '</div>';
+
+    var champVidYt = $('#prop-vid-yt', panneauDroit);
+    if (champVidYt) {
+      lierChampTexte(champVidYt, function (v) {
+        var id = extraireIdYouTube(v);
+        if (id) { cadre.setAttribute('src', 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0'); }
+      });
+    }
+
+    $('#prop-gal-prec', panneauDroit).addEventListener('click', function () {
+      var prec = fig.previousElementSibling;
+      if (!prec) { notifier('La vidéo est déjà en tête de galerie.'); return; }
+      var avant = serialiser(idoc(), 'travail');
+      fig.parentNode.insertBefore(fig, prec);
+      pousserHistorique(avant);
+    });
+    $('#prop-gal-suiv', panneauDroit).addEventListener('click', function () {
+      var suiv = fig.nextElementSibling;
+      if (!suiv) { notifier('La vidéo est déjà en fin de galerie.'); return; }
+      var avant = serialiser(idoc(), 'travail');
+      fig.parentNode.insertBefore(suiv, fig);
+      pousserHistorique(avant);
+    });
+    $('#prop-gal-retirer', panneauDroit).addEventListener('click', function () {
+      var avant = serialiser(idoc(), 'travail');
+      fig.remove();
+      pousserHistorique(avant);
+      selectionner(null);
+      notifier('Vidéo retirée de la galerie.');
+    });
+  }
+
   /* ============ Clavier ============ */
   function surTouche(e) {
     var z = (e.ctrlKey || e.metaKey) && !e.altKey;
@@ -1406,7 +1540,7 @@
       Object.keys(etat.actifs).forEach(function (chemin) {
         if (tout.indexOf(chemin) !== -1) {
           fichiers[chemin] = { b64: etat.actifs[chemin].b64 };
-          resume.push({ chemin: chemin, quoi: 'nouvelle photo' });
+          resume.push({ chemin: chemin, quoi: /^video\//.test(etat.actifs[chemin].type || '') ? 'nouvelle vidéo' : 'nouvelle photo' });
         }
       });
       return { fichiers: fichiers, resume: resume };
