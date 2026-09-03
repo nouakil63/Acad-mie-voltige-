@@ -1,11 +1,12 @@
-/* Parcours d'inscription aux cours à l'année — trois étapes, récapitulatif en direct.
-   En attendant le paiement en ligne, l'envoi ouvre un e-mail pré-rempli. */
+/* Demande d'inscription aux cours à l'année — trois étapes, récapitulatif en direct.
+   La demande part par e-mail ; Georges Cotrait la valide sous 24 h maximum, puis
+   le client reçoit un lien de paiement sécurisé. */
 (function () {
   'use strict';
 
   var FORMULES = [
-    { nom: 'Éveil', creneau: 'Mercredi 14h00 — 15h30', tarif: '390 € / an' },
-    { nom: 'Voltige', creneau: 'Mercredi 16h00 ou samedi 10h00', tarif: '450 € / an' }
+    { nom: 'Cours du mercredi', creneau: 'Mercredi 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' },
+    { nom: 'Cours du samedi', creneau: 'Samedi 10h00 — 13h00 · 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' }
   ];
 
   var form = document.getElementById('form-cours');
@@ -58,6 +59,7 @@
     document.getElementById('r-total').textContent = f ? f.tarif : '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
+    document.getElementById('r-poids').textContent = texte('enfant-poids') || '—';
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
@@ -86,7 +88,7 @@
     var corps = [
       'Bonjour,',
       '',
-      'Je souhaite inscrire mon enfant aux cours à l\'année :',
+      'DEMANDE D\'INSCRIPTION aux cours à l\'année :',
       '',
       'Formule : ' + f.nom,
       'Créneau : ' + f.creneau,
@@ -95,15 +97,17 @@
       '',
       'Voltigeur : ' + texte('enfant-prenom') + ' ' + texte('enfant-nom'),
       'Date de naissance : ' + texte('enfant-naissance'),
+      'Poids : ' + texte('enfant-poids'),
       'Niveau : ' + document.getElementById('enfant-niveau').value,
       '',
       'Parent : ' + texte('parent-nom'),
       'Téléphone : ' + texte('parent-tel'),
       'E-mail : ' + texte('parent-email'),
       '',
-      'Merci de me proposer ' + (essai ? 'une date de cours d\'essai.' : 'la marche à suivre pour finaliser l\'inscription.'),
+      'J\'ai compris que cette demande sera validée sous 24 h maximum,',
+      'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
     ].join('\n');
-    var sujet = 'Inscription cours — ' + f.nom + (essai ? ' (cours d\'essai)' : '');
+    var sujet = 'Demande d\'inscription cours — ' + f.nom + (essai ? ' (avec cours d\'essai)' : '');
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');

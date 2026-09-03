@@ -40,7 +40,7 @@
     <a href="histoire.html">L'académie</a>
     <a href="stages.html">Stages</a>
     <a href="cours.html">Cours</a>
-    <a href="index.html#theatre">Le théâtre</a>
+    <a href="theatre.html">Le théâtre</a>
     <a href="index.html#infos">Infos pratiques</a>
     <a href="contact.html">Contact</a>
   </nav>
@@ -55,7 +55,7 @@
   <a href="histoire.html">L'académie</a>
   <a href="stages.html">Stages</a>
   <a href="cours.html">Cours</a>
-  <a href="index.html#theatre">Le théâtre</a>
+  <a href="theatre.html">Le théâtre</a>
   <a href="index.html#infos">Infos pratiques</a>
   <a href="contact.html">Contact</a>
   <a href="inscription.html">Inscription</a>
@@ -75,7 +75,7 @@
         <span class="ligne"><span>S'inscrire</span></span>
         <span class="ligne"><span>aux <em>cours</em>.</span></span>
       </h1>
-      <p class="sous-titre">Trois étapes, deux minutes — et le premier cours est un essai sans engagement.</p>
+      <p class="sous-titre">Trois étapes, deux minutes. Georges Cotrait valide chaque demande sous 24&nbsp;h maximum — vous recevez alors un lien de paiement sécurisé par e-mail.</p>
     </div>
   </div>
 </header>
@@ -115,6 +115,24 @@
                 </select>
               </div>
             </div>
+            <div class="champ">
+              <label for="enfant-poids">Poids de l'enfant <b>*</b></label>
+              <select id="enfant-poids" name="enfant-poids" required>
+                <option value="">Choisir une fourchette…</option>
+                <option>Moins de 20 kg</option>
+                <option>20 à 30 kg</option>
+                <option>30 à 40 kg</option>
+                <option>40 à 50 kg</option>
+                <option>50 à 60 kg</option>
+                <option>Plus de 60 kg</option>
+              </select>
+            </div>
+            <p style="border-left:1.4px solid var(--accent);background:var(--fond-2);padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--texte-2)">
+              <b style="color:var(--texte)">Pourquoi demandons-nous le poids ?</b>
+              La voltige n'est pas de l'équitation traditionnelle : l'enfant évolue en équilibre et en figures
+              <em>sur</em> le poney, qui le porte tout au long du cours. Pour préserver nos poneys et garantir
+              la sécurité de tous, les montures et les groupes sont attribués en fonction du poids des voltigeurs.
+            </p>
             <div class="rang">
               <div class="champ"><label for="parent-nom">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
               <div class="champ"><label for="parent-tel">Votre téléphone <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
@@ -140,23 +158,24 @@
               <input type="radio" name="formule" value="0" required>
               <span class="boite">
                 <span class="pastille-radio" aria-hidden="true"></span>
-                <span class="dates">6–9 ans · Mercredi 14h00 — 15h30</span>
-                <span class="nom-stage">Éveil</span>
-                <span class="dispo">La découverte du cheval par le jeu, au pas et au trot</span>
-                <span class="prix-stage">390&nbsp;€ <small>/ an</small></span>
+                <span class="dates">Mercredi 14h00 — 16h00</span>
+                <span class="nom-stage">Cours du mercredi</span>
+                <span class="dispo">1 cours = 30 min de cheval d'arçon + 30 min à cheval</span>
+                <span class="prix-stage">25&nbsp;€ <small>/ cours</small></span>
               </span>
             </label>
             <label class="choix-stage">
               <input type="radio" name="formule" value="1">
               <span class="boite">
                 <span class="pastille-radio" aria-hidden="true"></span>
-                <span class="dates">10–14 ans · Mercredi 16h00 ou samedi 10h00</span>
-                <span class="nom-stage">Voltige</span>
-                <span class="dispo">Figures au galop, enchaînements en musique, esprit d'équipe</span>
-                <span class="prix-stage">450&nbsp;€ <small>/ an</small></span>
+                <span class="dates">Samedi 10h00 — 13h00 · 14h00 — 16h00</span>
+                <span class="nom-stage">Cours du samedi</span>
+                <span class="dispo">1 cours = 30 min de cheval d'arçon + 30 min à cheval</span>
+                <span class="prix-stage">25&nbsp;€ <small>/ cours</small></span>
               </span>
             </label>
           </div>
+          <p class="aide" style="margin:14px 0 0">Le tarif au trimestre (325&nbsp;€) est proposé au moment du paiement. L'académie confirme l'horaire exact du groupe de votre enfant.</p>
           <div class="champs" style="margin-top:20px">
             <label class="case">
               <input type="checkbox" id="veut-essai" checked>
@@ -172,11 +191,11 @@
         <!-- Étape 3 : confirmation -->
         <fieldset class="pas" data-pas="3">
           <h2>Tout est bon ?</h2>
-          <p class="aide">Vérifiez le récapitulatif ci-contre, puis envoyez votre demande — nous revenons vers vous sous 48&nbsp;h avec le créneau proposé.</p>
+          <p class="aide">Vérifiez le récapitulatif ci-contre, puis envoyez votre demande d'inscription — Georges Cotrait la valide sous 24&nbsp;h maximum.</p>
           <div class="champs">
             <label class="case">
               <input type="checkbox" id="accepte" required>
-              <span>J'ai compris que cette demande vaut pré-inscription : l'inscription devient définitive après le cours d'essai et la confirmation de l'académie, qui précisera les modalités de règlement. <b>*</b></span>
+              <span>J'ai compris que ceci est une <b>demande d'inscription</b> : après validation par l'académie (sous 24&nbsp;h maximum), je recevrai par e-mail un lien de paiement sécurisé pour finaliser l'inscription. <b>*</b></span>
             </label>
           </div>
           <div class="btns-pas">
@@ -185,22 +204,23 @@
           </div>
           <div class="confirmation" id="confirmation">
             <h3>Votre demande est prête à partir !</h3>
-            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
+            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Georges Cotrait valide chaque demande sous 24&nbsp;h maximum ; vous recevrez alors un e-mail avec le lien de paiement sécurisé. Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
           </div>
         </fieldset>
       </form>
 
       <!-- récapitulatif -->
       <aside class="recap" aria-live="polite">
-        <h3>Votre inscription</h3>
+        <h3>Votre demande</h3>
         <div class="ligne-recap"><span>Formule</span><span id="r-formule">—</span></div>
         <div class="ligne-recap"><span>Créneau</span><span id="r-creneau">—</span></div>
         <div class="ligne-recap"><span>Voltigeur</span><span id="r-enfant">—</span></div>
+        <div class="ligne-recap"><span>Poids</span><span id="r-poids">—</span></div>
         <div class="ligne-recap"><span>Niveau</span><span id="r-niveau">—</span></div>
         <div class="ligne-recap"><span>Contact</span><span id="r-contact">—</span></div>
         <div class="ligne-recap"><span>Cours d'essai</span><span id="r-essai">Oui</span></div>
         <div class="total"><span>Tarif</span><b id="r-total">—</b></div>
-        <p class="note-recap">Licence FFE en supplément. Aucun paiement ne vous est demandé à cette étape.</p>
+        <p class="note-recap">Licence FFE en supplément. Aucun paiement à cette étape : le lien de paiement arrive par e-mail après validation de la demande (sous 24&nbsp;h maximum).</p>
       </aside>
     </div>
   </div>
@@ -221,7 +241,7 @@
         <a href="histoire.html">L'académie</a>
         <a href="stages.html">Stages</a>
         <a href="cours.html">Cours</a>
-        <a href="index.html#theatre">Le théâtre</a>
+        <a href="theatre.html">Le théâtre</a>
         <a href="index.html#infos">Infos pratiques</a>
         <a href="contact.html">Contact</a>
       </nav>
