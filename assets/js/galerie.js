@@ -11,7 +11,7 @@
   var courante = -1;
 
   function photos() {
-    return Array.prototype.slice.call(grille.querySelectorAll('.galerie-photo img'));
+    return Array.prototype.slice.call(grille.querySelectorAll('.galerie-photo:not(.galerie-video) img'));
   }
 
   function ouvrir(i) {
@@ -34,8 +34,10 @@
 
   grille.addEventListener('click', function (e) {
     var fig = e.target.closest('.galerie-photo');
-    if (!fig) { return; }
-    ouvrir(photos().indexOf(fig.querySelector('img')));
+    if (!fig || fig.classList.contains('galerie-video')) { return; }
+    var img = fig.querySelector('img');
+    if (!img) { return; }
+    ouvrir(photos().indexOf(img));
   });
 
   vis.querySelector('.vis-fermer').addEventListener('click', fermer);
