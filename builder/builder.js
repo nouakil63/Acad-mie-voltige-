@@ -17,6 +17,7 @@
       { fichier: 'histoire.html', nom: "L'académie" },
       { fichier: 'stages.html', nom: 'Les stages' },
       { fichier: 'cours.html', nom: 'Les cours' },
+      { fichier: 'theatre.html', nom: 'Le théâtre' },
       { fichier: 'contact.html', nom: 'Contact' },
       { fichier: 'inscription.html', nom: 'Inscription' },
       { fichier: 'inscription-cours.html', nom: 'Inscription aux cours' },
