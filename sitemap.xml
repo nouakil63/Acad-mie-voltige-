@@ -29,6 +29,10 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://academiedevoltige.com/theatre.html</loc>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://academiedevoltige.com/contact.html</loc>
     <priority>0.6</priority>
   </url>
