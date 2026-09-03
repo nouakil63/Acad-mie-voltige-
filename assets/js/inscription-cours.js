@@ -9,6 +9,12 @@
     { nom: 'Cours du samedi', creneau: 'Samedi 10h00 — 13h00 · 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' }
   ];
 
+  /* liens de paiement Stripe (publics), joints à la demande pour la réponse de validation */
+  var PAIEMENTS = {
+    unite: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00',      /* 25 € — cours à l'unité */
+    trimestre: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01'   /* 325 € — trimestre */
+  };
+
   var form = document.getElementById('form-cours');
   if (!form) { return; }
 
@@ -102,6 +108,14 @@
       '',
       'J\'ai compris que cette demande sera validée sous 24 h maximum,',
       'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
+      '',
+      '--------------------------------------------------',
+      'Pour l\'académie — à joindre à la réponse de validation :',
+      '· Paiement du cours à l\'unité (25 €) :',
+      PAIEMENTS.unite,
+      '· Paiement du trimestre (325 €) :',
+      PAIEMENTS.trimestre,
+      '--------------------------------------------------',
     ].join('\n');
     var sujet = 'Demande d\'inscription cours — ' + f.nom;
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
