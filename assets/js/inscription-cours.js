@@ -63,8 +63,6 @@
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
-    var essai = document.getElementById('veut-essai');
-    document.getElementById('r-essai').textContent = essai && essai.checked ? 'Oui' : 'Non';
   }
   form.addEventListener('input', majRecap);
   form.addEventListener('change', majRecap);
@@ -84,7 +82,6 @@
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = FORMULES[Number(choisi.value)];
-    var essai = document.getElementById('veut-essai').checked;
     var corps = [
       'Bonjour,',
       '',
@@ -93,7 +90,6 @@
       'Formule : ' + f.nom,
       'Créneau : ' + f.creneau,
       'Tarif : ' + f.tarif,
-      'Cours d\'essai souhaité : ' + (essai ? 'Oui' : 'Non'),
       '',
       'Voltigeur : ' + texte('enfant-prenom') + ' ' + texte('enfant-nom'),
       'Date de naissance : ' + texte('enfant-naissance'),
@@ -107,7 +103,7 @@
       'J\'ai compris que cette demande sera validée sous 24 h maximum,',
       'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
     ].join('\n');
-    var sujet = 'Demande d\'inscription cours — ' + f.nom + (essai ? ' (avec cours d\'essai)' : '');
+    var sujet = 'Demande d\'inscription cours — ' + f.nom;
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');
