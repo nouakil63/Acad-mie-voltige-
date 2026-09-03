@@ -22,6 +22,157 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="assets/css/style.css?v=30">
+  <style>
+    /* ============ Habillage « soir de spectacle » (page théâtre) ============ */
+
+    /* --- Le rideau de scène --- */
+    .th-rideau{
+      position:relative;overflow:hidden;color:var(--voile);
+      padding:calc(var(--nav-h) + clamp(64px,9vw,110px)) 0 clamp(90px,12vw,150px);
+      background:
+        linear-gradient(to bottom, rgba(20,6,10,.22), rgba(20,6,10,.66) 82%, #14060a),
+        repeating-linear-gradient(90deg,
+          #4c030e 0px, #8c0620 34px, #a5081f 52px, #6b0517 86px, #4c030e 112px);
+    }
+    /* le faisceau du projecteur */
+    .th-rideau::before{
+      content:"";position:absolute;inset:0;pointer-events:none;
+      background:radial-gradient(ellipse 62% 54% at 50% 26%, rgba(255,222,188,.20), transparent 70%);
+    }
+    /* le plancher de scène */
+    .th-rideau::after{
+      content:"";position:absolute;left:0;right:0;bottom:0;height:26px;
+      background:linear-gradient(to bottom, transparent, rgba(0,0,0,.5));
+      border-bottom:3px solid var(--rouge-vif);
+    }
+    /* le lambrequin (la retombée du rideau, en haut) */
+    .th-lambrequin{
+      position:absolute;top:0;left:0;right:0;height:clamp(44px,7vw,66px);z-index:2;pointer-events:none;
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,.45), rgba(0,0,0,.12)),
+        repeating-linear-gradient(90deg,
+          #4c030e 0px, #8c0620 34px, #a5081f 52px, #6b0517 86px, #4c030e 112px);
+      filter:drop-shadow(0 6px 8px rgba(0,0,0,.45));
+    }
+    .th-lambrequin::after{
+      content:"";position:absolute;top:100%;left:0;right:0;height:30px;
+      background:radial-gradient(ellipse 34px 30px at 34px 0px, #6b0517 27px, transparent 28px);
+      background-size:68px 30px;background-repeat:repeat-x;
+    }
+    .th-rideau .contenu{position:relative;z-index:3;text-align:center}
+    .th-rideau .ariane{justify-content:center;color:color-mix(in srgb, var(--voile) 70%, transparent)}
+    .th-rideau .ariane a:hover,.th-rideau .ariane a:focus-visible{color:var(--blanc)}
+    .th-affiche-sur{
+      font-size:12px;font-weight:700;letter-spacing:.34em;text-transform:uppercase;
+      color:color-mix(in srgb, var(--voile) 82%, var(--rouge-vif));margin-top:26px;
+    }
+    .th-rideau h1{
+      font-size:clamp(40px,7.4vw,84px);margin:16px auto 20px;max-width:15ch;color:var(--blanc);
+    }
+    .th-rideau h1 .creux{color:transparent;-webkit-text-stroke:2px var(--blanc);paint-order:stroke}
+    @supports not (-webkit-text-stroke: 2px white){.th-rideau h1 .creux{color:var(--blanc)}}
+    .th-rideau .sous-titre{
+      max-width:54ch;margin:0 auto;font-size:17.5px;
+      color:color-mix(in srgb, var(--voile) 86%, var(--rouge-vif));
+    }
+    /* la ligne d'affiche, comme au bas d'un placard de spectacle */
+    .th-mentions{
+      display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+      gap:10px 18px;margin-top:34px;
+      font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+      color:color-mix(in srgb, var(--voile) 72%, transparent);
+    }
+    .th-mentions i{font-style:normal;color:var(--rouge-vif)}
+    /* la rampe de projecteurs, au bord de la scène */
+    .th-rampe{
+      position:absolute;left:0;right:0;bottom:10px;z-index:3;
+      display:flex;justify-content:center;gap:clamp(28px,6vw,64px);pointer-events:none;
+    }
+    .th-rampe span{
+      width:7px;height:7px;border-radius:50%;
+      background:#ffdfae;
+      box-shadow:0 0 6px 2px rgba(255,223,174,.85), 0 -10px 26px 10px rgba(255,213,150,.22);
+    }
+
+    /* --- Le lever de rideau (section sombre) --- */
+    .th-scene .theatre-arche{position:relative}
+    /* le faisceau qui tombe sur la photo */
+    .th-scene .theatre-arche::after{
+      content:"";position:absolute;left:50%;bottom:96%;width:180%;height:220px;
+      transform:translateX(-50%);pointer-events:none;
+      background:radial-gradient(ellipse 50% 100% at 50% 100%, rgba(255,222,188,.16), transparent 70%);
+    }
+
+    /* --- Le programme, en trois actes --- */
+    .th-programme{background:var(--fond-2)}
+    .th-prog-cadre{
+      max-width:660px;margin:0 auto;text-align:center;
+      border-top:4px double var(--encre);border-bottom:4px double var(--encre);
+      padding:clamp(28px,4vw,44px) clamp(18px,4vw,40px);
+    }
+    .th-prog-tete{margin-bottom:6px}
+    .th-prog-tete .eyebrow{letter-spacing:.34em}
+    .th-prog-tete h2{font-size:clamp(30px,4.5vw,44px);margin-top:12px}
+    .th-prog-tete p{color:var(--texte-2);margin-top:12px}
+    .th-orne{color:var(--rouge);font-size:15px;letter-spacing:.9em;text-indent:.9em;margin-top:22px}
+    .th-acte{padding:clamp(24px,3.5vw,34px) 0;border-top:1px solid var(--trait)}
+    .th-acte:first-of-type{border-top:0}
+    .th-acte .acte-num{
+      font-size:12px;font-weight:800;letter-spacing:.3em;text-transform:uppercase;color:var(--rouge);
+    }
+    .th-acte h3{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(21px,2.8vw,26px);margin:10px 0 10px;
+    }
+    .th-acte p{max-width:52ch;margin:0 auto;color:var(--texte-2);font-size:15.5px}
+    .th-acte .lien-fleche{margin-top:14px;color:var(--rouge)}
+
+    /* --- Le billet d'entrée --- */
+    .th-billetterie .section-head{align-items:center;text-align:center;max-width:none}
+    .th-billet{
+      position:relative;max-width:760px;margin:0 auto;display:flex;
+      background:var(--voile);border:1px solid var(--trait);
+      box-shadow:0 18px 44px rgba(29,18,22,.16);
+      transform:rotate(-1.2deg);
+    }
+    .in .th-billet{transform:rotate(-1.2deg)}
+    .th-billet .souche{
+      flex:0 0 86px;display:flex;align-items:center;justify-content:center;
+      background:var(--rouge);color:var(--blanc);
+      border-right:2px dashed color-mix(in srgb, var(--blanc) 65%, var(--rouge));
+    }
+    .th-billet .souche b{
+      writing-mode:vertical-rl;transform:rotate(180deg);
+      font-size:12px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;white-space:nowrap;
+    }
+    /* les perforations de part et d'autre de la ligne pointillée */
+    .th-billet::before,.th-billet::after{
+      content:"";position:absolute;left:76px;width:20px;height:20px;border-radius:50%;
+      background:var(--fond);border:1px solid var(--trait);
+    }
+    .th-billet::before{top:-11px}
+    .th-billet::after{bottom:-11px}
+    .th-billet .corps{padding:clamp(24px,4vw,36px) clamp(22px,4.5vw,40px);text-align:left}
+    .th-billet .corps .rang{
+      font-size:11px;font-weight:800;letter-spacing:.26em;text-transform:uppercase;color:var(--texte-2);
+    }
+    .th-billet .corps h3{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(22px,3.2vw,30px);margin:10px 0 12px;
+    }
+    .th-billet .corps p{color:var(--texte-2);font-size:15.5px;max-width:46ch}
+    .th-billet .corps .actions{margin-top:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .th-billet .corps .note{font-size:13px;color:var(--texte-2)}
+    @media (max-width:640px){
+      .th-billet,.in .th-billet{transform:rotate(0deg)}
+      .th-billet .souche{flex-basis:56px}
+      .th-billet::before,.th-billet::after{left:46px}
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .th-rideau::before,.th-scene .theatre-arche::after{display:none}
+    }
+  </style>
 </head>
 <body>
 
@@ -61,61 +212,42 @@
   <a href="inscription.html">Inscription</a>
 </nav>
 
-<!-- ============ En-tête de page : soir de spectacle ============ -->
-<header class="page-hero">
-  <img class="page-hero-photo" src="assets/img/voltige-duo.jpeg" alt="" aria-hidden="true">
-  <div class="page-voile" aria-hidden="true"></div>
-  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
-    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
-  </svg>
+<!-- ============ L'affiche : le rideau de scène ============ -->
+<header class="page-hero th-rideau">
+  <div class="th-lambrequin" aria-hidden="true"></div>
   <div class="contenu">
-    <div>
-      <nav class="ariane" aria-label="Fil d'ariane">
-        <a href="index.html">Accueil</a><i>→</i><span>Le théâtre</span>
-      </nav>
-      <h1>
-        <span class="ligne"><span>Quand le manège</span></span>
-        <span class="ligne"><span>devient une <span class="creux">scène</span>.</span></span>
-      </h1>
-      <p class="sous-titre">C'est ce qui ne se trouve nulle part ailleurs : l'académie a son propre théâtre équestre. Ici, la voltige ne se pratique pas seulement — elle se joue, en costumes et en musique, devant un public.</p>
-    </div>
+    <nav class="ariane" aria-label="Fil d'ariane">
+      <a href="index.html">Accueil</a><i>→</i><span>Le théâtre</span>
+    </nav>
+    <p class="th-affiche-sur">L'académie présente</p>
+    <h1>
+      <span class="ligne"><span>La voltige</span></span>
+      <span class="ligne"><span>entre en <span class="creux">scène</span>.</span></span>
+    </h1>
+    <p class="sous-titre">C'est ce qui ne se trouve nulle part ailleurs : l'académie a son propre théâtre équestre. Ici, la voltige ne se pratique pas seulement — elle se joue, en costumes et en musique, devant un public.</p>
+    <p class="th-mentions" aria-label="Informations d'affiche">
+      <span>Auberville · Normandie</span><i>✶</i>
+      <span>Chaque samedi de stage</span><i>✶</i>
+      <span>Spectacle des cours en juin</span>
+    </p>
+  </div>
+  <div class="th-rampe" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
   </div>
 </header>
 
-<!-- ============ Le théâtre de l'académie ============ -->
-<section class="section" id="scene">
-  <div class="contenu">
-    <div class="academie-grille">
-      <div class="academie-texte">
-        <p class="eyebrow reveal">Un théâtre équestre</p>
-        <h2 class="reveal">La voltige est un <em>spectacle</em>.</h2>
-        <p class="reveal">Depuis 2003, l'académie mêle acrobatie équestre et arts de la scène — une approche unique en France. Sur la piste du théâtre, les voltigeurs apprennent ce qu'aucun manège n'enseigne : la présence, la lumière, la musique, le regard du public.</p>
-        <p class="reveal">Chaque après-midi de stage s'y passe : expression, mise en scène, répétitions. Les enfants n'y font pas que des figures — ils construisent un vrai spectacle, du premier salut au tomber de rideau.</p>
-        <a class="lien-fleche reveal" href="stages.html">Découvrir les stages <i>→</i></a>
-      </div>
-      <div class="arches">
-        <figure class="arche-photo reveal">
-          <img loading="lazy" decoding="async" src="assets/img/voltige-duo.jpeg" alt="Duo de voltigeuses en costumes bleus enchaînant une figure sur un cheval gris">
-        </figure>
-        <figure class="arche-photo reveal">
-          <img loading="lazy" decoding="async" src="assets/img/voltige-figure.jpeg" alt="Voltigeuse en figure allongée sur un cheval au pas dans le manège">
-        </figure>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ Le spectacle vivant (section sombre) ============ -->
-<section class="section section-theatre" id="spectacle">
+<!-- ============ Le lever de rideau ============ -->
+<section class="section section-theatre th-scene" id="scene">
   <svg class="longe-theatre" viewBox="0 0 600 600" aria-hidden="true">
     <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
   </svg>
   <div class="contenu">
     <div class="theatre-grille">
       <div class="theatre-texte">
-        <p class="eyebrow reveal">Le spectacle vivant</p>
-        <h2 class="reveal">Costumes, musique, chevaux en <span class="creux">liberté</span>.</h2>
-        <p class="reveal">Le soir de représentation, le manège change de visage : les lumières s'allument, les costumes sortent des malles, les chevaux évoluent en liberté. Le sport rencontre le spectacle vivant, dans la tradition qui fait l'identité de l'académie.</p>
+        <p class="eyebrow reveal">Le lever de rideau</p>
+        <h2 class="reveal">Un manège qui devient <span class="creux">théâtre</span>.</h2>
+        <p class="reveal">Le soir de représentation, le manège change de visage : les lumières s'allument, les costumes sortent des malles, les chevaux évoluent en liberté. Depuis 2003, l'académie mêle acrobatie équestre et arts de la scène — une approche unique en France.</p>
+        <p class="reveal">Sur cette piste, les voltigeurs apprennent ce qu'aucun manège n'enseigne : la présence, la lumière, la musique, le regard du public.</p>
         <blockquote class="theatre-citation reveal">
           « La voltige est un sport qui se regarde comme un spectacle. Nous en avons fait un théâtre. »
           <small>Georges Cotrait, fondateur</small>
@@ -128,39 +260,38 @@
   </div>
 </section>
 
-<!-- ============ Les représentations ============ -->
-<section class="section" id="representations">
+<!-- ============ Le programme, en trois actes ============ -->
+<section class="section th-programme" id="programme">
   <div class="contenu">
-    <div class="section-head">
-      <p class="eyebrow reveal">Les représentations</p>
-      <h2 class="reveal">Quand nous voir sur scène.</h2>
-      <p class="reveal">Le théâtre vit toute l'année, au rythme des stages et des cours.</p>
-    </div>
-    <div class="etapes">
-      <article class="etape reveal">
-        <span class="numero" aria-hidden="true">1</span>
-        <h3>Le samedi de fin de stage</h3>
-        <p>Chaque semaine de stage se termine sur scène : les voltigeurs présentent aux familles le spectacle construit pendant la semaine.</p>
+    <div class="th-prog-cadre">
+      <div class="th-prog-tete">
+        <p class="eyebrow reveal">Le programme</p>
+        <h2 class="reveal">La saison, en trois actes.</h2>
+        <p class="reveal">Le théâtre vit toute l'année, au rythme des stages et des cours.</p>
+        <p class="th-orne reveal" aria-hidden="true">✶ ✶ ✶</p>
+      </div>
+      <article class="th-acte reveal">
+        <p class="acte-num">Acte I</p>
+        <h3>Les répétitions</h3>
+        <p>Chaque après-midi de stage se passe au théâtre : expression, mise en scène, répétitions. Les enfants n'y font pas que des figures — ils construisent un vrai spectacle, du premier salut au tomber de rideau.</p>
       </article>
-      <article class="etape reveal">
-        <span class="numero" aria-hidden="true">2</span>
+      <article class="th-acte reveal">
+        <p class="acte-num">Acte II</p>
+        <h3>Le samedi de fin de stage</h3>
+        <p>La semaine se termine sur scène : les voltigeurs présentent aux familles le spectacle construit pendant la semaine — costumes, musique et chevaux compris.</p>
+        <a class="lien-fleche" href="stages.html">Découvrir les stages <i>→</i></a>
+      </article>
+      <article class="th-acte reveal">
+        <p class="acte-num">Acte III</p>
         <h3>Le spectacle de fin d'année</h3>
         <p>Les élèves des cours à l'année préparent leur spectacle tout au long de la saison, et le jouent devant le public en juin.</p>
+        <a class="lien-fleche" href="cours.html">Voir les cours à l'année <i>→</i></a>
       </article>
-      <article class="etape reveal">
-        <span class="numero" aria-hidden="true">3</span>
-        <h3>Les dates ponctuelles</h3>
-        <p>Représentations et démonstrations au fil de l'année — laissez-nous votre e-mail pour être prévenus des prochaines dates.</p>
-      </article>
-    </div>
-    <div class="cours-cta reveal" style="margin-top:36px">
-      <a class="btn btn-rouge" href="mailto:academiedevoltige@gmail.com?subject=Prochaines%20repr%C3%A9sentations"><span>Assister à une représentation</span></a>
-      <p class="note">Écrivez-nous, nous vous enverrons les prochaines dates.</p>
     </div>
   </div>
 </section>
 
-<!-- bande de photos du manège -->
+<!-- bande de photos : côté coulisses -->
 <div class="bande-photos" aria-hidden="true">
   <div class="piste">
     <figure class="bp"><img loading="lazy" decoding="async" src="assets/img/voltige-pyramide.jpeg" alt=""></figure>
@@ -177,6 +308,28 @@
     <figure class="bp"><img loading="lazy" decoding="async" src="assets/img/voltige-figure.jpeg" alt=""></figure>
   </div>
 </div>
+
+<!-- ============ Le billet ============ -->
+<section class="section th-billetterie" id="representations">
+  <div class="contenu">
+    <div class="section-head">
+      <p class="eyebrow reveal">La billetterie</p>
+      <h2 class="reveal">Assister à une représentation.</h2>
+    </div>
+    <div class="th-billet reveal">
+      <div class="souche" aria-hidden="true"><b>Académie de voltige · Auberville</b></div>
+      <div class="corps">
+        <p class="rang">Billet d'entrée · Placement libre</p>
+        <h3>Les familles sont nos premiers spectateurs.</h3>
+        <p>Représentations au fil de l'année : le samedi des stages, le spectacle des cours en juin, et des dates ponctuelles. Écrivez-nous, nous vous enverrons les prochaines dates.</p>
+        <div class="actions">
+          <a class="btn btn-rouge" href="mailto:academiedevoltige@gmail.com?subject=Prochaines%20repr%C3%A9sentations"><span>Demander les dates</span></a>
+          <p class="note">Réponse par e-mail, sans engagement.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ============ Bande d'appel finale ============ -->
 <section class="bande-cta">
