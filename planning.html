@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning des enseignantes — Pôle International du Cheval Longines Deauville</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=24">
+  <style>
+    :root{
+      --rouge:#D00828; --rouge-sombre:#A5081F; --rouge-vif:#F2415A;
+      --blanc:#FFFFFF; --voile:#F7F3F0; --encre:#1D1216;
+      --trait:#E4DCD6; --galop:cubic-bezier(.32,.94,.60,1);
+      --titrage:'Bricolage Grotesque',sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Hanken Grotesk',sans-serif;font-size:16px;line-height:1.6;
+      color:var(--encre);background:var(--blanc);
+    }
+    button{font:inherit;cursor:pointer;background:none;border:0;color:inherit}
+    input,select,textarea{font:inherit;color:inherit}
+    h1,h2,h3{font-family:var(--titrage);font-weight:760;line-height:1.1;letter-spacing:-.015em}
+
+    /* ===== En-tête ===== */
+    .barre{
+      display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+      padding:14px 24px;border-bottom:1px solid var(--trait);
+      position:sticky;top:0;background:var(--blanc);z-index:40;
+    }
+    .marque{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}
+    .rond-pic{
+      width:42px;height:42px;border-radius:50%;flex:none;
+      display:inline-flex;align-items:center;justify-content:center;
+      border:2px solid var(--rouge);color:var(--rouge);
+      font-family:var(--titrage);font-weight:760;font-size:13px;letter-spacing:.04em;
+    }
+    .marque b{font-family:var(--titrage);font-size:17px;display:block;line-height:1.15}
+    .marque small{font-size:12px;color:#6d5f63;letter-spacing:.06em}
+    .barre .outil{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.24em;color:var(--rouge);border:1px solid var(--rouge);border-radius:999px;padding:3px 12px}
+    .barre-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;border-radius:999px;
+      padding:8px 18px;font-weight:700;font-size:14px;text-decoration:none;
+      transition:background .25s var(--galop),color .25s var(--galop),border-color .25s var(--galop);
+    }
+    .btn-plein{background:var(--rouge);color:var(--blanc)}
+    .btn-plein:hover{background:var(--rouge-sombre)}
+    .btn-contour{border:1px solid var(--encre);color:var(--encre)}
+    .btn-contour:hover{border-color:var(--rouge);color:var(--rouge)}
+    .btn-doux{border:1px solid var(--trait);color:#6d5f63;font-weight:600}
+    .btn-doux:hover{border-color:var(--encre);color:var(--encre)}
+
+    /* ===== Onglets ===== */
+    .onglets{display:flex;gap:0;padding:0 24px;border-bottom:1px solid var(--trait);background:var(--blanc)}
+    .onglet{
+      padding:12px 20px;font-weight:700;font-size:15px;color:#6d5f63;
+      border-bottom:2px solid transparent;margin-bottom:-1px;
+    }
+    .onglet[aria-selected="true"]{color:var(--rouge);border-bottom-color:var(--rouge)}
+    .onglet:hover{color:var(--encre)}
+
+    main{padding:24px;max-width:1400px;margin:0 auto}
+    .vue{display:none}
+    .vue.active{display:block}
+
+    .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.24em;color:var(--rouge);margin-bottom:6px}
+
+    /* ===== Compteurs enseignantes ===== */
+    .compteurs{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 18px}
+    .puce-ens{
+      display:flex;align-items:center;gap:10px;border:1px solid var(--trait);
+      border-radius:999px;padding:6px 16px 6px 8px;font-size:14px;background:var(--blanc);
+    }
+    .puce-ens .pastille{width:26px;height:26px;border-radius:50%;flex:none}
+    .puce-ens b{font-weight:700}
+    .puce-ens .heures{color:#6d5f63;font-variant-numeric:tabular-nums}
+    .puce-ens.hors .heures{color:var(--rouge);font-weight:700}
+    .puce-ens.ok .heures em{font-style:normal;color:#2c7a3f;font-weight:700}
+
+    /* ===== Alertes ===== */
+    .alertes{margin:0 0 18px}
+    .alerte{
+      display:flex;gap:10px;align-items:baseline;font-size:14px;
+      border-left:2px solid var(--rouge);padding:4px 12px;margin-bottom:6px;background:var(--voile);
+    }
+    .alerte b{color:var(--rouge)}
+    .alerte.douce{border-left-color:#b7a89f;color:#6d5f63}
+
+    /* ===== Grille planning ===== */
+    .grille-cadre{overflow-x:auto;border:1px solid var(--trait)}
+    .grille{
+      display:grid;grid-template-columns:52px repeat(7,minmax(150px,1fr));
+      min-width:1050px;
+    }
+    .g-entete{
+      padding:10px 8px;text-align:center;font-family:var(--titrage);font-weight:760;font-size:15px;
+      border-bottom:1px solid var(--trait);border-left:1px solid var(--trait);
+      position:sticky;top:0;background:var(--blanc);z-index:5;
+    }
+    .g-heures{position:relative;border-left:0!important}
+    .g-heures .h{
+      position:absolute;right:8px;transform:translateY(-50%);
+      font-size:11px;color:#9b8d90;font-variant-numeric:tabular-nums;
+    }
+    .g-jour{position:relative;border-left:1px solid var(--trait);background:
+      repeating-linear-gradient(to bottom,transparent,transparent calc(100%/13 - 1px),var(--voile) calc(100%/13 - 1px),var(--voile) calc(100%/13));
+    }
+    .g-col{height:840px}
+
+    .carte-cours{
+      position:absolute;left:3px;right:3px;overflow:hidden;
+      background:var(--blanc);border:1px solid var(--trait);border-left:4px solid #b7a89f;
+      padding:4px 7px;font-size:12px;line-height:1.3;cursor:pointer;
+      transition:box-shadow .2s var(--galop);
+    }
+    .carte-cours:hover{box-shadow:0 2px 10px rgba(29,18,22,.16);z-index:6}
+    .carte-cours .cc-heure{font-size:10.5px;color:#6d5f63;font-variant-numeric:tabular-nums}
+    .carte-cours .cc-titre{font-weight:700;font-size:12.5px}
+    .carte-cours .cc-ens{font-size:11px}
+    .carte-cours .cc-lieu{font-size:10.5px;color:#9b8d90}
+    .carte-cours.libre{border-style:dashed;border-left:4px dashed var(--rouge);background:var(--voile)}
+    .carte-cours.libre .cc-ens{color:var(--rouge);font-weight:700}
+    .carte-cours .cc-alerte{color:var(--rouge);font-weight:700}
+
+    /* ===== Absences ===== */
+    details.absences{border:1px solid var(--trait);margin:18px 0;padding:0}
+    details.absences summary{
+      cursor:pointer;padding:10px 16px;font-weight:700;font-size:14px;list-style:none;
+    }
+    details.absences summary::before{content:'+ ';color:var(--rouge)}
+    details.absences[open] summary::before{content:'− '}
+    .absences-corps{padding:4px 16px 14px;display:grid;gap:8px}
+    .abs-ligne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
+    .abs-ligne .nom{min-width:120px;font-weight:700}
+    .abs-jour{border:1px solid var(--trait);border-radius:999px;padding:2px 10px;font-size:12.5px;color:#6d5f63}
+    .abs-jour[aria-pressed="true"]{background:var(--encre);border-color:var(--encre);color:var(--voile)}
+
+    /* ===== Listes (enseignantes, cours) ===== */
+    .liste-tete{display:flex;align-items:baseline;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+    .liste-tete h2{font-size:26px}
+    .liste-tete .btn{margin-left:auto}
+
+    .fiches{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+    .fiche{border:1px solid var(--trait);padding:16px 18px;position:relative}
+    .fiche::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--f-couleur,#b7a89f)}
+    .fiche h3{font-size:19px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+    .fiche h3 .pastille{width:14px;height:14px;border-radius:50%;display:inline-block}
+    .fiche .contrat{font-size:13.5px;color:#6d5f63;margin-bottom:8px;font-variant-numeric:tabular-nums}
+    .fiche dl{font-size:13px;display:grid;gap:3px}
+    .fiche dt{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#9b8d90;margin-top:6px}
+    .fiche .modifier{position:absolute;top:12px;right:14px}
+
+    table.t-cours{width:100%;border-collapse:collapse;font-size:14px}
+    table.t-cours th{
+      text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#9b8d90;
+      padding:8px 10px;border-bottom:1px solid var(--encre);white-space:nowrap;
+    }
+    table.t-cours td{padding:7px 10px;border-bottom:1px solid var(--trait);vertical-align:baseline}
+    table.t-cours td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+    table.t-cours tr:hover td{background:var(--voile)}
+    .lien-modif{color:var(--rouge);font-weight:700;font-size:13px}
+    .lien-modif:hover{color:var(--rouge-sombre)}
+
+    /* ===== Dialogues ===== */
+    dialog{
+      border:1px solid var(--encre);padding:0;max-width:620px;width:min(92vw,620px);
+      max-height:88vh;
+    }
+    dialog::backdrop{background:rgba(29,18,22,.45)}
+    .dlg-tete{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--trait)}
+    .dlg-tete h3{font-size:20px}
+    .dlg-tete .fermer{margin-left:auto;font-size:22px;line-height:1;color:#9b8d90}
+    .dlg-tete .fermer:hover{color:var(--encre)}
+    .dlg-corps{padding:18px 22px;overflow-y:auto;max-height:calc(88vh - 130px)}
+    .dlg-pied{display:flex;gap:10px;padding:14px 22px;border-top:1px solid var(--trait)}
+    .dlg-pied .suppr{color:var(--rouge);font-weight:700;font-size:14px}
+    .dlg-pied .droite{margin-left:auto;display:flex;gap:10px}
+
+    .champ{margin-bottom:14px}
+    .champ label{display:block;font-weight:700;font-size:13px;margin-bottom:4px}
+    .champ small{display:block;font-weight:400;color:#9b8d90;font-size:12px;margin-top:2px}
+    .champ input[type=text],.champ input[type=number],.champ input[type=time],
+    .champ select,.champ textarea{
+      width:100%;border:1px solid var(--trait);padding:8px 10px;background:var(--blanc);
+    }
+    .champ input:focus,.champ select:focus,.champ textarea:focus{outline:2px solid var(--rouge);outline-offset:-1px}
+    .champ-rang{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .champ-rang3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .cases{display:flex;flex-wrap:wrap;gap:6px}
+    .cases label{
+      display:inline-flex;align-items:center;gap:6px;border:1px solid var(--trait);
+      border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;cursor:pointer;margin:0;
+    }
+    .cases label:has(input:checked){background:var(--encre);color:var(--voile);border-color:var(--encre)}
+    .cases input{accent-color:var(--rouge)}
+    .dispo-grille{display:grid;gap:6px}
+    .dispo-ligne{display:grid;grid-template-columns:88px 1fr;gap:8px;align-items:center;font-size:13px}
+    .dispo-ligne b{font-weight:700}
+    .dispo-ligne input{border:1px solid var(--trait);padding:6px 9px;width:100%}
+
+    /* choix d'enseignante dans le dialogue d'affectation */
+    .choix-ens{display:grid;gap:8px}
+    .choix-ens label{
+      display:block;border:1px solid var(--trait);padding:10px 14px;cursor:pointer;
+    }
+    .choix-ens label:has(input:checked){border-color:var(--rouge);outline:1px solid var(--rouge)}
+    .choix-ens .ligne1{display:flex;align-items:center;gap:10px;font-weight:700}
+    .choix-ens .pastille{width:14px;height:14px;border-radius:50%;flex:none}
+    .choix-ens .heures{margin-left:auto;font-weight:400;font-size:13px;color:#6d5f63;font-variant-numeric:tabular-nums}
+    .choix-ens ul{margin:4px 0 0 24px;font-size:12.5px;color:var(--rouge)}
+    .choix-ens .ok{margin:4px 0 0 24px;font-size:12.5px;color:#2c7a3f}
+    .choix-ens input{accent-color:var(--rouge)}
+
+    .note-pied{font-size:12.5px;color:#9b8d90;margin-top:20px}
+
+    /* ===== Impression ===== */
+    @media print{
+      .barre-actions,.onglets,.alertes,details.absences,.btn{display:none!important}
+      .barre{position:static;border-bottom:2px solid var(--encre)}
+      main{padding:0;max-width:none}
+      .grille-cadre{overflow:visible;border:0}
+      .grille{min-width:0}
+      body{font-size:12px}
+      .vue{display:none!important}
+      .vue.active{display:block!important}
+    }
+    @media (max-width:720px){
+      .barre{padding:10px 14px}
+      main{padding:14px}
+      .onglets{padding:0 14px;overflow-x:auto}
+    }
+  </style>
+</head>
+<body>
+
+<header class="barre">
+  <span class="marque">
+    <span class="rond-pic" aria-hidden="true">PIC</span>
+    <span>
+      <b>Pôle International du Cheval</b>
+      <small>Longines Deauville</small>
+    </span>
+  </span>
+  <span class="outil">Outil interne · Planning</span>
+  <div class="barre-actions">
+    <button class="btn btn-plein" id="btnAuto">Affectation automatique</button>
+    <button class="btn btn-contour" id="btnImprimer">Imprimer</button>
+    <button class="btn btn-doux" id="btnExport">Exporter</button>
+    <button class="btn btn-doux" id="btnImport">Importer</button>
+    <button class="btn btn-doux" id="btnReset">Données d'exemple</button>
+    <input type="file" id="fichierImport" accept=".json" hidden>
+  </div>
+</header>
+
+<nav class="onglets" role="tablist" aria-label="Vues">
+  <button class="onglet" role="tab" data-vue="planning" aria-selected="true">Planning</button>
+  <button class="onglet" role="tab" data-vue="enseignantes" aria-selected="false">Enseignantes</button>
+  <button class="onglet" role="tab" data-vue="cours" aria-selected="false">Cours</button>
+</nav>
+
+<main>
+  <!-- ============ Vue planning ============ -->
+  <section class="vue active" id="vue-planning">
+    <p class="eyebrow">Semaine type</p>
+    <div class="compteurs" id="compteurs"></div>
+    <div class="alertes" id="alertes"></div>
+    <div class="grille-cadre">
+      <div class="grille" id="grille"></div>
+    </div>
+    <details class="absences">
+      <summary>Absences de la semaine</summary>
+      <div class="absences-corps" id="absences"></div>
+    </details>
+    <p class="note-pied">Cliquer sur un cours pour l'attribuer. « Affectation automatique » ne touche qu'aux cours encore libres. Les données sont enregistrées dans ce navigateur.</p>
+  </section>
+
+  <!-- ============ Vue enseignantes ============ -->
+  <section class="vue" id="vue-enseignantes">
+    <div class="liste-tete">
+      <h2>Les enseignantes</h2>
+      <button class="btn btn-plein" id="btnAjoutEns">+ Ajouter une enseignante</button>
+    </div>
+    <div class="fiches" id="fiches"></div>
+  </section>
+
+  <!-- ============ Vue cours ============ -->
+  <section class="vue" id="vue-cours">
+    <div class="liste-tete">
+      <h2>Le planning de cours</h2>
+      <button class="btn btn-plein" id="btnAjoutCours">+ Ajouter un cours</button>
+    </div>
+    <table class="t-cours">
+      <thead>
+        <tr><th>Jour</th><th>Horaire</th><th>Cours</th><th>Type</th><th>Lieu</th><th>Enseignante</th><th></th></tr>
+      </thead>
+      <tbody id="tableCours"></tbody>
+    </table>
+  </section>
+</main>
+
+<!-- ============ Dialogue : affectation ============ -->
+<dialog id="dlgAffect">
+  <form method="dialog">
+    <div class="dlg-tete">
+      <h3 id="affectTitre">Attribuer le cours</h3>
+      <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+    </div>
+    <div class="dlg-corps">
+      <div class="choix-ens" id="affectChoix"></div>
+    </div>
+    <div class="dlg-pied">
+      <button type="button" class="suppr" id="affectEditer">Modifier ce cours…</button>
+      <div class="droite">
+        <button type="button" class="btn btn-doux" data-fermer>Annuler</button>
+        <button type="submit" class="btn btn-plein" id="affectValider">Valider</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Dialogue : enseignante ============ -->
+<dialog id="dlgEns">
+  <form method="dialog" id="formEns">
+    <div class="dlg-tete">
+      <h3 id="ensTitre">Enseignante</h3>
+      <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+    </div>
+    <div class="dlg-corps">
+      <div class="champ-rang">
+        <div class="champ">
+          <label for="ensNom">Prénom / nom</label>
+          <input type="text" id="ensNom" required>
+        </div>
+        <div class="champ">
+          <label for="ensCouleur">Couleur sur le planning</label>
+          <input type="color" id="ensCouleur" style="width:100%;height:38px;border:1px solid var(--trait);padding:2px;background:var(--blanc)">
+        </div>
+      </div>
+      <div class="champ-rang">
+        <div class="champ">
+          <label for="ensMin">Heures de contrat — minimum / semaine</label>
+          <input type="number" id="ensMin" min="0" max="60" step="0.5" required>
+        </div>
+        <div class="champ">
+          <label for="ensMax">Maximum / semaine</label>
+          <input type="number" id="ensMax" min="0" max="60" step="0.5" required>
+        </div>
+      </div>
+      <div class="champ">
+        <label>Compétences (types de cours qu'elle peut assurer)</label>
+        <div class="cases" id="ensCompetences"></div>
+        <small>Aucune case cochée = elle peut tout enseigner.</small>
+      </div>
+      <div class="champ">
+        <label>Disponibilités</label>
+        <small style="margin-bottom:6px">Plages par jour, ex. « 9:00-12:30, 14:00-19:00 ». Vide = indisponible ce jour-là.</small>
+        <div class="dispo-grille" id="ensDispos"></div>
+      </div>
+      <div class="champ">
+        <label for="ensNotes">Notes / contraintes particulières</label>
+        <textarea id="ensNotes" rows="2" placeholder="ex. Ne finit pas après 19h le mercredi (à surveiller à la main)"></textarea>
+      </div>
+    </div>
+    <div class="dlg-pied">
+      <button type="button" class="suppr" id="ensSupprimer">Supprimer</button>
+      <div class="droite">
+        <button type="button" class="btn btn-doux" data-fermer>Annuler</button>
+        <button type="submit" class="btn btn-plein">Enregistrer</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ Dialogue : cours ============ -->
+<dialog id="dlgCours">
+  <form method="dialog" id="formCours">
+    <div class="dlg-tete">
+      <h3 id="coursTitre">Cours</h3>
+      <button type="button" class="fermer" data-fermer aria-label="Fermer">×</button>
+    </div>
+    <div class="dlg-corps">
+      <div class="champ">
+        <label for="coursNom">Intitulé du cours</label>
+        <input type="text" id="coursNom" required placeholder="ex. Voltige initiation 6-9 ans">
+      </div>
+      <div class="champ-rang">
+        <div class="champ">
+          <label for="coursType">Type</label>
+          <input type="text" id="coursType" list="listeTypes" required>
+          <datalist id="listeTypes"></datalist>
+          <small>Le type doit correspondre aux compétences des enseignantes.</small>
+        </div>
+        <div class="champ">
+          <label for="coursLieu">Lieu</label>
+          <input type="text" id="coursLieu" list="listeLieux" required>
+          <datalist id="listeLieux"></datalist>
+        </div>
+      </div>
+      <div class="champ-rang3">
+        <div class="champ">
+          <label for="coursJour">Jour</label>
+          <select id="coursJour"></select>
+        </div>
+        <div class="champ">
+          <label for="coursDebut">Début</label>
+          <input type="time" id="coursDebut" required>
+        </div>
+        <div class="champ">
+          <label for="coursFin">Fin</label>
+          <input type="time" id="coursFin" required>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-pied">
+      <button type="button" class="suppr" id="coursSupprimer">Supprimer</button>
+      <div class="droite">
+        <button type="button" class="btn btn-doux" data-fermer>Annuler</button>
+        <button type="submit" class="btn btn-plein">Enregistrer</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+
+/* ================= Données ================= */
+
+const CLE = 'av-planning-v1';
+const JOURS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const H_DEBUT = 8*60, H_FIN = 21*60; // grille 8h → 21h
+
+function donneesExemple(){
+  const t = (id,nom,couleur,min,max,competences,dispos,notes)=>({id,nom,couleur,min,max,competences,dispos,notes});
+  const enseignantes = [
+    t('fleur','Fleur','#D00828',9,15,[],{
+      0:'',1:'9:00-19:30',2:'9:00-19:30',3:'9:00-19:30',4:'9:00-20:00',5:'8:30-18:30',6:'9:00-13:00'
+    },'Repos le lundi. Direction des reprises voltige.'),
+    t('camille','Camille','#1D6FB8',5,8,['Voltige','Poney enfants','Galop 1-4','Compétition'],{
+      0:'14:00-20:00',1:'14:00-20:00',2:'9:00-17:00',3:'',4:'14:00-20:00',5:'9:00-18:00',6:''
+    },'Cours au lycée le matin en semaine. Jamais le jeudi ni le dimanche.'),
+    t('margaux','Margaux','#3E8E4E',6,10,['Baby poney','Poney enfants','Galop 1-4'],{
+      0:'',1:'17:00-20:00',2:'9:00-18:00',3:'17:00-20:00',4:'',5:'9:00-18:00',6:'9:00-13:00'
+    },'Apprentie — 10 h maximum. Disponible surtout mercredi et week-end.'),
+    t('anais','Anaïs','#C77B1F',3,6,['Voltige','Compétition','Galop 5-7'],{
+      0:'',1:'',2:'13:00-19:00',3:'',4:'',5:'9:00-18:00',6:'9:00-13:00'
+    },'Intervenante extérieure, spécialiste compétition.'),
+  ];
+  let n = 0;
+  const c = (jour,debut,fin,titre,type,lieu)=>({id:'c'+(++n),jour,debut,fin,titre,type,lieu});
+  const cours = [
+    // Mardi
+    c(1,'17:30','18:30','Poneys galop 1-2','Galop 1-4','Carrière'),
+    c(1,'18:30','19:30','Chevaux galop 3-4','Galop 1-4','Carrière'),
+    c(1,'18:00','19:00','Voltige loisir ados','Voltige','Manège'),
+    // Mercredi
+    c(2,'09:30','10:15','Baby poney 3-5 ans','Baby poney','Rond de longe'),
+    c(2,'10:30','11:30','Poneys 6-9 ans','Poney enfants','Carrière'),
+    c(2,'10:30','11:30','Voltige initiation','Voltige','Manège'),
+    c(2,'13:30','14:30','Voltige 6-9 ans','Voltige','Manège'),
+    c(2,'14:00','15:00','Poneys galop 1-2','Galop 1-4','Carrière'),
+    c(2,'14:45','15:45','Voltige 10-13 ans','Voltige','Manège'),
+    c(2,'15:15','16:15','Chevaux galop 3-4','Galop 1-4','Carrière'),
+    c(2,'16:00','17:30','Voltige perfectionnement','Voltige','Manège'),
+    c(2,'16:30','17:30','Poneys 6-9 ans','Poney enfants','Carrière'),
+    c(2,'17:45','18:45','Équipe compétition','Compétition','Manège'),
+    // Jeudi
+    c(3,'17:30','18:30','Poneys galop 1-2','Galop 1-4','Carrière'),
+    c(3,'18:30','19:30','Adultes tous niveaux','Adultes','Manège'),
+    // Vendredi
+    c(4,'17:30','18:30','Voltige loisir enfants','Voltige','Manège'),
+    c(4,'18:30','19:45','Chevaux galop 5-7','Galop 5-7','Carrière'),
+    // Samedi
+    c(5,'09:00','09:45','Baby poney 3-5 ans','Baby poney','Rond de longe'),
+    c(5,'10:00','11:00','Poneys 6-9 ans','Poney enfants','Carrière'),
+    c(5,'10:00','11:30','Voltige perfectionnement','Voltige','Manège'),
+    c(5,'11:15','12:15','Poneys galop 1-2','Galop 1-4','Carrière'),
+    c(5,'14:00','15:30','Équipe compétition','Compétition','Manège'),
+    c(5,'15:45','16:45','Voltige initiation','Voltige','Manège'),
+    c(5,'16:00','17:00','Chevaux galop 3-4','Galop 1-4','Carrière'),
+    // Dimanche
+    c(6,'10:00','11:30','Équipe compétition','Compétition','Manège'),
+    c(6,'11:00','12:00','Adultes tous niveaux','Adultes','Carrière'),
+  ];
+  const affectations = {
+    c1:'margaux', c2:'fleur', c3:'camille',
+    c4:'margaux', c5:'margaux', c6:'fleur', c7:'camille', c8:'margaux',
+    c9:'camille', c10:'margaux', c11:'fleur', c12:'margaux', c13:'anais',
+    c14:'margaux', c15:'fleur',
+    c16:'camille', c17:'fleur',
+    c18:'margaux', c19:'margaux', c20:'fleur', c21:'camille',
+    c22:'anais', c23:'camille', c24:'fleur',
+    c25:'anais', c26:'fleur',
+  };
+  return {enseignantes, cours, affectations, absences:{}};
+}
+
+let etat = charger();
+
+function charger(){
+  try{
+    const brut = localStorage.getItem(CLE);
+    if(brut){ const e = JSON.parse(brut); if(e && e.enseignantes && e.cours) return e; }
+  }catch(err){ /* données illisibles → repartir de l'exemple */ }
+  return donneesExemple();
+}
+function sauver(){ localStorage.setItem(CLE, JSON.stringify(etat)); }
+
+/* ================= Outils temps & contraintes ================= */
+
+const toMin = h => { const [a,b] = h.split(':').map(Number); return a*60 + (b||0); };
+const fmtMin = m => Math.floor(m/60) + 'h' + String(m%60).padStart(2,'0');
+const fmtHeures = h => (Math.round(h*10)/10).toLocaleString('fr-FR');
+
+function parseDispo(txt){
+  const plages = [];
+  const re = /(\d{1,2})\s*[h:.]?\s*(\d{0,2})\s*[-–—]\s*(\d{1,2})\s*[h:.]?\s*(\d{0,2})/g;
+  let m;
+  while((m = re.exec(txt || ''))){
+    const s = (+m[1])*60 + (+(m[2]||0));
+    const e = (+m[3])*60 + (+(m[4]||0));
+    if(e > s) plages.push({s,e});
+  }
+  return plages;
+}
+
+const parEns = id => etat.enseignantes.find(t => t.id === id) || null;
+const dureeH = c => (toMin(c.fin) - toMin(c.debut)) / 60;
+
+function heuresAffectees(ensId){
+  return etat.cours.reduce((h,c)=> etat.affectations[c.id] === ensId ? h + dureeH(c) : h, 0);
+}
+
+function lesTypes(){
+  const s = new Set(etat.cours.map(c => c.type));
+  etat.enseignantes.forEach(t => t.competences.forEach(x => s.add(x)));
+  ['Baby poney','Poney enfants','Galop 1-4','Galop 5-7','Adultes','Voltige','Compétition'].forEach(x=>s.add(x));
+  return [...s].sort((a,b)=>a.localeCompare(b,'fr'));
+}
+function lesLieux(){
+  const s = new Set(etat.cours.map(c => c.lieu));
+  ['Manège','Carrière','Rond de longe'].forEach(x=>s.add(x));
+  return [...s].sort((a,b)=>a.localeCompare(b,'fr'));
+}
+
+// Toutes les raisons pour lesquelles « t » ne devrait pas assurer « c »
+function conflits(c, t){
+  const v = [];
+  const jour = JOURS[c.jour].toLowerCase();
+  if(t.competences.length && !t.competences.includes(c.type))
+    v.push('Compétence « ' + c.type + ' » non cochée');
+  const s = toMin(c.debut), e = toMin(c.fin);
+  if(!parseDispo(t.dispos[c.jour]).some(p => p.s <= s && p.e >= e))
+    v.push('Hors de ses disponibilités du ' + jour);
+  if((etat.absences[t.id] || []).includes(c.jour))
+    v.push('Absente le ' + jour);
+  for(const o of etat.cours){
+    if(o.id !== c.id && o.jour === c.jour && etat.affectations[o.id] === t.id){
+      const os = toMin(o.debut), oe = toMin(o.fin);
+      if(os < e && oe > s) v.push('Chevauche « ' + o.titre + ' » (' + o.debut + ')');
+    }
+  }
+  return v;
+}
+
+function depasseMax(c, t){
+  const deja = heuresAffectees(t.id) - (etat.affectations[c.id] === t.id ? dureeH(c) : 0);
+  return deja + dureeH(c) > t.max;
+}
+
+/* ================= Affectation automatique ================= */
+
+function affectationAuto(){
+  const libres = etat.cours
+    .filter(c => !parEns(etat.affectations[c.id]))
+    .sort((a,b) => a.jour - b.jour || toMin(a.debut) - toMin(b.debut));
+  let places = 0;
+  for(const c of libres){
+    const candidates = etat.enseignantes
+      .filter(t => conflits(c, t).length === 0 && !depasseMax(c, t))
+      // priorité à celle qui est le plus loin de son minimum de contrat
+      .sort((a,b) => (heuresAffectees(a.id) - a.min) - (heuresAffectees(b.id) - b.min));
+    if(candidates.length){ etat.affectations[c.id] = candidates[0].id; places++; }
+  }
+  sauver(); toutRendre();
+  const restants = etat.cours.filter(c => !parEns(etat.affectations[c.id])).length;
+  alert(places + ' cours attribué(s) automatiquement.' +
+    (restants ? '\n' + restants + ' cours reste(nt) sans solution : voir les alertes.' : '\nTous les cours sont couverts.'));
+}
+
+/* ================= Rendu : compteurs & alertes ================= */
+
+function rendreCompteurs(){
+  const zone = document.getElementById('compteurs');
+  zone.innerHTML = '';
+  for(const t of etat.enseignantes){
+    const h = heuresAffectees(t.id);
+    const hors = h < t.min || h > t.max;
+    const el = document.createElement('button');
+    el.className = 'puce-ens ' + (hors ? 'hors' : 'ok');
+    el.title = 'Modifier ' + t.nom;
+    el.innerHTML =
+      '<span class="pastille" style="background:' + t.couleur + '"></span>' +
+      '<b>' + t.nom + '</b>' +
+      '<span class="heures"><em>' + fmtHeures(h) + ' h</em> / ' + fmtHeures(t.min) + '–' + fmtHeures(t.max) + ' h</span>';
+    el.addEventListener('click', () => ouvrirEns(t.id));
+    zone.appendChild(el);
+  }
+}
+
+function rendreAlertes(){
+  const zone = document.getElementById('alertes');
+  zone.innerHTML = '';
+  const ajouter = (html, douce) => {
+    const d = document.createElement('div');
+    d.className = 'alerte' + (douce ? ' douce' : '');
+    d.innerHTML = html;
+    zone.appendChild(d);
+  };
+  const libres = etat.cours.filter(c => !parEns(etat.affectations[c.id]));
+  if(libres.length)
+    ajouter('<b>' + libres.length + ' cours sans enseignante</b> — ' +
+      libres.map(c => c.titre + ' (' + JOURS[c.jour].toLowerCase() + ' ' + c.debut + ')').join(', '));
+  for(const c of etat.cours){
+    const t = parEns(etat.affectations[c.id]);
+    if(!t) continue;
+    const v = conflits(c, t);
+    if(v.length) ajouter('<b>' + t.nom + '</b> — ' + c.titre + ' (' + JOURS[c.jour].toLowerCase() + ' ' + c.debut + ') : ' + v.join(' · '));
+  }
+  for(const t of etat.enseignantes){
+    const h = heuresAffectees(t.id);
+    if(h > t.max) ajouter('<b>' + t.nom + '</b> dépasse son contrat : ' + fmtHeures(h) + ' h pour un maximum de ' + fmtHeures(t.max) + ' h');
+    else if(h < t.min) ajouter(t.nom + ' est sous son minimum de contrat (' + fmtHeures(h) + ' h / ' + fmtHeures(t.min) + ' h)', true);
+  }
+  if(!zone.children.length)
+    ajouter('Tout est en ordre : cours couverts, contraintes respectées.', true);
+}
+
+/* ================= Rendu : grille ================= */
+
+function lanes(coursJour){
+  // répartit les cours qui se chevauchent en colonnes côte à côte
+  const tri = [...coursJour].sort((a,b) => toMin(a.debut) - toMin(b.debut) || toMin(b.fin) - toMin(a.fin));
+  const fins = []; // fin courante de chaque colonne
+  const pos = new Map();
+  let nb = 1;
+  for(const c of tri){
+    const s = toMin(c.debut);
+    let l = fins.findIndex(f => f <= s);
+    if(l === -1){ l = fins.length; }
+    fins[l] = toMin(c.fin);
+    pos.set(c.id, l);
+    nb = Math.max(nb, fins.length);
+  }
+  // largeur = nb de colonnes réellement en parallèle sur le créneau du cours
+  const largeur = new Map();
+  for(const c of tri){
+    const s = toMin(c.debut), e = toMin(c.fin);
+    let n = 1;
+    for(const o of tri) if(o !== c && toMin(o.debut) < e && toMin(o.fin) > s) n++;
+    largeur.set(c.id, Math.min(n, nb));
+  }
+  return {pos, largeur};
+}
+
+function rendreGrille(){
+  const g = document.getElementById('grille');
+  g.innerHTML = '';
+  g.insertAdjacentHTML('beforeend', '<div class="g-entete g-heures-tete" style="border-left:0"></div>');
+  for(const j of JOURS) g.insertAdjacentHTML('beforeend', '<div class="g-entete">' + j + '</div>');
+
+  const colH = document.createElement('div');
+  colH.className = 'g-col g-heures';
+  for(let h = H_DEBUT; h <= H_FIN; h += 60){
+    const y = (h - H_DEBUT) / (H_FIN - H_DEBUT) * 100;
+    colH.insertAdjacentHTML('beforeend', '<span class="h" style="top:' + y + '%">' + (h/60) + 'h</span>');
+  }
+  g.appendChild(colH);
+
+  for(let j = 0; j < 7; j++){
+    const col = document.createElement('div');
+    col.className = 'g-col g-jour';
+    const duJour = etat.cours.filter(c => c.jour === j);
+    const {pos, largeur} = lanes(duJour);
+    for(const c of duJour){
+      const s = toMin(c.debut), e = toMin(c.fin);
+      const top = (s - H_DEBUT) / (H_FIN - H_DEBUT) * 100;
+      const haut = (e - s) / (H_FIN - H_DEBUT) * 100;
+      const t = parEns(etat.affectations[c.id]);
+      const n = largeur.get(c.id), l = pos.get(c.id) % n;
+      const card = document.createElement('button');
+      card.className = 'carte-cours' + (t ? '' : ' libre');
+      card.style.top = top + '%';
+      card.style.height = 'calc(' + haut + '% - 3px)';
+      if(n > 1){
+        card.style.left = 'calc(' + (l*100/n) + '% + 3px)';
+        card.style.right = 'calc(' + ((n-1-l)*100/n) + '% + 3px)';
+      }
+      if(t) card.style.borderLeftColor = t.couleur;
+      const v = t ? conflits(c, t) : [];
+      card.title = c.titre + ' · ' + c.debut + '–' + c.fin + (v.length ? '\n⚠ ' + v.join('\n⚠ ') : '');
+      card.innerHTML =
+        '<span class="cc-heure">' + c.debut + '–' + c.fin + '</span> ' +
+        '<span class="cc-titre">' + c.titre + '</span><br>' +
+        '<span class="cc-ens">' + (t ? t.nom : 'À attribuer') + (v.length ? ' <span class="cc-alerte">⚠</span>' : '') + '</span> ' +
+        '<span class="cc-lieu">· ' + c.lieu + '</span>';
+      card.addEventListener('click', () => ouvrirAffect(c.id));
+      col.appendChild(card);
+    }
+    g.appendChild(col);
+  }
+}
+
+/* ================= Rendu : absences ================= */
+
+function rendreAbsences(){
+  const zone = document.getElementById('absences');
+  zone.innerHTML = '';
+  for(const t of etat.enseignantes){
+    const ligne = document.createElement('div');
+    ligne.className = 'abs-ligne';
+    ligne.innerHTML = '<span class="nom"><span class="pastille" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + t.couleur + ';margin-right:6px"></span>' + t.nom + '</span>';
+    JOURS.forEach((j, idx) => {
+      const b = document.createElement('button');
+      b.className = 'abs-jour';
+      b.textContent = j.slice(0,3);
+      const abs = (etat.absences[t.id] || []).includes(idx);
+      b.setAttribute('aria-pressed', abs);
+      b.addEventListener('click', () => {
+        const l = etat.absences[t.id] || (etat.absences[t.id] = []);
+        const i = l.indexOf(idx);
+        i === -1 ? l.push(idx) : l.splice(i,1);
+        sauver(); toutRendre();
+        document.querySelector('details.absences').open = true;
+      });
+      ligne.appendChild(b);
+    });
+    zone.appendChild(ligne);
+  }
+}
+
+/* ================= Rendu : fiches enseignantes ================= */
+
+function rendreFiches(){
+  const zone = document.getElementById('fiches');
+  zone.innerHTML = '';
+  for(const t of etat.enseignantes){
+    const h = heuresAffectees(t.id);
+    const f = document.createElement('article');
+    f.className = 'fiche';
+    f.style.setProperty('--f-couleur', t.couleur);
+    const dispoTxt = JOURS.map((j,i) => {
+      const d = (t.dispos[i] || '').trim();
+      return d ? '<b>' + j.slice(0,3) + '</b> ' + d : null;
+    }).filter(Boolean).join(' · ') || 'Aucune disponibilité renseignée';
+    f.innerHTML =
+      '<h3><span class="pastille" style="background:' + t.couleur + '"></span>' + t.nom + '</h3>' +
+      '<p class="contrat">Contrat ' + fmtHeures(t.min) + '–' + fmtHeures(t.max) + ' h / semaine — actuellement ' + fmtHeures(h) + ' h attribuées</p>' +
+      '<dl>' +
+      '<dt>Compétences</dt><dd>' + (t.competences.length ? t.competences.join(', ') : 'Tous les cours') + '</dd>' +
+      '<dt>Disponibilités</dt><dd>' + dispoTxt + '</dd>' +
+      (t.notes ? '<dt>Notes</dt><dd>' + t.notes + '</dd>' : '') +
+      '</dl>' +
+      '<button class="lien-modif modifier">Modifier</button>';
+    f.querySelector('.modifier').addEventListener('click', () => ouvrirEns(t.id));
+    zone.appendChild(f);
+  }
+}
+
+/* ================= Rendu : table des cours ================= */
+
+function rendreTableCours(){
+  const tb = document.getElementById('tableCours');
+  tb.innerHTML = '';
+  const tri = [...etat.cours].sort((a,b) => a.jour - b.jour || toMin(a.debut) - toMin(b.debut));
+  for(const c of tri){
+    const t = parEns(etat.affectations[c.id]);
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + JOURS[c.jour] + '</td>' +
+      '<td class="num">' + c.debut + ' – ' + c.fin + '</td>' +
+      '<td><b>' + c.titre + '</b></td>' +
+      '<td>' + c.type + '</td>' +
+      '<td>' + c.lieu + '</td>' +
+      '<td>' + (t ? t.nom : '<span style="color:var(--rouge);font-weight:700">À attribuer</span>') + '</td>' +
+      '<td><button class="lien-modif">Modifier</button></td>';
+    tr.querySelector('.lien-modif').addEventListener('click', () => ouvrirCours(c.id));
+    tb.appendChild(tr);
+  }
+}
+
+/* ================= Dialogue : affectation ================= */
+
+let affectCoursId = null;
+
+function ouvrirAffect(coursId){
+  affectCoursId = coursId;
+  const c = etat.cours.find(x => x.id === coursId);
+  document.getElementById('affectTitre').textContent =
+    c.titre + ' — ' + JOURS[c.jour].toLowerCase() + ' ' + c.debut + '–' + c.fin;
+  const zone = document.getElementById('affectChoix');
+  zone.innerHTML = '';
+  const actuel = etat.affectations[c.id] || '';
+  const choix = [{id:'', nom:'Aucune enseignante (laisser libre)'}].concat(etat.enseignantes);
+  for(const t of choix){
+    const lbl = document.createElement('label');
+    let detail = '';
+    if(t.id){
+      const v = conflits(c, t);
+      if(depasseMax(c, t)) v.push('Ferait dépasser son maximum de contrat (' + fmtHeures(t.max) + ' h)');
+      detail = v.length
+        ? '<ul>' + v.map(x => '<li>' + x + '</li>').join('') + '</ul>'
+        : '<p class="ok">Aucun conflit</p>';
+    }
+    lbl.innerHTML =
+      '<span class="ligne1">' +
+      (t.id ? '<span class="pastille" style="background:' + t.couleur + '"></span>' : '') +
+      '<input type="radio" name="affectEns" value="' + t.id + '"' + ((t.id||'') === actuel ? ' checked' : '') + '> ' +
+      t.nom +
+      (t.id ? '<span class="heures">' + fmtHeures(heuresAffectees(t.id)) + ' h / ' + fmtHeures(t.min) + '–' + fmtHeures(t.max) + ' h</span>' : '') +
+      '</span>' + detail;
+    zone.appendChild(lbl);
+  }
+  document.getElementById('dlgAffect').showModal();
+}
+
+document.getElementById('dlgAffect').querySelector('form').addEventListener('submit', () => {
+  const v = document.querySelector('input[name=affectEns]:checked');
+  if(affectCoursId) etat.affectations[affectCoursId] = (v && v.value) || null;
+  sauver(); toutRendre();
+});
+document.getElementById('affectEditer').addEventListener('click', () => {
+  document.getElementById('dlgAffect').close();
+  ouvrirCours(affectCoursId);
+});
+
+/* ================= Dialogue : enseignante ================= */
+
+let ensId = null;
+const PALETTE = ['#D00828','#1D6FB8','#3E8E4E','#C77B1F','#7A4FB0','#B0356E','#1D9E9E','#6d5f63'];
+
+function ouvrirEns(id){
+  ensId = id;
+  const t = id ? parEns(id) : null;
+  document.getElementById('ensTitre').textContent = t ? 'Modifier — ' + t.nom : 'Nouvelle enseignante';
+  document.getElementById('ensNom').value = t ? t.nom : '';
+  document.getElementById('ensCouleur').value = t ? t.couleur : PALETTE[etat.enseignantes.length % PALETTE.length];
+  document.getElementById('ensMin').value = t ? t.min : 10;
+  document.getElementById('ensMax').value = t ? t.max : 20;
+  document.getElementById('ensNotes').value = t ? t.notes : '';
+  const zc = document.getElementById('ensCompetences');
+  zc.innerHTML = '';
+  for(const type of lesTypes()){
+    const coche = t && t.competences.includes(type);
+    zc.insertAdjacentHTML('beforeend',
+      '<label><input type="checkbox" value="' + type + '"' + (coche ? ' checked' : '') + '>' + type + '</label>');
+  }
+  const zd = document.getElementById('ensDispos');
+  zd.innerHTML = '';
+  JOURS.forEach((j, i) => {
+    zd.insertAdjacentHTML('beforeend',
+      '<div class="dispo-ligne"><b>' + j + '</b>' +
+      '<input type="text" data-jour="' + i + '" value="' + ((t && t.dispos[i]) || '').replace(/"/g,'&quot;') + '" placeholder="ex. 9:00-12:00, 14:00-19:00"></div>');
+  });
+  document.getElementById('ensSupprimer').style.visibility = t ? 'visible' : 'hidden';
+  document.getElementById('dlgEns').showModal();
+}
+
+document.getElementById('formEns').addEventListener('submit', () => {
+  const dispos = {};
+  document.querySelectorAll('#ensDispos input').forEach(i => dispos[i.dataset.jour] = i.value.trim());
+  const donnees = {
+    nom: document.getElementById('ensNom').value.trim(),
+    couleur: document.getElementById('ensCouleur').value,
+    min: parseFloat(document.getElementById('ensMin').value) || 0,
+    max: parseFloat(document.getElementById('ensMax').value) || 0,
+    competences: [...document.querySelectorAll('#ensCompetences input:checked')].map(i => i.value),
+    dispos,
+    notes: document.getElementById('ensNotes').value.trim(),
+  };
+  if(donnees.max < donnees.min) donnees.max = donnees.min;
+  if(ensId){ Object.assign(parEns(ensId), donnees); }
+  else{
+    const id = 'e' + Date.now().toString(36);
+    etat.enseignantes.push({id, ...donnees});
+  }
+  sauver(); toutRendre();
+});
+
+document.getElementById('ensSupprimer').addEventListener('click', () => {
+  const t = parEns(ensId);
+  if(!t || !confirm('Supprimer ' + t.nom + ' ? Ses cours repasseront « à attribuer ».')) return;
+  etat.enseignantes = etat.enseignantes.filter(x => x.id !== ensId);
+  for(const cid in etat.affectations) if(etat.affectations[cid] === ensId) etat.affectations[cid] = null;
+  delete etat.absences[ensId];
+  document.getElementById('dlgEns').close();
+  sauver(); toutRendre();
+});
+
+/* ================= Dialogue : cours ================= */
+
+let coursId = null;
+
+function ouvrirCours(id){
+  coursId = id;
+  const c = id ? etat.cours.find(x => x.id === id) : null;
+  document.getElementById('coursTitre').textContent = c ? 'Modifier — ' + c.titre : 'Nouveau cours';
+  document.getElementById('coursNom').value = c ? c.titre : '';
+  document.getElementById('coursType').value = c ? c.type : '';
+  document.getElementById('coursLieu').value = c ? c.lieu : '';
+  document.getElementById('coursDebut').value = c ? c.debut : '17:00';
+  document.getElementById('coursFin').value = c ? c.fin : '18:00';
+  const sel = document.getElementById('coursJour');
+  sel.innerHTML = JOURS.map((j,i) => '<option value="' + i + '"' + (c && c.jour === i ? ' selected' : '') + '>' + j + '</option>').join('');
+  document.getElementById('listeTypes').innerHTML = lesTypes().map(t => '<option value="' + t + '">').join('');
+  document.getElementById('listeLieux').innerHTML = lesLieux().map(l => '<option value="' + l + '">').join('');
+  document.getElementById('coursSupprimer').style.visibility = c ? 'visible' : 'hidden';
+  document.getElementById('dlgCours').showModal();
+}
+
+document.getElementById('formCours').addEventListener('submit', (ev) => {
+  const debut = document.getElementById('coursDebut').value;
+  const fin = document.getElementById('coursFin').value;
+  if(toMin(fin) <= toMin(debut)){ ev.preventDefault(); alert('L\'heure de fin doit être après le début.'); return; }
+  const donnees = {
+    titre: document.getElementById('coursNom').value.trim(),
+    type: document.getElementById('coursType').value.trim(),
+    lieu: document.getElementById('coursLieu').value.trim(),
+    jour: parseInt(document.getElementById('coursJour').value, 10),
+    debut, fin,
+  };
+  if(coursId){ Object.assign(etat.cours.find(x => x.id === coursId), donnees); }
+  else{
+    const id = 'k' + Date.now().toString(36);
+    etat.cours.push({id, ...donnees});
+    etat.affectations[id] = null;
+  }
+  sauver(); toutRendre();
+});
+
+document.getElementById('coursSupprimer').addEventListener('click', () => {
+  const c = etat.cours.find(x => x.id === coursId);
+  if(!c || !confirm('Supprimer le cours « ' + c.titre + ' » ?')) return;
+  etat.cours = etat.cours.filter(x => x.id !== coursId);
+  delete etat.affectations[coursId];
+  document.getElementById('dlgCours').close();
+  sauver(); toutRendre();
+});
+
+/* ================= Barre d'actions ================= */
+
+document.getElementById('btnAuto').addEventListener('click', affectationAuto);
+document.getElementById('btnImprimer').addEventListener('click', () => window.print());
+document.getElementById('btnAjoutEns').addEventListener('click', () => ouvrirEns(null));
+document.getElementById('btnAjoutCours').addEventListener('click', () => ouvrirCours(null));
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  if(!confirm('Remplacer toutes les données actuelles par le planning d\'exemple ?')) return;
+  etat = donneesExemple();
+  sauver(); toutRendre();
+});
+
+document.getElementById('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(etat, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'planning-academie-voltige.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fichierImport').click());
+document.getElementById('fichierImport').addEventListener('change', (ev) => {
+  const f = ev.target.files[0];
+  if(!f) return;
+  f.text().then(txt => {
+    const e = JSON.parse(txt);
+    if(!e.enseignantes || !e.cours) throw new Error('format');
+    etat = e; sauver(); toutRendre();
+  }).catch(() => alert('Fichier illisible : il faut un export de cet outil.'));
+  ev.target.value = '';
+});
+
+/* fermeture des dialogues */
+document.querySelectorAll('[data-fermer]').forEach(b =>
+  b.addEventListener('click', () => b.closest('dialog').close()));
+
+/* ================= Onglets ================= */
+
+document.querySelectorAll('.onglet').forEach(o => o.addEventListener('click', () => {
+  document.querySelectorAll('.onglet').forEach(x => x.setAttribute('aria-selected', x === o));
+  document.querySelectorAll('.vue').forEach(v => v.classList.toggle('active', v.id === 'vue-' + o.dataset.vue));
+}));
+
+/* ================= Rendu global ================= */
+
+function toutRendre(){
+  rendreCompteurs();
+  rendreAlertes();
+  rendreGrille();
+  rendreAbsences();
+  rendreFiches();
+  rendreTableCours();
+}
+toutRendre();
+</script>
+</body>
+</html>
