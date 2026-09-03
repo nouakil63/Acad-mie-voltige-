@@ -116,22 +116,20 @@
               </div>
             </div>
             <div class="champ">
-              <label for="enfant-poids">Poids de l'enfant <b>*</b></label>
-              <select id="enfant-poids" name="enfant-poids" required>
-                <option value="">Choisir une fourchette…</option>
-                <option>Moins de 20 kg</option>
-                <option>20 à 30 kg</option>
-                <option>30 à 40 kg</option>
-                <option>40 à 50 kg</option>
-                <option>50 à 60 kg</option>
-                <option>Plus de 60 kg</option>
+              <label for="enfant-gabarit">Gabarit de l'enfant (poids et taille) <b>*</b></label>
+              <select id="enfant-gabarit" name="enfant-gabarit" required>
+                <option value="">Choisir…</option>
+                <option>Moins de 35 kg et moins d'1m30</option>
+                <option>Moins de 40 kg et moins d'1m60</option>
+                <option>Autre gabarit (l'académie étudie la demande)</option>
               </select>
             </div>
             <p style="border-left:1.4px solid var(--accent);background:var(--fond-2);padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--texte-2)">
-              <b style="color:var(--texte)">Pourquoi demandons-nous le poids ?</b>
+              <b style="color:var(--texte)">Pourquoi demandons-nous le gabarit ?</b>
               La voltige n'est pas de l'équitation traditionnelle : l'enfant évolue en équilibre et en figures
               <em>sur</em> le poney, qui le porte tout au long du cours. Pour préserver nos poneys et garantir
-              la sécurité de tous, les montures et les groupes sont attribués en fonction du poids des voltigeurs.
+              la sécurité de tous, les montures et les groupes sont attribués en fonction du poids et de la
+              taille des voltigeurs.
             </p>
             <div class="rang">
               <div class="champ"><label for="parent-nom">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
@@ -215,7 +213,7 @@
         <div class="ligne-recap"><span>Formule</span><span id="r-formule">—</span></div>
         <div class="ligne-recap"><span>Créneau</span><span id="r-creneau">—</span></div>
         <div class="ligne-recap"><span>Voltigeur</span><span id="r-enfant">—</span></div>
-        <div class="ligne-recap"><span>Poids</span><span id="r-poids">—</span></div>
+        <div class="ligne-recap"><span>Gabarit</span><span id="r-poids">—</span></div>
         <div class="ligne-recap"><span>Niveau</span><span id="r-niveau">—</span></div>
         <div class="ligne-recap"><span>Contact</span><span id="r-contact">—</span></div>
         <div class="ligne-recap"><span>Cours d'essai</span><span id="r-essai">Oui</span></div>

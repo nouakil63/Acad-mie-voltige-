@@ -59,7 +59,7 @@
     document.getElementById('r-total').textContent = f ? f.tarif : '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
-    document.getElementById('r-poids').textContent = texte('enfant-poids') || '—';
+    document.getElementById('r-poids').textContent = texte('enfant-gabarit') || '—';
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
@@ -97,7 +97,7 @@
       '',
       'Voltigeur : ' + texte('enfant-prenom') + ' ' + texte('enfant-nom'),
       'Date de naissance : ' + texte('enfant-naissance'),
-      'Poids : ' + texte('enfant-poids'),
+      'Gabarit : ' + texte('enfant-gabarit'),
       'Niveau : ' + document.getElementById('enfant-niveau').value,
       '',
       'Parent : ' + texte('parent-nom'),
