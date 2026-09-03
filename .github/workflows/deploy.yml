@@ -25,21 +25,13 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      # Site en construction : la page d'attente est publiée à la racine,
-      # l'éditeur visuel sur /builder/, et une copie du vrai site sous
-      # /builder/site/ (non référencée, exclue des moteurs) pour que
-      # l'éditeur puisse charger les pages et les photos.
-      # Pour mettre le site complet en ligne : remplacer l'assemblage
-      # ci-dessous par « path: . » dans upload-pages-artifact.
-      - name: Assemble la page d'attente et l'éditeur
-        run: |
-          mkdir -p _site/builder/site
-          cp -r construction/. _site/
-          cp -r builder/. _site/builder/
-          cp -r assets *.html _site/builder/site/
-          printf 'User-agent: *\nAllow: /\nDisallow: /builder/\n' > _site/robots.txt
+      # Site complet en ligne : le dépôt est publié tel quel — les pages
+      # à la racine, l'éditeur visuel sur /builder/ (il lit désormais les
+      # pages à la racine du site), et le robots.txt du dépôt exclut
+      # /builder/ et /design/ des moteurs. La page d'attente reste
+      # disponible dans construction/ si besoin de revenir en arrière.
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
