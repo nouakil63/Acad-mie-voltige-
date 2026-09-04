@@ -456,34 +456,34 @@ function donneesExemple(){
     // Mardi
     c(1,'17:30','18:30','Poneys galop 1-2','Galop 1-4','Carrière'),
     c(1,'18:30','19:30','Chevaux galop 3-4','Galop 1-4','Carrière'),
-    c(1,'18:00','19:00','Voltige loisir ados','Voltige','Manège'),
+    c(1,'18:00','19:00','Voltige loisir ados','Voltige','Piste'),
     // Mercredi
     c(2,'09:30','10:15','Baby poney 3-5 ans','Baby poney','Rond de longe'),
     c(2,'10:30','11:30','Poneys 6-9 ans','Poney enfants','Carrière'),
-    c(2,'10:30','11:30','Voltige initiation','Voltige','Manège'),
-    c(2,'13:30','14:30','Voltige 6-9 ans','Voltige','Manège'),
+    c(2,'10:30','11:30','Voltige initiation','Voltige','Piste'),
+    c(2,'13:30','14:30','Voltige 6-9 ans','Voltige','Piste'),
     c(2,'14:00','15:00','Poneys galop 1-2','Galop 1-4','Carrière'),
-    c(2,'14:45','15:45','Voltige 10-13 ans','Voltige','Manège'),
+    c(2,'14:45','15:45','Voltige 10-13 ans','Voltige','Piste'),
     c(2,'15:15','16:15','Chevaux galop 3-4','Galop 1-4','Carrière'),
-    c(2,'16:00','17:30','Voltige perfectionnement','Voltige','Manège'),
+    c(2,'16:00','17:30','Voltige perfectionnement','Voltige','Piste'),
     c(2,'16:30','17:30','Poneys 6-9 ans','Poney enfants','Carrière'),
-    c(2,'17:45','18:45','Équipe compétition','Compétition','Manège'),
+    c(2,'17:45','18:45','Équipe compétition','Compétition','Piste'),
     // Jeudi
     c(3,'17:30','18:30','Poneys galop 1-2','Galop 1-4','Carrière'),
-    c(3,'18:30','19:30','Adultes tous niveaux','Adultes','Manège'),
+    c(3,'18:30','19:30','Adultes tous niveaux','Adultes','Piste'),
     // Vendredi
-    c(4,'17:30','18:30','Voltige loisir enfants','Voltige','Manège'),
+    c(4,'17:30','18:30','Voltige loisir enfants','Voltige','Piste'),
     c(4,'18:30','19:45','Chevaux galop 5-7','Galop 5-7','Carrière'),
     // Samedi
     c(5,'09:00','09:45','Baby poney 3-5 ans','Baby poney','Rond de longe'),
     c(5,'10:00','11:00','Poneys 6-9 ans','Poney enfants','Carrière'),
-    c(5,'10:00','11:30','Voltige perfectionnement','Voltige','Manège'),
+    c(5,'10:00','11:30','Voltige perfectionnement','Voltige','Piste'),
     c(5,'11:15','12:15','Poneys galop 1-2','Galop 1-4','Carrière'),
-    c(5,'14:00','15:30','Équipe compétition','Compétition','Manège'),
-    c(5,'15:45','16:45','Voltige initiation','Voltige','Manège'),
+    c(5,'14:00','15:30','Équipe compétition','Compétition','Piste'),
+    c(5,'15:45','16:45','Voltige initiation','Voltige','Piste'),
     c(5,'16:00','17:00','Chevaux galop 3-4','Galop 1-4','Carrière'),
     // Dimanche
-    c(6,'10:00','11:30','Équipe compétition','Compétition','Manège'),
+    c(6,'10:00','11:30','Équipe compétition','Compétition','Piste'),
     c(6,'11:00','12:00','Adultes tous niveaux','Adultes','Carrière'),
   ];
   const affectations = {
@@ -543,7 +543,7 @@ function lesTypes(){
 }
 function lesLieux(){
   const s = new Set(etat.cours.map(c => c.lieu));
-  ['Manège','Carrière','Rond de longe'].forEach(x=>s.add(x));
+  ['Piste','Carrière','Rond de longe'].forEach(x=>s.add(x));
   return [...s].sort((a,b)=>a.localeCompare(b,'fr'));
 }
 

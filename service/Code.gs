@@ -27,9 +27,9 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
-  cours_unite:     { libelle: 'Payer le cours — 25 €',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
-  cours_trimestre: { libelle: 'Payer le trimestre — 325 €',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
-  stage:           { libelle: 'Payer la semaine de stage — 840 €', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' }
+  cours_unite:     { libelle: 'Payer le cours (25 €)',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
+  cours_trimestre: { libelle: 'Payer le trimestre (325 €)',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
+  stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' }
 };
 
 /* Motifs de refus : un clic dans le mail de l'académie, et le parent
@@ -48,7 +48,7 @@ var MOTIFS_REFUS = {
   gabarit: {
     bouton: 'Gabarit',
     texte: 'La voltige n’est pas de l’équitation traditionnelle : l’enfant évolue en équilibre sur le poney, qui le porte tout au long du cours. ' +
-      'Pour préserver nos poneys et garantir la sécurité de tous, les montures sont attribuées selon le gabarit — et le gabarit indiqué ne nous permet malheureusement pas de proposer une monture adaptée à {enfant}.'
+      'Pour préserver nos poneys et garantir la sécurité de tous, les montures sont attribuées selon le gabarit, et celui indiqué ne nous permet malheureusement pas de proposer une monture adaptée à {enfant}.'
   },
   creneau: {
     bouton: 'Créneau indisponible',
@@ -70,7 +70,7 @@ function doPost(e) {
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
   var enfant = nettoyer(d.enfantPrenom) + ' ' + nettoyer(d.enfantNom);
-  var sujet = (d.type === 'cours' ? 'Demande d’inscription aux cours — ' : 'Réservation de stage — ') + enfant;
+  var sujet = (d.type === 'cours' ? 'Demande d’inscription aux cours de ' : 'Réservation de stage de ') + enfant;
 
   var lignes = d.type === 'cours' ? [
     ['Formule', nettoyer(d.formule)],
@@ -106,23 +106,23 @@ function doPost(e) {
   var base = ScriptApp.getService().getUrl();
   var urlValider = base + '?action=valider&d=' + jeton.d + '&s=' + jeton.s;
   var mailtoRefus = 'mailto:' + encodeURIComponent(nettoyer(d.parentEmail)) +
-    '?subject=' + encodeURIComponent('Votre demande — Académie de voltige') +
+    '?subject=' + encodeURIComponent('Votre demande à l’Académie de voltige') +
     '&body=' + encodeURIComponent('Bonjour ' + nettoyer(d.parentNom) + ',\n\nMerci pour votre demande concernant ' + enfant +
       '.\nMalheureusement, ');
 
   var boutonsRefus = Object.keys(MOTIFS_REFUS).map(function (cle) {
     return { texte: '❌ ' + MOTIFS_REFUS[cle].bouton, url: base + '?action=refuser&motif=' + cle + '&d=' + jeton.d + '&s=' + jeton.s, plein: false };
   });
-  boutonsRefus.push({ texte: '✉️ Autre motif — répondre moi-même', url: mailtoRefus, plein: false });
+  boutonsRefus.push({ texte: '✉️ Autre motif : répondre moi-même', url: mailtoRefus, plein: false });
 
   var html = gabaritMail(
     d.type === 'cours' ? 'Nouvelle demande d’inscription aux cours' : 'Nouvelle réservation de stage',
     'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le lien de paiement.',
     lignes,
-    [{ texte: '✅ Valider — envoyer le lien de paiement', url: urlValider, plein: true }],
+    [{ texte: '✅ Valider : envoyer le lien de paiement', url: urlValider, plein: true }],
     'Vous pouvez aussi simplement répondre à ce message : votre réponse partira vers ' + nettoyer(d.parentEmail) + '.',
     boutonsRefus,
-    'Ou refuser en un clic — le parent reçoit automatiquement un message courtois avec le motif choisi :'
+    'Ou refuser en un clic : le parent reçoit automatiquement un message courtois avec le motif choisi.'
   );
 
   GmailApp.sendEmail(ADRESSE_ACADEMIE, sujet, versTexte(lignes), {
@@ -155,10 +155,10 @@ function doGet(e) {
       'Nous ne pouvons malheureusement pas y donner suite cette fois-ci :<br><br>' + explication,
       [],
       [],
-      'N’hésitez pas à répondre à ce message pour toute question — et à très vite au manège, nous l’espérons !<br>' +
-      'Fleur & Georges Cotrait — Académie de voltige équestre, Auberville.'
+      'N’hésitez pas à répondre à ce message pour toute question. À très vite à l’académie, nous l’espérons !<br>' +
+      'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'
     );
-    GmailApp.sendEmail(donnees.parentEmail, 'Votre demande — Académie de voltige',
+    GmailApp.sendEmail(donnees.parentEmail, 'Votre demande à l’Académie de voltige',
       'Bonjour, nous ne pouvons malheureusement pas donner suite à la demande pour ' + donnees.enfant + '. ' +
       explication.replace(/<[^>]+>/g, ''), {
       htmlBody: htmlRefus,
@@ -191,10 +191,10 @@ function doGet(e) {
     intro,
     [],
     boutons,
-    'Une question ? Répondez simplement à ce message. À très vite au manège !<br>Fleur & Georges Cotrait — Académie de voltige équestre, Auberville.'
+    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'
   );
 
-  GmailApp.sendEmail(donnees.parentEmail, 'Votre inscription est validée — Académie de voltige',
+  GmailApp.sendEmail(donnees.parentEmail, 'Votre inscription est validée !',
     'Bonne nouvelle : la demande pour ' + donnees.enfant + ' est validée. Lien de paiement : ' + boutons[0].url, {
     htmlBody: html,
     replyTo: ADRESSE_ACADEMIE,
