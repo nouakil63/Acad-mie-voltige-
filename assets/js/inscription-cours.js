@@ -84,6 +84,22 @@
   }
   majRecap();
 
+  /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
+     Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
+  var URL_SERVICE = window.AV_SERVICE_URL || '';
+
+  function confirmationAuto() {
+    var c = document.getElementById('confirmation');
+    var h = c.querySelector('h3'); var p = c.querySelector('p');
+    if (h) { h.textContent = 'Votre demande est envoyée !'; }
+    if (p) {
+      p.innerHTML = 'L’académie vient de la recevoir. Georges Cotrait valide chaque demande sous 24 h maximum ; ' +
+        'vous recevrez alors un e-mail avec le lien de paiement sécurisé. ' +
+        'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
+    }
+    c.classList.add('visible');
+  }
+
   /* ---- envoi : e-mail pré-rempli en attendant le paiement en ligne ---- */
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -91,6 +107,32 @@
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = FORMULES[Number(choisi.value)];
+
+    if (URL_SERVICE) {
+      fetch(URL_SERVICE, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          type: 'cours',
+          formule: f.nom,
+          creneau: f.creneau,
+          tarif: f.tarif,
+          enfantPrenom: texte('enfant-prenom'),
+          enfantNom: texte('enfant-nom'),
+          enfantNaissance: texte('enfant-naissance'),
+          gabarit: texte('enfant-gabarit'),
+          niveau: document.getElementById('enfant-niveau').value,
+          parentNom: texte('parent-nom'),
+          parentTel: texte('parent-tel'),
+          parentEmail: texte('parent-email')
+        })
+      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(f); });
+      return;
+    }
+    envoyerParMessagerie(f);
+  });
+
+  function envoyerParMessagerie(f) {
     var corps = [
       'Bonjour,',
       '',
@@ -124,5 +166,5 @@
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');
-  });
+  }
 })();
