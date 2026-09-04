@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
+<html lang="fr"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Réserver un stage — Académie de voltige équestre · Auberville, Normandie</title>
@@ -66,7 +65,7 @@
 <!-- ============ En-tête de page ============ -->
 <header class="page-hero claire" style="padding-bottom:clamp(32px,5vw,48px)">
   <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
-    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"></ellipse>
   </svg>
   <div class="contenu">
     <div>
@@ -86,7 +85,7 @@
 <section class="section" id="resa" style="padding-top:clamp(40px,6vw,56px)">
   <div class="contenu">
     <div class="resa-grille">
-      <form id="form-resa" novalidate>
+      <form id="form-resa" novalidate="">
 
         <!-- fil des étapes -->
         <div class="pas-nav" aria-label="Étapes de la réservation">
@@ -94,7 +93,7 @@
           <div class="lien-jalon" aria-hidden="true"></div>
           <div class="jalon" data-jalon="2"><span class="rond">2</span><span>Le stage</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>Confirmation</span></div>
+          <div class="jalon" data-jalon="3"><span class="rond">3</span><span class="">Confirmation</span></div>
         </div>
 
         <!-- Étape 1 : le stage -->
@@ -103,7 +102,7 @@
           <p class="aide">Deux semaines au choix pendant les vacances de la Toussaint — même programme, mêmes horaires.</p>
           <div class="choix-stages">
             <label class="choix-stage">
-              <input type="radio" name="stage" value="0" required>
+              <input type="radio" name="stage" value="0" required="">
               <span class="boite">
                 <span class="pastille-radio" aria-hidden="true"></span>
                 <span class="dates">Du 19 au 24 octobre 2026 · Semaine 1</span>
@@ -124,22 +123,22 @@
             </label>
           </div>
           <div class="btns-pas">
-            <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
-            <button type="button" class="btn btn-rouge" data-suivant><span>Voir le récapitulatif</span></button>
+            <button type="button" class="btn btn-contour btn-retour" data-retour=""><span>← Retour</span></button>
+            <button type="button" class="btn btn-rouge" data-suivant=""><span>Voir le récapitulatif</span></button>
           </div>
         </fieldset>
 
         <!-- Étape 1 : le voltigeur et la famille -->
         <fieldset class="pas actif" data-pas="1">
-          <h2>Le voltigeur, et vous.</h2>
+          <h2 class="">Le voltigeur, et vous.</h2>
           <p class="aide">Ces informations nous permettent de constituer les groupes et de vous joindre pendant la semaine.</p>
           <div class="champs">
             <div class="rang">
-              <div class="champ"><label for="enfant-prenom">Prénom de l'enfant <b>*</b></label><input id="enfant-prenom" name="enfant-prenom" autocomplete="given-name" required></div>
-              <div class="champ"><label for="enfant-nom">Nom de l'enfant <b>*</b></label><input id="enfant-nom" name="enfant-nom" autocomplete="family-name" required></div>
+              <div class="champ"><label for="enfant-prenom">Prénom de l'enfant <b>*</b></label><input id="enfant-prenom" name="enfant-prenom" autocomplete="given-name" required=""></div>
+              <div class="champ"><label for="enfant-nom">Nom de l'enfant <b>*</b></label><input id="enfant-nom" name="enfant-nom" autocomplete="family-name" required=""></div>
             </div>
             <div class="rang">
-              <div class="champ"><label for="enfant-naissance">Date de naissance <b>*</b></label><input id="enfant-naissance" name="enfant-naissance" type="date" required></div>
+              <div class="champ"><label for="enfant-naissance">Date de naissance <b>*</b></label><input id="enfant-naissance" name="enfant-naissance" type="date" required=""></div>
               <div class="champ">
                 <label for="enfant-niveau">Niveau</label>
                 <select id="enfant-niveau" name="enfant-niveau">
@@ -154,18 +153,18 @@
               <textarea id="enfant-sante" name="enfant-sante" placeholder="Allergies alimentaires, traitement, appréhensions…"></textarea>
             </div>
             <div class="rang">
-              <div class="champ"><label for="parent-nom">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
-              <div class="champ"><label for="parent-tel">Votre téléphone <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
+              <div class="champ"><label for="parent-nom" class="">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required=""></div>
+              <div class="champ"><label for="parent-tel">Votre téléphone <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required=""></div>
             </div>
             <div class="champ">
-              <label for="parent-email">Votre e-mail <b>*</b></label>
-              <input id="parent-email" name="parent-email" type="email" autocomplete="email" required>
+              <label for="parent-email" class="">Votre e-mail <b>*</b></label>
+              <input id="parent-email" name="parent-email" type="email" autocomplete="email" required="">
               <span class="indice">La confirmation d'inscription et les infos pratiques arrivent à cette adresse.</span>
             </div>
           </div>
           <div class="btns-pas">
             <span></span>
-            <button type="button" class="btn btn-rouge" data-suivant><span>Choisir le stage</span></button>
+            <button type="button" class="btn btn-rouge" data-suivant=""><span>Choisir le stage</span></button>
           </div>
         </fieldset>
 
@@ -175,12 +174,12 @@
           <p class="aide">Vérifiez le récapitulatif ci-contre, puis envoyez votre demande — nous revenons vers vous sous 48&nbsp;h pour la confirmer.</p>
           <div class="champs">
             <label class="case">
-              <input type="checkbox" id="accepte" required>
+              <input type="checkbox" id="accepte" required="">
               <span>J'ai compris que cette demande vaut pré-inscription : la place est réservée à réception de la confirmation de l'académie, qui précisera les modalités de règlement. <b>*</b></span>
             </label>
           </div>
           <div class="btns-pas">
-            <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
+            <button type="button" class="btn btn-contour btn-retour" data-retour=""><span>← Retour</span></button>
             <button type="submit" class="btn btn-rouge"><span>Envoyer la demande</span></button>
           </div>
           <p class="note-recap" style="margin-top:18px;font-size:12.5px;color:var(--texte-2)">
@@ -220,7 +219,7 @@
         </span>
       </a>
       <nav class="pied-nav" aria-label="Pied de page">
-        <a href="histoire.html">L'académie</a>
+        <a href="histoire.html" class="">L'académie</a>
         <a href="stages.html">Stages</a>
         <a href="cours.html">Cours</a>
         <a href="theatre.html">Le théâtre</a>
@@ -230,7 +229,7 @@
       </nav>
     </div>
     <div class="pied-bas">
-      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie · <a href="mentions-legales.html" style="color:inherit">Mentions légales</a> · <a href="confidentialite.html" style="color:inherit">Confidentialité</a></span>
+      <span class="">© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie · <a href="mentions-legales.html" style="color:inherit">Mentions légales</a> · <a href="confidentialite.html" style="color:inherit">Confidentialité</a><br><br>Site crée par <a href="https://www.noks-consulting.com/">NOK'S Consulting</a></span>
       <span class="sociaux">
         <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
         <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
@@ -242,5 +241,8 @@
 
 <script src="assets/js/main.js?v=32"></script>
 <script src="assets/js/reservation.js?v=32"></script>
-</body>
-</html>
+
+
+
+
+</body></html>
