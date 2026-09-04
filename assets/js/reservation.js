@@ -73,9 +73,8 @@
   }
   majRecap();
 
-  /* lien de paiement Stripe du stage (public), joint à la demande pour la réponse de confirmation.
-     ⚠ MODE TEST (lien à 0 €) — après les essais, remplacer par le vrai lien du stage (840 €). */
-  var PAIEMENT_STAGE = 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03';
+  /* lien de paiement Stripe du stage (public), joint à la demande pour la réponse de confirmation */
+  var PAIEMENT_STAGE = 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04'; /* 840 € — semaine de stage */
 
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
