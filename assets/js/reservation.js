@@ -79,7 +79,7 @@
 
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
-  var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/a/macros/noks-consulting.com/s/AKfycbyPHas_gtEt96ajSKNaD3GtFLRlnw2PvZrTCz2ut03rQMhKPCfDcmQRNt-5XgCtappCBA/exec';
+  var URL_SERVICE = window.AV_SERVICE_URL || '';
 
   function confirmationAuto() {
     var c = document.getElementById('confirmation');
