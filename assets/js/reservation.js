@@ -73,6 +73,10 @@
   }
   majRecap();
 
+  /* lien de paiement Stripe du stage (public), joint à la demande pour la réponse de confirmation.
+     ⚠ MODE TEST (lien à 0 €) — après les essais, remplacer par le vrai lien du stage (840 €). */
+  var PAIEMENT_STAGE = 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03';
+
   /* ---- envoi : e-mail pré-rempli en attendant le paiement en ligne ---- */
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -99,6 +103,12 @@
       'E-mail : ' + texte('parent-email'),
       '',
       'Merci de me confirmer la disponibilité.',
+      '',
+      '--------------------------------------------------',
+      'Pour l\'académie — à joindre à la réponse de confirmation :',
+      '· Paiement du stage :',
+      PAIEMENT_STAGE,
+      '--------------------------------------------------',
     ].join('\n');
     var sujet = 'Réservation — ' + s.nom + ' (' + s.dates + ')';
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
