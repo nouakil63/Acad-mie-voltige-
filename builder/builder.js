@@ -157,6 +157,8 @@
     '.marquee-piste,.bande-photos .piste{animation-play-state:paused}' +
     /* dans l’aperçu, un clic sur une vidéo la sélectionne (au lieu de la lire) */
     '.galerie-video iframe,.galerie-video video{pointer-events:none}' +
+    /* cible du glisser-déposer de fichiers */
+    '.av-depose{outline:3px dashed var(--rouge,#D00828)!important;outline-offset:4px!important}' +
     '.hero-photo,.page-hero-photo,.arche-photo img,.page-arche img,.bp img,.theatre-arche img,' +
     '.carte-visuel img,.cercle-hero .rond-photo img,.photo-frise img,.carte-parcours .visuel img{animation:none!important}' +
     '.hero-contenu h1 .ligne>span,.page-hero .ligne>span{transform:none!important}' +
@@ -342,6 +344,7 @@
     d.addEventListener('mouseover', surSurvol, true);
     d.addEventListener('mouseout', function () { survoler(null); }, true);
     d.addEventListener('keydown', surTouche, true);
+    brancherDepose(d);
     d.addEventListener('focusout', function (e) {
       if (etat.edition && e.target === etat.edition) {
         /* laisse passer les clics sur la barre d'outils texte */
@@ -633,8 +636,8 @@
   /* ============ Sérialisation ============ */
   function nettoyerNoeud(racine, mode) {
     $$('[data-av-editeur]', racine).forEach(function (n) { n.remove(); });
-    $$('.av-survol,.av-choisi', racine).forEach(function (n) {
-      n.classList.remove('av-survol', 'av-choisi');
+    $$('.av-survol,.av-choisi,.av-depose', racine).forEach(function (n) {
+      n.classList.remove('av-survol', 'av-choisi', 'av-depose');
       if (n.getAttribute('class') === '') { n.removeAttribute('class'); }
     });
     $$('[contenteditable]', racine).forEach(function (n) {
@@ -1028,7 +1031,8 @@
         '<input type="text" class="champ-texte" id="prop-ajout-yt" placeholder="Collez le lien de la vidéo YouTube…">' +
         '<button type="button" class="btn-remplacer" id="prop-ajout-yt-btn">▶ Ajouter la vidéo YouTube</button>' +
         '<p class="note-prop">Photos et vidéos arrivent en fin de galerie. Cliquez ensuite dessus pour les déplacer ou les retirer. ' +
-        'Vidéo fichier : 30 Mo maximum — au-delà, passez par YouTube.</p></div>' : '') +
+        'Vidéo fichier : 30 Mo maximum — au-delà, passez par YouTube. ' +
+        'Astuce : vous pouvez aussi glisser vos fichiers directement sur la galerie.</p></div>' : '') +
       (piste ?
         curseurHtml('vitesse', 'Vitesse de défilement', 25, 300, vitesseActuelle(piste, pisteDefaut), ' %') : '') +
       (badge ?
@@ -1046,53 +1050,15 @@
       var ajoutFichier = $('#prop-ajout-fichier', panneauDroit);
       $('#prop-ajout-photo', panneauDroit).addEventListener('click', function () { ajoutFichier.click(); });
       ajoutFichier.addEventListener('change', function () {
-        var fs = Array.prototype.slice.call(ajoutFichier.files);
-        if (!fs.length) { return; }
-        var avant = serialiser(idoc(), 'travail');
-        var pousse = false;
-        var total = 0;
-        fs.forEach(function (f) {
-          importerImage(f, function (url, chemin) {
-            var fig = idoc().createElement('figure');
-            fig.className = 'galerie-photo';
-            var im = idoc().createElement('img');
-            im.setAttribute('loading', 'lazy');
-            im.setAttribute('decoding', 'async');
-            im.setAttribute('alt', '');
-            im.setAttribute('src', url);
-            im.setAttribute('data-av-asset', chemin);
-            fig.appendChild(im);
-            grille.appendChild(fig);
-            if (!pousse) { pousse = true; pousserHistorique(avant); }
-            total++;
-            notifier(total > 1 ? total + ' photos ajoutées — pensez à publier pour les mettre en ligne.'
-              : 'Photo ajoutée à la galerie — pensez à publier pour la mettre en ligne.');
-          });
-        });
+        if (ajoutFichier.files.length) { deposerFichiersGalerie(grille, ajoutFichier.files); }
         ajoutFichier.value = '';
       });
 
       var ajoutVideo = $('#prop-ajout-video-fichier', panneauDroit);
       $('#prop-ajout-video', panneauDroit).addEventListener('click', function () { ajoutVideo.click(); });
       ajoutVideo.addEventListener('change', function () {
-        var f = ajoutVideo.files[0];
+        if (ajoutVideo.files.length) { deposerFichiersGalerie(grille, ajoutVideo.files); }
         ajoutVideo.value = '';
-        if (!f) { return; }
-        var avant = serialiser(idoc(), 'travail');
-        importerVideo(f, function (url, chemin) {
-          var fig = idoc().createElement('figure');
-          fig.className = 'galerie-photo galerie-video';
-          var v = idoc().createElement('video');
-          v.setAttribute('controls', '');
-          v.setAttribute('playsinline', '');
-          v.setAttribute('preload', 'metadata');
-          v.setAttribute('src', url);
-          v.setAttribute('data-av-asset', chemin);
-          fig.appendChild(v);
-          grille.appendChild(fig);
-          pousserHistorique(avant);
-          notifier('Vidéo ajoutée à la galerie — pensez à publier pour la mettre en ligne.');
-        });
       });
 
       var champAjoutYt = $('#prop-ajout-yt', panneauDroit);
@@ -1291,6 +1257,137 @@
     importerFichier(f, 'assets/video/', '.mp4', rappel);
   }
 
+  /* ---- remplace une photo de la page par un fichier de l'ordinateur ---- */
+  function remplacerImageParFichier(img, f) {
+    if (/^video\//.test(f.type)) {
+      notifier('Une vidéo ne peut pas remplacer une photo — déposez-la sur la galerie.', 'erreur');
+      return;
+    }
+    var avant = serialiser(idoc(), 'travail');
+    importerImage(f, function (url, chemin) {
+      img.setAttribute('src', url);
+      img.setAttribute('data-av-asset', chemin);
+      pousserHistorique(avant);
+      if (etat.sel && etat.sel.el === img) { panneauImage(img); }
+      notifier('Photo remplacée — elle sera envoyée sur le site à la publication.');
+    });
+  }
+
+  /* ---- ajoute une liste de fichiers (photos et vidéos) à la fin d'une galerie ---- */
+  function deposerFichiersGalerie(grille, fichiers) {
+    var fs = Array.prototype.slice.call(fichiers).filter(function (f) {
+      return /^(image|video)\//.test(f.type);
+    });
+    if (!fs.length) {
+      notifier('Déposez des photos (JPEG, PNG…) ou des vidéos (MP4, WebM).', 'erreur');
+      return;
+    }
+    var avant = serialiser(idoc(), 'travail');
+    var pousse = false;
+    var total = 0;
+    function ajoute(fig) {
+      grille.appendChild(fig);
+      if (!pousse) { pousse = true; pousserHistorique(avant); }
+      total++;
+      notifier(total > 1 ? total + ' fichiers ajoutés à la galerie — pensez à publier pour les mettre en ligne.'
+        : 'Ajouté à la galerie — pensez à publier pour mettre en ligne.');
+    }
+    fs.forEach(function (f) {
+      if (/^image\//.test(f.type)) {
+        importerImage(f, function (url, chemin) {
+          var fig = idoc().createElement('figure');
+          fig.className = 'galerie-photo';
+          var im = idoc().createElement('img');
+          im.setAttribute('loading', 'lazy');
+          im.setAttribute('decoding', 'async');
+          im.setAttribute('alt', '');
+          im.setAttribute('src', url);
+          im.setAttribute('data-av-asset', chemin);
+          fig.appendChild(im);
+          ajoute(fig);
+        });
+      } else {
+        importerVideo(f, function (url, chemin) {
+          var fig = idoc().createElement('figure');
+          fig.className = 'galerie-photo galerie-video';
+          var v = idoc().createElement('video');
+          v.setAttribute('controls', '');
+          v.setAttribute('playsinline', '');
+          v.setAttribute('preload', 'metadata');
+          v.setAttribute('src', url);
+          v.setAttribute('data-av-asset', chemin);
+          fig.appendChild(v);
+          ajoute(fig);
+        });
+      }
+    });
+  }
+
+  /* ---- glisser-déposer de fichiers sur l'aperçu ---- */
+  var deposeEl = null;
+  function marquerDepose(el) {
+    if (deposeEl && deposeEl !== el) {
+      deposeEl.classList.remove('av-depose');
+      if (deposeEl.getAttribute('class') === '') { deposeEl.removeAttribute('class'); }
+    }
+    deposeEl = el || null;
+    if (deposeEl) { deposeEl.classList.add('av-depose'); }
+  }
+
+  function cibleDepose(t) {
+    if (!t || t.nodeType !== 1) { return null; }
+    if (t.closest && t.closest('[data-av-editeur]')) { return null; }
+    var img = t.closest ? t.closest('img') : null;
+    if (img) { return { el: img, type: 'image' }; }
+    var d = idoc();
+    var grille = (t.closest && t.closest('.galerie-grille')) || (d && d.querySelector('.galerie-grille'));
+    if (grille) { return { el: grille, type: 'galerie' }; }
+    return null;
+  }
+
+  function surDepot(e) {
+    e.preventDefault();
+    var c = cibleDepose(e.target);
+    marquerDepose(null);
+    var fichiers = e.dataTransfer && e.dataTransfer.files;
+    if (!fichiers || !fichiers.length) { return; }
+    if (c && c.type === 'image') {
+      var grilleParente = c.el.closest('.galerie-grille');
+      if (grilleParente && /^video\//.test(fichiers[0].type)) {
+        /* une vidéo lâchée sur une photo de la galerie rejoint la galerie */
+        deposerFichiersGalerie(grilleParente, fichiers);
+        return;
+      }
+      remplacerImageParFichier(c.el, fichiers[0]);
+      if (fichiers.length > 1) {
+        var g = idoc() && idoc().querySelector('.galerie-grille');
+        if (g) { deposerFichiersGalerie(g, Array.prototype.slice.call(fichiers, 1)); }
+        else { notifier('Une seule photo peut remplacer celle-ci — les autres fichiers ont été ignorés.', 'erreur'); }
+      }
+      return;
+    }
+    if (c && c.type === 'galerie') {
+      deposerFichiersGalerie(c.el, fichiers);
+      return;
+    }
+    notifier('Déposez le fichier sur une photo pour la remplacer, ou sur la page Galerie pour l’ajouter.', 'erreur');
+  }
+
+  function brancherDepose(d) {
+    d.addEventListener('dragover', function (e) {
+      var types = e.dataTransfer && e.dataTransfer.types;
+      if (!types || Array.prototype.indexOf.call(types, 'Files') === -1) { return; }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      var c = cibleDepose(e.target);
+      marquerDepose(c && c.el);
+    }, true);
+    d.addEventListener('dragleave', function (e) {
+      if (!e.relatedTarget) { marquerDepose(null); }
+    }, true);
+    d.addEventListener('drop', surDepot, true);
+  }
+
   /* ---- panneau : image ---- */
   function panneauImage(img) {
     var pos = /center (\d+)%/.exec(img.style.objectPosition || '');
@@ -1305,7 +1402,8 @@
       '<img class="apercu-img" id="prop-apercu-img" src="' + echapper(img.src) + '" alt="">' +
       '<button type="button" class="btn-remplacer" id="prop-remplacer">Remplacer la photo…</button>' +
       '<input type="file" id="prop-fichier" accept="image/*" hidden>' +
-      '<p class="note-prop">Formats conseillés : JPEG ou WebP, 2000 px de large maximum pour un site rapide.</p></div>' +
+      '<p class="note-prop">Formats conseillés : JPEG ou WebP, 2000 px de large maximum pour un site rapide. ' +
+      'Astuce : vous pouvez aussi glisser une photo de votre ordinateur directement sur l’image, dans l’aperçu.</p></div>' +
       '<div class="groupe-prop"><div class="libelle">Photos du site</div><div class="galerie" id="prop-galerie">' +
       toutes.map(function (chemin) {
         var src = etat.actifs[chemin] ? 'data:' + etat.actifs[chemin].type + ';base64,' + etat.actifs[chemin].b64 : baseSite + chemin;
@@ -1330,14 +1428,7 @@
     fichier.addEventListener('change', function () {
       var f = fichier.files[0];
       if (!f) { return; }
-      var avant = serialiser(idoc(), 'travail');
-      importerImage(f, function (url, chemin) {
-        img.setAttribute('src', url);
-        img.setAttribute('data-av-asset', chemin);
-        pousserHistorique(avant);
-        panneauImage(img);
-        notifier('Photo remplacée — elle sera envoyée sur le site à la publication.');
-      });
+      remplacerImageParFichier(img, f);
     });
 
     $('#prop-galerie', panneauDroit).addEventListener('click', function (e) {
@@ -1798,6 +1889,19 @@
     });
 
     document.addEventListener('keydown', surTouche);
+    /* un fichier lâché à côté de l'aperçu ne doit pas remplacer la page du navigateur */
+    document.addEventListener('dragover', function (e) {
+      var types = e.dataTransfer && e.dataTransfer.types;
+      if (types && Array.prototype.indexOf.call(types, 'Files') !== -1) { e.preventDefault(); }
+    });
+    document.addEventListener('drop', function (e) {
+      e.preventDefault();
+      var fichiers = e.dataTransfer && e.dataTransfer.files;
+      if (!fichiers || !fichiers.length || !idoc()) { return; }
+      var g = idoc().querySelector('.galerie-grille');
+      if (g) { deposerFichiersGalerie(g, fichiers); }
+      else { notifier('Déposez le fichier sur une photo de l’aperçu pour la remplacer, ou ouvrez la page Galerie pour l’ajouter.', 'erreur'); }
+    });
     window.addEventListener('beforeunload', function (e) {
       var p = pageCourante();
       if (p) {
