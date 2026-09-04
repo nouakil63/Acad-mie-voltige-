@@ -339,6 +339,7 @@
     d.addEventListener('mouseout', function () { survoler(null); }, true);
     d.addEventListener('keydown', surTouche, true);
     brancherDepose(d);
+    rehydraterActifs(d);
     d.addEventListener('focusout', function (e) {
       if (etat.edition && e.target === etat.edition) {
         /* laisse passer les clics sur la barre d'outils texte */
@@ -1025,7 +1026,7 @@
         '<input type="text" class="champ-texte" id="prop-ajout-yt" placeholder="Collez le lien de la vidéo YouTube…">' +
         '<button type="button" class="btn-remplacer" id="prop-ajout-yt-btn">▶ Ajouter la vidéo YouTube</button>' +
         '<p class="note-prop">Photos et vidéos arrivent en fin de galerie. Cliquez ensuite dessus pour les déplacer ou les retirer. ' +
-        'Vidéo fichier : 30 Mo maximum — au-delà, passez par YouTube. ' +
+        'Vidéo fichier : 80 Mo maximum — au-delà, passez par YouTube. ' +
         'Astuce : vous pouvez aussi glisser vos fichiers directement sur la galerie.</p></div>' : '') +
       (piste ?
         curseurHtml('vitesse', 'Vitesse de défilement', 25, 300, vitesseActuelle(piste, pisteDefaut), ' %') : '') +
@@ -1243,12 +1244,50 @@
 
   function importerVideo(f, rappel) {
     if (!/^video\//.test(f.type)) { notifier('« ' + f.name + ' » n’est pas une vidéo.', 'erreur'); return; }
-    if (f.size > 30 * 1024 * 1024) {
-      notifier('Cette vidéo pèse ' + Math.round(f.size / 1024 / 1024) + ' Mo — trop lourd pour le site (30 Mo maximum). ' +
+    if (f.size > 80 * 1024 * 1024) {
+      notifier('Cette vidéo pèse ' + Math.round(f.size / 1024 / 1024) + ' Mo — trop lourd pour le site (80 Mo maximum). ' +
         'Mettez-la sur YouTube, puis collez son lien ici.', 'erreur');
       return;
     }
-    importerFichier(f, 'assets/video/', '.mp4', rappel);
+    if (f.size > 20 * 1024 * 1024) {
+      notifier('Vidéo de ' + Math.round(f.size / 1024 / 1024) + ' Mo : préparation en cours, et la publication prendra un peu plus de temps…');
+    }
+    /* l'aperçu utilise une adresse légère (blob:) plutôt que la vidéo
+       encodée entière — indispensable pour les fichiers lourds */
+    importerFichier(f, 'assets/video/', '.mp4', function (url, chemin) {
+      rappel(URL.createObjectURL(f), chemin);
+    });
+  }
+
+  /* ---- retrouve les fichiers ajoutés d'un brouillon rechargé ---- */
+  function rehydraterActifs(d) {
+    /* les photos gardent leur contenu dans la page (data:) : on reconstitue etat.actifs */
+    $$('img[data-av-asset],video[data-av-asset]', d).forEach(function (n) {
+      var chemin = n.getAttribute('data-av-asset');
+      var src = n.getAttribute('src') || '';
+      if (!etat.actifs[chemin] && /^data:/.test(src)) {
+        etat.actifs[chemin] = {
+          b64: src.slice(src.indexOf(',') + 1),
+          type: (/^data:([^;,]+)/.exec(src) || [])[1] || 'image/jpeg'
+        };
+      }
+    });
+    /* une vidéo lourde (aperçu blob:) ne survit pas à la fermeture du navigateur :
+       si son contenu est perdu, on la retire plutôt que de publier une vidéo cassée */
+    var perdues = 0;
+    $$('video[data-av-asset]', d).forEach(function (n) {
+      var chemin = n.getAttribute('data-av-asset');
+      if (!etat.actifs[chemin] && /^blob:/.test(n.getAttribute('src') || '')) {
+        var fig = n.closest('figure.galerie-photo');
+        (fig || n).remove();
+        perdues++;
+      }
+    });
+    if (perdues) {
+      notifier(perdues > 1
+        ? perdues + ' vidéos ajoutées avant la fermeture de l’éditeur n’avaient pas été publiées : elles ont été retirées, ré-ajoutez-les puis publiez.'
+        : 'Une vidéo ajoutée avant la fermeture de l’éditeur n’avait pas été publiée : elle a été retirée, ré-ajoutez-la puis publiez.', 'erreur');
+    }
   }
 
   /* ---- remplace une photo de la page par un fichier de l'ordinateur ---- */
