@@ -11,6 +11,51 @@
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="/assets/css/style.css?v=30">
+  <style>
+    /* ============ La page introuvable ============ */
+    .nf{
+      min-height:calc(100vh - var(--nav-h));
+      display:flex;align-items:center;justify-content:center;text-align:center;
+      padding:calc(var(--nav-h) + 32px) 20px 64px;position:relative;overflow:hidden;
+    }
+    .nf-contenu{max-width:640px;position:relative;z-index:1}
+    .nf-chiffres{
+      display:flex;align-items:center;justify-content:center;gap:clamp(6px,2vw,18px);
+      line-height:1;user-select:none;
+    }
+    .nf-4{
+      font-family:var(--display);font-weight:800;font-stretch:var(--display-stretch);
+      font-size:clamp(96px,24vw,200px);color:var(--encre);letter-spacing:-0.04em;
+    }
+    .nf-0{
+      position:relative;width:clamp(88px,20vw,170px);height:clamp(88px,20vw,170px);
+      display:grid;place-items:center;
+    }
+    .nf-0 svg{position:absolute;inset:0;width:100%;height:100%;animation:nf-tourne 26s linear infinite}
+    .nf-0 svg circle{
+      fill:none;stroke:var(--rouge);stroke-width:7;
+      stroke-dasharray:34 16;stroke-linecap:round;
+    }
+    .nf-0 img{width:52%;height:52%;object-fit:contain;border-radius:50%}
+    @keyframes nf-tourne{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion: reduce){.nf-0 svg{animation:none}}
+    .nf h1{
+      font-size:clamp(28px,4.6vw,44px);margin:26px 0 14px;
+    }
+    .nf .sous-titre{margin:0 auto;max-width:46ch}
+    .nf .hero-cta{margin-top:30px;justify-content:center;flex-wrap:wrap}
+    .nf-pistes{
+      margin:34px auto 0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 10px;
+      padding:0;list-style:none;
+    }
+    .nf-pistes a{
+      display:inline-block;padding:8px 14px;border-radius:999px;
+      border:1px solid var(--trait);color:var(--texte);text-decoration:none;
+      font-size:13.5px;font-weight:650;
+      transition:border-color .25s var(--galop),color .25s var(--galop),background .25s var(--galop);
+    }
+    .nf-pistes a:hover,.nf-pistes a:focus-visible{border-color:var(--rouge);color:var(--rouge);background:color-mix(in srgb, var(--rouge) 5%, var(--blanc))}
+  </style>
 </head>
 <body class="nav-toujours-blanche">
 
@@ -51,26 +96,36 @@
 </nav>
 
 <!-- ============ Page introuvable ============ -->
-<header class="page-hero claire" id="introuvable" style="min-height:60vh">
-  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+<section class="nf" id="introuvable">
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;opacity:.5">
     <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
   </svg>
-  <div class="contenu">
-    <div>
-      <p class="eyebrow">Erreur 404</p>
-      <h1>
-        <span class="ligne"><span>Cette page a</span></span>
-        <span class="ligne"><span>quitté le <em>manège</em>.</span></span>
-      </h1>
-      <p class="sous-titre">L'adresse que vous cherchez n'existe plus — le site de l'académie a fait peau neuve. Tout est encore là, à quelques foulées :</p>
-      <div class="hero-cta" style="margin-top:26px">
-        <a class="btn btn-plein" href="/"><span>Retour à l'accueil</span></a>
-        <a class="btn btn-contour" href="/stages.html"><span>Voir les stages</span></a>
-        <a class="btn btn-contour" href="/contact.html"><span>Nous écrire</span></a>
-      </div>
+  <div class="nf-contenu">
+    <div class="nf-chiffres" aria-hidden="true">
+      <span class="nf-4">4</span>
+      <span class="nf-0">
+        <svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="88"/></svg>
+        <img src="/assets/img/logo.jpeg" alt="">
+      </span>
+      <span class="nf-4">4</span>
     </div>
+    <p class="eyebrow" style="margin-top:22px">Page introuvable</p>
+    <h1>Oh là ! Ce cheval a quitté le manège.</h1>
+    <p class="sous-titre">L'adresse que vous cherchez n'existe pas, ou plus. Pas de panique : reprenons la longe, tout le reste est bien en piste.</p>
+    <div class="hero-cta">
+      <a class="btn btn-rouge" href="/"><span>Retour à l'accueil</span></a>
+      <a class="btn btn-contour" href="/inscription.html"><span>Inscrire mon enfant</span></a>
+    </div>
+    <ul class="nf-pistes" aria-label="Pages du site">
+      <li><a href="/stages.html">Les stages</a></li>
+      <li><a href="/cours.html">Les cours à l'année</a></li>
+      <li><a href="/theatre.html">Le théâtre</a></li>
+      <li><a href="/galerie.html">La galerie</a></li>
+      <li><a href="/histoire.html">Notre histoire</a></li>
+      <li><a href="/contact.html">Contact</a></li>
+    </ul>
   </div>
-</header>
+</section>
 
 <!-- ============ Pied de page ============ -->
 <footer class="pied">
