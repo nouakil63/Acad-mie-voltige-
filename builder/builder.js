@@ -28,12 +28,9 @@
       { fichier: '404.html', nom: 'Page introuvable' }
     ],
     imagesConnues: [
-      'assets/img/voltige-pyramide.jpeg',
-      'assets/img/voltige-longe.jpeg',
-      'assets/img/voltige-solo.jpeg',
-      'assets/img/voltige-duo.jpeg',
-      'assets/img/voltige-planche.jpeg',
       'assets/img/voltige-figure.jpeg',
+      'assets/img/image-figure.jpg',
+      'assets/img/images-de-voltige-nicole-025-2.jpg',
       'assets/img/georges-cotrait.jpeg',
       'assets/img/photo-theatre.jpg',
       'assets/img/salon-du-cheval.jpg',
@@ -41,10 +38,7 @@
       'assets/img/photo-fleur-et-george-2.jpg',
       'assets/img/photo-enfant-deguise.jpg',
       'assets/img/photo-enfant-cantine.jpg',
-      'assets/img/image-figure.jpg',
-      'assets/img/images-de-voltige-nicole-025-2.jpg',
-      'assets/img/logo.jpeg',
-      'assets/video/poster.jpg'
+      'assets/img/logo.jpeg'
     ],
     /* sections qui restent en place (contenu modifiable, structure protégée) */
     verrouillees: ['nav', 'pied'],
