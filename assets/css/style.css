@@ -856,12 +856,12 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 }
 .pas-nav .jalon.actif .rond{background:var(--rouge);border-color:var(--rouge);color:var(--blanc)}
 .pas-nav .jalon.fait .rond{border-color:var(--rouge);color:var(--rouge)}
-.pas-nav .jalon span{
+.pas-nav .jalon span:not(.rond){
   font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--texte-2);
 }
-.pas-nav .jalon.actif span{color:var(--texte)}
+.pas-nav .jalon.actif span:not(.rond){color:var(--texte)}
 .pas-nav .lien-jalon{flex:1;height:1px;background:var(--trait);margin:0 14px;min-width:16px}
-@media (max-width:640px){.pas-nav .jalon span{display:none}.pas-nav .jalon.actif span{display:inline}}
+@media (max-width:640px){.pas-nav .jalon span:not(.rond){display:none}.pas-nav .jalon.actif span:not(.rond){display:inline}}
 @media (max-width:560px){
   .choix-stage .boite{grid-template-columns:auto 1fr}
   .choix-stage .prix-stage{grid-row:auto;grid-column:2;font-size:19px;white-space:normal}
