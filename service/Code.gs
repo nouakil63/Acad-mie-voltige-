@@ -170,7 +170,7 @@ function gabaritMail(titre, intro, lignes, boutons, pied) {
       'font-weight:700;font-size:15px;text-decoration:none">' + b.texte + '</a>';
   }).join('');
 
-  return '' +
+  return enEntites('' +
   '<div style="margin:0;padding:26px 12px;background:' + VOILE + ';font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">' +
     '<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;width:100%">' +
       '<tr><td style="background:' + ENCRE + ';border-radius:16px 16px 0 0;padding:18px 26px">' +
@@ -191,10 +191,26 @@ function gabaritMail(titre, intro, lignes, boutons, pied) {
         'Académie de voltige équestre · Auberville, Normandie · <a href="' + SITE + '" style="color:' + ROUGE + '">' + SITE.replace('https://','') + '</a>' +
       '</td></tr>' +
     '</table>' +
-  '</div>';
+  '</div>');
 }
 
 /* ============ Petits outils ============ */
+/* Convertit accents, tirets et émojis en entités HTML : l'affichage
+   reste parfait quel que soit l'encodage appliqué par la messagerie. */
+function enEntites(html) {
+  var sortie = '';
+  for (var i = 0; i < html.length; i++) {
+    var code = html.codePointAt(i);
+    if (code > 127) {
+      sortie += '&#' + code + ';';
+      if (code > 0xFFFF) { i++; } /* émoji : deux unités de code */
+    } else {
+      sortie += html.charAt(i);
+    }
+  }
+  return sortie;
+}
+
 function nettoyer(v) {
   return String(v == null ? '' : v).slice(0, 300)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
