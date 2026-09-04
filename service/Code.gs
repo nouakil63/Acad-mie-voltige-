@@ -25,15 +25,35 @@
 var ADRESSE_ACADEMIE = 'academiedevoltige@gmail.com';
 var SITE = 'https://academiedevoltige.com';
 
-/* Liens de paiement Stripe (publics).
-   ⚠ MODE TEST (liens à 0 €) — après les essais, remettre :
-   cours_unite     → https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00  (25 €)
-   cours_trimestre → https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01  (325 €)
-   stage           → (vrai lien 840 € à créer) */
+/* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
-  cours_unite:     { libelle: 'Payer le cours — 25 €',        url: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02' },
-  cours_trimestre: { libelle: 'Payer le trimestre — 325 €',   url: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02' },
-  stage:           { libelle: 'Payer la semaine de stage — 840 €', url: 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03' }
+  cours_unite:     { libelle: 'Payer le cours — 25 €',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
+  cours_trimestre: { libelle: 'Payer le trimestre — 325 €',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
+  stage:           { libelle: 'Payer la semaine de stage — 840 €', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' }
+};
+
+/* Motifs de refus : un clic dans le mail de l'académie, et le parent
+   reçoit automatiquement un message courtois avec ce motif.
+   {enfant} et {detail} sont remplacés par le prénom/nom et la formule ou le stage. */
+var MOTIFS_REFUS = {
+  complet: {
+    bouton: 'Complet',
+    texte: 'Toutes les places sont malheureusement déjà prises pour {detail}. ' +
+      'Répondez à ce message si vous souhaitez être prévenu(e) quand une place se libère, ou pour envisager une autre période.'
+  },
+  age: {
+    bouton: 'Âge',
+    texte: 'Nos groupes accueillent les enfants de 6 à 14 ans, et l’âge indiqué pour {enfant} ne nous permet malheureusement pas de l’accueillir dans de bonnes conditions.'
+  },
+  gabarit: {
+    bouton: 'Gabarit',
+    texte: 'La voltige n’est pas de l’équitation traditionnelle : l’enfant évolue en équilibre sur le poney, qui le porte tout au long du cours. ' +
+      'Pour préserver nos poneys et garantir la sécurité de tous, les montures sont attribuées selon le gabarit — et le gabarit indiqué ne nous permet malheureusement pas de proposer une monture adaptée à {enfant}.'
+  },
+  creneau: {
+    bouton: 'Créneau indisponible',
+    texte: 'Le créneau demandé pour {detail} n’est plus disponible. Répondez à ce message : nous vous proposerons un autre créneau selon les places restantes.'
+  }
 };
 
 /* Les couleurs du site */
@@ -83,21 +103,26 @@ function doPost(e) {
     parentNom: nettoyer(d.parentNom),
     detail: d.type === 'cours' ? nettoyer(d.formule) : nettoyer(d.stage) + ' (' + nettoyer(d.dates) + ')'
   });
-  var urlValider = ScriptApp.getService().getUrl() + '?action=valider&d=' + jeton.d + '&s=' + jeton.s;
+  var base = ScriptApp.getService().getUrl();
+  var urlValider = base + '?action=valider&d=' + jeton.d + '&s=' + jeton.s;
   var mailtoRefus = 'mailto:' + encodeURIComponent(nettoyer(d.parentEmail)) +
     '?subject=' + encodeURIComponent('Votre demande — Académie de voltige') +
     '&body=' + encodeURIComponent('Bonjour ' + nettoyer(d.parentNom) + ',\n\nMerci pour votre demande concernant ' + enfant +
       '.\nMalheureusement, ');
 
+  var boutonsRefus = Object.keys(MOTIFS_REFUS).map(function (cle) {
+    return { texte: '❌ ' + MOTIFS_REFUS[cle].bouton, url: base + '?action=refuser&motif=' + cle + '&d=' + jeton.d + '&s=' + jeton.s, plein: false };
+  });
+  boutonsRefus.push({ texte: '✉️ Autre motif — répondre moi-même', url: mailtoRefus, plein: false });
+
   var html = gabaritMail(
     d.type === 'cours' ? 'Nouvelle demande d’inscription aux cours' : 'Nouvelle réservation de stage',
     'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le lien de paiement.',
     lignes,
-    [
-      { texte: '✅ Valider — envoyer le lien de paiement', url: urlValider, plein: true },
-      { texte: '✉️ Refuser / répondre moi-même', url: mailtoRefus, plein: false }
-    ],
-    'Vous pouvez aussi simplement répondre à ce message : votre réponse partira vers ' + nettoyer(d.parentEmail) + '.'
+    [{ texte: '✅ Valider — envoyer le lien de paiement', url: urlValider, plein: true }],
+    'Vous pouvez aussi simplement répondre à ce message : votre réponse partira vers ' + nettoyer(d.parentEmail) + '.',
+    boutonsRefus,
+    'Ou refuser en un clic — le parent reçoit automatiquement un message courtois avec le motif choisi :'
   );
 
   GmailApp.sendEmail(ADRESSE_ACADEMIE, sujet, versTexte(lignes), {
@@ -109,15 +134,40 @@ function doPost(e) {
   return reponseTexte('ok');
 }
 
-/* ============ Clic sur « Valider » dans le mail ============ */
+/* ============ Clic sur « Valider » ou « Refuser » dans le mail ============ */
 function doGet(e) {
   var p = e.parameter || {};
-  if (p.action !== 'valider' || !p.d || !p.s) {
+  if ((p.action !== 'valider' && p.action !== 'refuser') || !p.d || !p.s) {
     return pageHtml('Service des inscriptions', 'Ce service reçoit les demandes du site de l’académie. Rien à voir ici !');
   }
   var donnees = verifierJeton(p.d, p.s);
   if (!donnees) {
-    return pageHtml('Lien invalide', 'Ce lien de validation n’est pas reconnu. Utilisez le bouton du mail d’origine.');
+    return pageHtml('Lien invalide', 'Ce lien n’est pas reconnu. Utilisez les boutons du mail d’origine.');
+  }
+
+  if (p.action === 'refuser') {
+    var motif = MOTIFS_REFUS[p.motif];
+    if (!motif) { return pageHtml('Lien invalide', 'Motif de refus inconnu. Utilisez les boutons du mail d’origine.'); }
+    var explication = motif.texte.replace(/\{enfant\}/g, donnees.enfant).replace(/\{detail\}/g, donnees.detail);
+    var htmlRefus = gabaritMail(
+      'Au sujet de votre demande',
+      'Bonjour ' + donnees.parentNom + ', merci pour votre demande concernant <b>' + donnees.enfant + '</b> (' + donnees.detail + '). ' +
+      'Nous ne pouvons malheureusement pas y donner suite cette fois-ci :<br><br>' + explication,
+      [],
+      [],
+      'N’hésitez pas à répondre à ce message pour toute question — et à très vite au manège, nous l’espérons !<br>' +
+      'Fleur & Georges Cotrait — Académie de voltige équestre, Auberville.'
+    );
+    GmailApp.sendEmail(donnees.parentEmail, 'Votre demande — Académie de voltige',
+      'Bonjour, nous ne pouvons malheureusement pas donner suite à la demande pour ' + donnees.enfant + '. ' +
+      explication.replace(/<[^>]+>/g, ''), {
+      htmlBody: htmlRefus,
+      replyTo: ADRESSE_ACADEMIE,
+      name: 'Académie de voltige équestre'
+    });
+    return pageHtml('Refus envoyé',
+      'Le message de refus (motif : ' + motif.bouton + ') vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
+      '<br><br>Vous pouvez fermer cette page.');
   }
 
   var boutons, intro;
@@ -157,18 +207,25 @@ function doGet(e) {
 }
 
 /* ============ La mise en page des mails (couleurs du site) ============ */
-function gabaritMail(titre, intro, lignes, boutons, pied) {
-  var rangs = lignes.map(function (l) {
-    return '<tr><td style="padding:7px 14px;color:#8a7f83;font-size:13px;white-space:nowrap">' + l[0] + '</td>' +
-      '<td style="padding:7px 14px;color:' + ENCRE + ';font-size:14px;font-weight:600">' + (l[1] || '—') + '</td></tr>';
-  }).join('');
-  var btns = boutons.map(function (b) {
+function boutonsHtml(boutons) {
+  return boutons.map(function (b) {
     return '<a href="' + b.url + '" style="display:inline-block;margin:6px 6px 0 0;padding:13px 22px;border-radius:999px;' +
       (b.plein
         ? 'background:' + ROUGE + ';color:#ffffff;'
         : 'background:#ffffff;color:' + ROUGE + ';border:2px solid ' + ROUGE + ';') +
       'font-weight:700;font-size:15px;text-decoration:none">' + b.texte + '</a>';
   }).join('');
+}
+
+function gabaritMail(titre, intro, lignes, boutons, pied, boutons2, libelle2) {
+  var rangs = lignes.map(function (l) {
+    return '<tr><td style="padding:7px 14px;color:#8a7f83;font-size:13px;white-space:nowrap">' + l[0] + '</td>' +
+      '<td style="padding:7px 14px;color:' + ENCRE + ';font-size:14px;font-weight:600">' + (l[1] || '—') + '</td></tr>';
+  }).join('');
+  var btns = boutonsHtml(boutons);
+  if (boutons2 && boutons2.length) {
+    btns += '<p style="margin:26px 0 4px;color:#8a7f83;font-size:13px">' + (libelle2 || '') + '</p>' + boutonsHtml(boutons2);
+  }
 
   return enEntites('' +
   '<div style="margin:0;padding:26px 12px;background:' + VOILE + ';font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">' +

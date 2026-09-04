@@ -9,13 +9,10 @@
     { nom: 'Cours du samedi', creneau: 'Samedi 10h00 — 13h00 · 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' }
   ];
 
-  /* liens de paiement Stripe (publics), joints à la demande pour la réponse de validation.
-     ⚠ MODE TEST (lien à 0 €) — après les essais, remettre les vrais liens :
-     unite:     https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00   (25 € — cours à l'unité)
-     trimestre: https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01   (325 € — trimestre) */
+  /* liens de paiement Stripe (publics), joints à la demande pour la réponse de validation */
   var PAIEMENTS = {
-    unite: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02',
-    trimestre: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02'
+    unite: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00',      /* 25 € — cours à l'unité */
+    trimestre: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01'   /* 325 € — trimestre */
   };
 
   var form = document.getElementById('form-cours');
