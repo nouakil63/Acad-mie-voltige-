@@ -77,6 +77,22 @@
      ⚠ MODE TEST (lien à 0 €) — après les essais, remplacer par le vrai lien du stage (840 €). */
   var PAIEMENT_STAGE = 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03';
 
+  /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
+     Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
+  var URL_SERVICE = window.AV_SERVICE_URL || '';
+
+  function confirmationAuto() {
+    var c = document.getElementById('confirmation');
+    var h = c.querySelector('h3'); var p = c.querySelector('p');
+    if (h) { h.textContent = 'Votre demande est envoyée !'; }
+    if (p) {
+      p.innerHTML = 'L’académie vient de la recevoir et vous confirme la disponibilité très vite ; ' +
+        'vous recevrez alors un e-mail avec le lien de paiement sécurisé. ' +
+        'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
+    }
+    c.classList.add('visible');
+  }
+
   /* ---- envoi : e-mail pré-rempli en attendant le paiement en ligne ---- */
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -84,6 +100,32 @@
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="stage"]:checked');
     var s = STAGES[Number(choisi.value)];
+
+    if (URL_SERVICE) {
+      fetch(URL_SERVICE, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          type: 'stage',
+          stage: s.nom,
+          dates: s.dates,
+          tarif: s.prix + ' € / semaine',
+          enfantPrenom: texte('enfant-prenom'),
+          enfantNom: texte('enfant-nom'),
+          enfantNaissance: texte('enfant-naissance'),
+          niveau: document.getElementById('enfant-niveau').value,
+          sante: texte('enfant-sante'),
+          parentNom: texte('parent-nom'),
+          parentTel: texte('parent-tel'),
+          parentEmail: texte('parent-email')
+        })
+      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(s); });
+      return;
+    }
+    envoyerParMessagerie(s);
+  });
+
+  function envoyerParMessagerie(s) {
     var corps = [
       'Bonjour,',
       '',
@@ -114,5 +156,5 @@
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');
-  });
+  }
 })();
