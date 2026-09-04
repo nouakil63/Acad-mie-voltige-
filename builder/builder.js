@@ -1373,10 +1373,17 @@
     notifier('Déposez le fichier sur une photo pour la remplacer, ou sur la page Galerie pour l’ajouter.', 'erreur');
   }
 
+  function glisseAvecFichiers(e) {
+    var types = e.dataTransfer && e.dataTransfer.types;
+    return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1;
+  }
+
   function brancherDepose(d) {
+    d.addEventListener('dragenter', function (e) {
+      if (glisseAvecFichiers(e)) { e.preventDefault(); }
+    }, true);
     d.addEventListener('dragover', function (e) {
-      var types = e.dataTransfer && e.dataTransfer.types;
-      if (!types || Array.prototype.indexOf.call(types, 'Files') === -1) { return; }
+      if (!glisseAvecFichiers(e)) { return; }
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       var c = cibleDepose(e.target);
@@ -1890,9 +1897,11 @@
 
     document.addEventListener('keydown', surTouche);
     /* un fichier lâché à côté de l'aperçu ne doit pas remplacer la page du navigateur */
+    document.addEventListener('dragenter', function (e) {
+      if (glisseAvecFichiers(e)) { e.preventDefault(); }
+    });
     document.addEventListener('dragover', function (e) {
-      var types = e.dataTransfer && e.dataTransfer.types;
-      if (types && Array.prototype.indexOf.call(types, 'Files') !== -1) { e.preventDefault(); }
+      if (glisseAvecFichiers(e)) { e.preventDefault(); }
     });
     document.addEventListener('drop', function (e) {
       e.preventDefault();
