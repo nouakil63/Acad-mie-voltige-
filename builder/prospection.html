@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prospection — Le Manège</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="site/assets/img/favicon-32.png">
+  <style>
+    :root{
+      --rouge:#D00828; --rouge-vif:#F2415A; --encre:#15080d; --fond:#1d1216; --carte:#271a1f;
+      --trait:#3d2c33; --texte:#f3ebee; --texte-2:#b9a8af;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--fond);color:var(--texte);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14.5px}
+    a{color:var(--rouge-vif)}
+    .barre{
+      position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;
+      background:var(--encre);padding:12px 20px;border-bottom:1px solid var(--trait);
+    }
+    .barre img{width:34px;height:34px;border-radius:50%}
+    .barre b{font-size:15px}
+    .barre small{display:block;color:var(--texte-2);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .barre .retour{margin-left:auto;color:var(--texte-2);text-decoration:none;font-weight:600;font-size:13.5px}
+    .barre .retour:hover{color:#fff}
+    main{max-width:1060px;margin:0 auto;padding:26px 18px 80px}
+    h1{font-size:24px;margin:6px 0 4px}
+    .sous{color:var(--texte-2);margin:0 0 24px;line-height:1.55}
+
+    .bloc{background:var(--carte);border:1px solid var(--trait);border-radius:14px;padding:20px;margin-bottom:22px}
+    .bloc h2{margin:0 0 4px;font-size:16px}
+    .bloc .note{color:var(--texte-2);font-size:13px;margin:0 0 14px;line-height:1.5}
+    label{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--texte-2);margin:12px 0 6px}
+    input[type=text],textarea,select{
+      width:100%;background:var(--encre);color:var(--texte);border:1px solid var(--trait);
+      border-radius:9px;padding:10px 12px;font:inherit;
+    }
+    textarea{min-height:220px;line-height:1.55;resize:vertical}
+    .btn{
+      display:inline-block;border:0;border-radius:999px;padding:10px 18px;font-weight:700;font-size:14px;
+      cursor:pointer;text-decoration:none;
+    }
+    .btn-rouge{background:var(--rouge);color:#fff}
+    .btn-rouge:hover{background:#e40f31}
+    .btn-ghost{background:transparent;color:var(--texte-2);border:1px solid var(--trait)}
+    .btn-ghost:hover{color:#fff;border-color:var(--texte-2)}
+
+    .stats{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 18px}
+    .stat{background:var(--carte);border:1px solid var(--trait);border-radius:999px;padding:7px 14px;font-size:13px;color:var(--texte-2)}
+    .stat b{color:var(--texte)}
+
+    .filtre{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+    .filtre button{
+      background:transparent;border:1px solid var(--trait);color:var(--texte-2);
+      border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:650;cursor:pointer;
+    }
+    .filtre button.actif{background:var(--rouge);border-color:var(--rouge);color:#fff}
+
+    .carte-contact{
+      background:var(--carte);border:1px solid var(--trait);border-radius:14px;
+      padding:16px 18px;margin-bottom:12px;display:grid;gap:12px;
+      grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;align-items:center;
+    }
+    @media (max-width:760px){.carte-contact{grid-template-columns:1fr}}
+    .cc-nom b{font-size:15px;display:block}
+    .cc-nom .cat{
+      display:inline-block;margin-top:5px;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--rouge-vif);background:rgba(210,8,40,.12);border-radius:999px;padding:3px 9px;
+    }
+    .cc-nom small{display:block;color:var(--texte-2);margin-top:6px;line-height:1.5}
+    .cc-coord{color:var(--texte-2);font-size:13.5px;line-height:1.7;min-width:0;overflow-wrap:anywhere}
+    .cc-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:190px}
+    .cc-actions select{padding:8px 10px;font-size:13px}
+    .cc-actions .btn{text-align:center;font-size:13px;padding:9px 14px}
+    .cc-actions textarea{min-height:34px;font-size:12.5px;padding:7px 10px}
+    .statut-envoye{border-left:4px solid #e3a008}
+    .statut-relance{border-left:4px solid #e3a008}
+    .statut-repondu{border-left:4px solid #4b9ce3}
+    .statut-partenaire{border-left:4px solid #2fbf71}
+    .statut-refus{border-left:4px solid #666;opacity:.65}
+
+    .ajout-grille{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px}
+    @media (max-width:760px){.ajout-grille{grid-template-columns:1fr}}
+    details summary{cursor:pointer;font-weight:700}
+  </style>
+</head>
+<body>
+
+<header class="barre">
+  <img src="../assets/img/logo.jpeg" onerror="this.onerror=null;this.src='site/assets/img/logo.jpeg'" alt="">
+  <div><b>Prospection</b><small>CSE · colonies · jeunesse</small></div>
+  <a class="retour" href="index.html">← Retour à l'éditeur</a>
+</header>
+
+<main>
+  <h1>Remplir les stages et les cours 🐴</h1>
+  <p class="sous">Tous les organismes susceptibles d'envoyer des jeunes à l'académie, avec leurs contacts. Pour chacun : cliquez « ✉️ Envoyer la présentation », votre messagerie s'ouvre avec le mail déjà rédigé au nom de l'organisme, il n'y a qu'à appuyer sur Envoyer. Puis notez où vous en êtes avec le statut. Tout est enregistré dans ce navigateur.</p>
+
+  <!-- ============ Le mail type ============ -->
+  <div class="bloc">
+    <h2>✉️ Le mail de présentation</h2>
+    <p class="note">C'est le texte envoyé à chaque organisme. <b>{organisme}</b> est remplacé automatiquement par le nom du contact. Modifiez-le librement : il est conservé. Le mail renvoie vers la page <a href="https://academiedevoltige.com/groupes.html" target="_blank" rel="noopener">« Groupes &amp; collectivités »</a> du site, votre vitrine pour les partenaires.</p>
+    <label for="sujet">Objet</label>
+    <input type="text" id="sujet">
+    <label for="corps">Message</label>
+    <textarea id="corps"></textarea>
+    <p style="margin:12px 0 0"><button class="btn btn-ghost" id="raz-mail">Revenir au texte d'origine</button></p>
+  </div>
+
+  <!-- ============ Les contacts ============ -->
+  <div class="stats" id="stats"></div>
+  <div class="filtre" id="filtre"></div>
+  <div id="liste"></div>
+
+  <!-- ============ Ajouter un contact ============ -->
+  <div class="bloc">
+    <details>
+      <summary>➕ Ajouter un contact</summary>
+      <div class="ajout-grille">
+        <div><label>Nom de l'organisme</label><input type="text" id="aj-nom"></div>
+        <div><label>Catégorie</label>
+          <select id="aj-cat">
+            <option>Colonies &amp; séjours</option>
+            <option>Jeunesse &amp; éducation</option>
+            <option>Mairies &amp; collectivités</option>
+            <option>CSE &amp; entreprises</option>
+          </select>
+        </div>
+        <div><label>Ville</label><input type="text" id="aj-ville"></div>
+        <div><label>E-mail</label><input type="text" id="aj-email"></div>
+        <div><label>Téléphone</label><input type="text" id="aj-tel"></div>
+        <div><label>Site web</label><input type="text" id="aj-site"></div>
+      </div>
+      <p style="margin:14px 0 0"><button class="btn btn-rouge" id="aj-btn">Ajouter à la liste</button></p>
+    </details>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============ Le mail type ============ */
+  var SUJET_DEFAUT = 'Une activité unique en France pour vos jeunes : la voltige équestre, près de Deauville';
+  var CORPS_DEFAUT = [
+    'Bonjour,',
+    '',
+    'Je me permets de contacter {organisme} car nous accueillons des groupes d’enfants toute l’année, et je crois que notre activité peut beaucoup plaire à vos jeunes.',
+    '',
+    'L’Académie de voltige équestre, fondée par Georges Cotrait (un demi-siècle de pédagogie, 22 titres de champions de France formés), accueille à Auberville, entre Deauville et Cabourg, les enfants de 6 à 14 ans autour d’un concept unique en France : la voltige équestre alliée au théâtre.',
+    '',
+    'Ce que nous proposons :',
+    '• Des stages d’une semaine en pension complète pendant les vacances scolaires : voltige et cheval d’arçon le matin, théâtre l’après-midi, et une représentation devant les familles le samedi (840 € par enfant, tout compris).',
+    '• Des cours à l’année le mercredi et le samedi (25 € le cours, 325 € le trimestre).',
+    '• Des formules sur mesure pour les groupes : journée découverte, séjour dédié, représentation privée dans notre théâtre de 70 places.',
+    '',
+    'Aucun niveau n’est requis : la voltige se pratique sur un cheval tenu à la longe par l’enseignant, c’est l’une des plus belles portes d’entrée vers le cheval. Sécurité maximale : piste dédiée, encadrement diplômé, montures attribuées selon l’âge et le gabarit de chaque enfant.',
+    '',
+    'Pour découvrir l’académie : https://academiedevoltige.com/groupes.html',
+    'Et notre galerie photos et vidéos : https://academiedevoltige.com/galerie.html',
+    '',
+    'Nous serions ravis d’échanger sur un partenariat. Répondez simplement à ce message, ou appelez-nous au 02 31 88 08 71.',
+    '',
+    'À très vite à l’académie !',
+    'Fleur & Georges Cotrait',
+    'Académie de voltige équestre, Auberville (Normandie)',
+    'https://academiedevoltige.com'
+  ].join('\n');
+
+  /* ============ Les contacts trouvés (sources publiques) ============ */
+  var CONTACTS = [
+    { id: 'ucpa', nom: 'UCPA Séjours groupes (CSE & collectivités)', cat: 'Colonies & séjours', ville: 'National', email: 'groupes@ucpa.asso.fr', tel: '03 28 82 93 00', site: 'https://www.ucpa.com/partenaire/groupes/cse-et-collectivites', info: 'Premier organisateur sportif de France. Cherche des partenaires pour ses séjours.' },
+    { id: 'telligo', nom: 'Telligo', cat: 'Colonies & séjours', ville: 'Arcueil', email: '', tel: '01 46 12 18 50', site: 'https://www.telligo.fr/contacts', info: 'Colonies à thème (groupe UCPA). Contact par formulaire.' },
+    { id: 'djuringa', nom: 'Djuringa Juniors', cat: 'Colonies & séjours', ville: 'Lyon', email: '', tel: '04 78 23 23 46', site: 'https://www.djuringa-juniors.fr/p-partenaires.html', info: 'Organise déjà des colonies équitation, travaille avec des centres partenaires.' },
+    { id: 'zigo', nom: 'Zigotours (Zigo)', cat: 'Colonies & séjours', ville: 'Paris', email: '', tel: '', site: 'https://www.zigotours.com', info: 'Séjours 6 à 25 ans, France et étranger.' },
+    { id: 'croq', nom: 'Croq’ Vacances', cat: 'Colonies & séjours', ville: 'Nantes', email: '', tel: '02 40 35 52 15', site: 'https://croqvacances.org/colonie-de-vacances/equitation', info: 'Colonies équitation, association.' },
+    { id: 'action', nom: 'Action Séjours', cat: 'Colonies & séjours', ville: 'Paris', email: '', tel: '', site: 'https://www.action-sejours.com/colonie-de-vacances/equitation/', info: 'Colonies équestres encadrées par moniteurs diplômés.' },
+    { id: 'vpt', nom: 'Vacances pour tous (Ligue de l’enseignement)', cat: 'Colonies & séjours', ville: 'National', email: 'vpt-individuels@laligue.org', tel: '01 43 64 04 64', site: 'https://www.vacances-pour-tous.org', info: 'Premier organisateur associatif de colonies en France.' },
+    { id: 'destcheval', nom: 'Destinations Cheval', cat: 'Colonies & séjours', ville: 'National', email: '', tel: '', site: 'https://www.destinations-cheval.com/themes/colonie-vacances-equestre/', info: 'Réseau de centres équestres partenaires : candidature pour être référencé.' },
+    { id: 'kidsvac', nom: 'KidsVacances (annuaire de séjours)', cat: 'Colonies & séjours', ville: 'National', email: '', tel: '', site: 'https://www.kidsvacances.fr/t-32-equitation', info: 'Annuaire : faire référencer les stages de l’académie.' },
+
+    { id: 'ufcv', nom: 'UFCV Normandie', cat: 'Jeunesse & éducation', ville: 'Caen', email: '', tel: '02 31 86 66 08', site: 'https://www.ufcv.fr/Normandie', info: '27 av. du 6 Juin. Organise accueils de loisirs et séjours de proximité en Normandie.' },
+    { id: 'pep14', nom: 'Les PEP 14 (classes de découvertes)', cat: 'Jeunesse & éducation', ville: 'Hérouville-Saint-Clair', email: 'accueil@lespep14.org', tel: '02 31 43 94 13', site: 'https://www.lespep14.fr', info: 'Aussi : pevlc@pep14.org pour les classes de découvertes. Très bon canal vers les écoles.' },
+    { id: 'ligue', nom: 'Ligue de l’enseignement de Normandie', cat: 'Jeunesse & éducation', ville: 'Caen', email: '', tel: '', site: 'https://laliguenormandie.org/contact/', info: '16 rue de la Girafe. Séjours vacances et éducatifs dans la région.' },
+    { id: 'famrur', nom: 'Familles Rurales, fédération du Calvados', cat: 'Jeunesse & éducation', ville: 'Villers-Bocage', email: 'fd.calvados@famillesrurales.org', tel: '02 31 77 16 10', site: 'https://calvados.famillesrurales.org', info: 'Réseau d’associations locales avec accueils de loisirs.' },
+
+    { id: 'deauville', nom: 'Ville de Deauville, service jeunesse', cat: 'Mairies & collectivités', ville: 'Deauville', email: '', tel: '02 31 14 69 56', site: 'https://www.mairie-deauville.fr/ville/loisirs/centre-de-loisirs-deauville-plein-air-1', info: 'Centre de loisirs « Deauville Plein Air » (3 à 13 ans) et Espace Jeunes. À 15 minutes de l’académie.' },
+    { id: 'dives', nom: 'Dives-sur-Mer, centre de loisirs Les Tilleuls', cat: 'Mairies & collectivités', ville: 'Dives-sur-Mer', email: '', tel: '02 31 24 55 57', site: 'https://www.dives-sur-mer.fr/vivre-a-dives-sur-mer/jeunesse/centre-de-loisirs-et-local-jeunes/', info: 'Accueil 3 à 11 ans les mercredis et vacances + Espace jeunes 11 à 13 ans.' },
+    { id: 'cabourg', nom: 'Ville de Cabourg, centre de loisirs', cat: 'Mairies & collectivités', ville: 'Cabourg', email: '', tel: '', site: 'http://www.cabourg.fr/le-centre-de-loisirs', info: 'Accueille maternelle à CM2, mercredis et vacances (zone B).' },
+    { id: 'houlgate', nom: 'Mairie de Houlgate', cat: 'Mairies & collectivités', ville: 'Houlgate', email: '', tel: '02 31 28 14 00', site: 'https://houlgatemairie.wixsite.com/ville-houlgate', info: 'La commune de l’académie ou presque : partenaire naturel.' },
+    { id: 'ncpa', nom: 'Communauté de communes Normandie Cabourg Pays d’Auge', cat: 'Mairies & collectivités', ville: 'Dives-sur-Mer', email: '', tel: '', site: 'https://www.normandiecabourgpaysdauge.fr/contact/', info: 'Regroupe 39 communes dont Houlgate : politique enfance-jeunesse intercommunale.' },
+
+    { id: 'ccas', nom: 'CCAS (activités sociales de l’énergie, EDF…)', cat: 'CSE & entreprises', ville: 'National', email: '', tel: '0 800 101 000', site: 'https://nosoffres.ccas.fr/colonie-de-vacances/', info: 'Énormes catalogues de colonies pour les enfants des électriciens et gaziers.' },
+    { id: 'casi', nom: 'CASI Normandie (cheminots SNCF)', cat: 'CSE & entreprises', ville: 'Sotteville-lès-Rouen', email: '', tel: '02 35 62 08 73', site: 'https://www.casinormandie.fr', info: '15 rue de la Gare. Séjours et sorties enfants pour les cheminots normands.' },
+    { id: 'hellocse', nom: 'HelloCSE (plateforme d’avantages CSE)', cat: 'CSE & entreprises', ville: 'National', email: '', tel: '', site: 'https://www.hellocse.fr', info: 'Plus de 2500 CSE clients : demander le référencement de l’offre de l’académie.' },
+    { id: 'clubemp', nom: 'Club Employés (plateforme CSE)', cat: 'CSE & entreprises', ville: 'National', email: '', tel: '', site: 'https://club-employes.com', info: 'Catalogue loisirs pour salariés : demander le référencement.' },
+    { id: 'loisirsnorm', nom: 'Loisirs Normandie (offres groupes & CSE)', cat: 'CSE & entreprises', ville: 'Normandie', email: '', tel: '', site: 'https://loisirsnormandie.fr/groupes/cse', info: 'Portail régional d’activités pour groupes et CSE.' }
+  ];
+
+  var CATS = ['Toutes', 'Colonies & séjours', 'Jeunesse & éducation', 'Mairies & collectivités', 'CSE & entreprises'];
+  var STATUTS = ['À contacter', 'Présentation envoyée', 'Relancé', 'A répondu', 'Partenaire !', 'Pas intéressé'];
+  var CLASSES = { 'Présentation envoyée': 'statut-envoye', 'Relancé': 'statut-relance', 'A répondu': 'statut-repondu', 'Partenaire !': 'statut-partenaire', 'Pas intéressé': 'statut-refus' };
+
+  /* ============ Mémoire (navigateur) ============ */
+  function lire(cle, defaut) {
+    try { var v = localStorage.getItem(cle); return v === null ? defaut : JSON.parse(v); }
+    catch (e) { return defaut; }
+  }
+  function ecrire(cle, valeur) {
+    try { localStorage.setItem(cle, JSON.stringify(valeur)); } catch (e) {}
+  }
+  var etats = lire('av:prospection:etats', {});     /* id → { statut, note } */
+  var ajouts = lire('av:prospection:ajouts', []);   /* contacts ajoutés à la main */
+  var filtreActif = 'Toutes';
+
+  var champSujet = document.getElementById('sujet');
+  var champCorps = document.getElementById('corps');
+  champSujet.value = lire('av:prospection:sujet', SUJET_DEFAUT);
+  champCorps.value = lire('av:prospection:corps', CORPS_DEFAUT);
+  champSujet.addEventListener('input', function () { ecrire('av:prospection:sujet', champSujet.value); });
+  champCorps.addEventListener('input', function () { ecrire('av:prospection:corps', champCorps.value); });
+  document.getElementById('raz-mail').addEventListener('click', function () {
+    if (!confirm('Revenir au texte d’origine du mail ?')) { return; }
+    champSujet.value = SUJET_DEFAUT; champCorps.value = CORPS_DEFAUT;
+    ecrire('av:prospection:sujet', SUJET_DEFAUT); ecrire('av:prospection:corps', CORPS_DEFAUT);
+  });
+
+  function tous() { return CONTACTS.concat(ajouts); }
+  function etatDe(c) { return etats[c.id] || { statut: 'À contacter', note: '' }; }
+
+  function lienMail(c) {
+    var corps = champCorps.value.split('{organisme}').join(c.nom);
+    return 'mailto:' + encodeURIComponent(c.email) +
+      '?subject=' + encodeURIComponent(champSujet.value) +
+      '&body=' + encodeURIComponent(corps);
+  }
+
+  function e(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  function rendre() {
+    /* stats */
+    var compte = {};
+    tous().forEach(function (c) { var s = etatDe(c).statut; compte[s] = (compte[s] || 0) + 1; });
+    document.getElementById('stats').innerHTML =
+      '<span class="stat"><b>' + tous().length + '</b> contacts</span>' +
+      STATUTS.map(function (s) { return compte[s] ? '<span class="stat"><b>' + compte[s] + '</b> ' + e(s.toLowerCase()) + '</span>' : ''; }).join('');
+
+    /* filtres */
+    document.getElementById('filtre').innerHTML = CATS.map(function (cat) {
+      return '<button type="button" class="' + (cat === filtreActif ? 'actif' : '') + '" data-cat="' + e(cat) + '">' + e(cat) + '</button>';
+    }).join('');
+
+    /* cartes */
+    var liste = tous().filter(function (c) { return filtreActif === 'Toutes' || c.cat === filtreActif; });
+    document.getElementById('liste').innerHTML = liste.map(function (c) {
+      var et = etatDe(c);
+      var coord = [];
+      if (c.email) { coord.push('✉️ ' + e(c.email)); }
+      if (c.tel) { coord.push('📞 ' + e(c.tel)); }
+      if (c.site) { coord.push('🔗 <a href="' + e(c.site) + '" target="_blank" rel="noopener">' + e(c.site.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]) + '</a>'); }
+      var action = c.email
+        ? '<a class="btn btn-rouge" href="' + e(lienMail(c)) + '">✉️ Envoyer la présentation</a>'
+        : '<a class="btn btn-ghost" href="' + e(c.site || '#') + '" target="_blank" rel="noopener">🔗 Formulaire sur leur site</a>';
+      return '<div class="carte-contact ' + (CLASSES[et.statut] || '') + '" data-id="' + e(c.id) + '">' +
+        '<div class="cc-nom"><b>' + e(c.nom) + '</b>' +
+          '<span class="cat">' + e(c.cat) + (c.ville ? ' · ' + e(c.ville) : '') + '</span>' +
+          (c.info ? '<small>' + e(c.info) + '</small>' : '') + '</div>' +
+        '<div class="cc-coord">' + coord.join('<br>') + '</div>' +
+        '<div class="cc-actions">' + action +
+          '<select data-statut>' + STATUTS.map(function (s) {
+            return '<option' + (s === et.statut ? ' selected' : '') + '>' + e(s) + '</option>';
+          }).join('') + '</select>' +
+          '<textarea data-note placeholder="Notes (qui, quand, quoi…)">' + e(et.note) + '</textarea>' +
+        '</div></div>';
+    }).join('') || '<p class="sous">Aucun contact dans cette catégorie.</p>';
+  }
+
+  document.getElementById('filtre').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-cat]');
+    if (!b) { return; }
+    filtreActif = b.dataset.cat;
+    rendre();
+  });
+
+  document.getElementById('liste').addEventListener('change', function (ev) {
+    var carte = ev.target.closest('.carte-contact');
+    if (!carte) { return; }
+    var id = carte.dataset.id;
+    var et = etats[id] || { statut: 'À contacter', note: '' };
+    if (ev.target.hasAttribute('data-statut')) { et.statut = ev.target.value; }
+    if (ev.target.hasAttribute('data-note')) { et.note = ev.target.value; }
+    etats[id] = et;
+    ecrire('av:prospection:etats', etats);
+    rendre();
+  });
+  document.getElementById('liste').addEventListener('input', function (ev) {
+    if (!ev.target.hasAttribute('data-note')) { return; }
+    var carte = ev.target.closest('.carte-contact');
+    var et = etats[carte.dataset.id] || { statut: 'À contacter', note: '' };
+    et.note = ev.target.value;
+    etats[carte.dataset.id] = et;
+    ecrire('av:prospection:etats', etats);
+  });
+
+  document.getElementById('aj-btn').addEventListener('click', function () {
+    var nom = document.getElementById('aj-nom').value.trim();
+    if (!nom) { alert('Indiquez au moins le nom de l’organisme.'); return; }
+    ajouts.push({
+      id: 'perso-' + Date.now(),
+      nom: nom,
+      cat: document.getElementById('aj-cat').value,
+      ville: document.getElementById('aj-ville').value.trim(),
+      email: document.getElementById('aj-email').value.trim(),
+      tel: document.getElementById('aj-tel').value.trim(),
+      site: document.getElementById('aj-site').value.trim(),
+      info: ''
+    });
+    ecrire('av:prospection:ajouts', ajouts);
+    ['aj-nom', 'aj-ville', 'aj-email', 'aj-tel', 'aj-site'].forEach(function (id) { document.getElementById(id).value = ''; });
+    rendre();
+  });
+
+  /* les liens mailto sont reconstruits à l'affichage : on rafraîchit quand le texte change */
+  champSujet.addEventListener('change', rendre);
+  champCorps.addEventListener('change', rendre);
+
+  rendre();
+})();
+</script>
+</body>
+</html>
