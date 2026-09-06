@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '10';
+var VERSION_SCRIPT = '11';
 
 /* Clé d'envoi de la prospection : REMPLACEZ CHANGEZ-MOI par un mot de
    passe de votre choix (lettres et chiffres), puis saisissez le même
@@ -175,18 +175,31 @@ function envoyerProspection(d) {
     name: 'Académie de voltige équestre',
     htmlBody: texteEnHtml(corps)
   };
+  /* Le PDF est cherché sur le site, puis directement sur GitHub si le
+     site est injoignable. En cas d'échec des deux, le mail part quand
+     même et la réponse détaille pourquoi. */
+  var SOURCES_PDF = [
+    SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf',
+    'https://raw.githubusercontent.com/nouakil63/Acad-mie-voltige-/claude/academie-voltige-style-x4qbuv/assets/doc/proposition-partenariat-academie-voltige.pdf'
+  ];
   var avecPdf = false;
-  try {
-    var pdf = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf', { muteHttpExceptions: true });
-    if (pdf.getResponseCode() === 200) {
-      options.attachments = [pdf.getBlob().setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
-      avecPdf = true;
+  var soucisPdf = [];
+  for (var s = 0; s < SOURCES_PDF.length && !avecPdf; s++) {
+    try {
+      var pdf = UrlFetchApp.fetch(SOURCES_PDF[s], { muteHttpExceptions: true, followRedirects: true });
+      if (pdf.getResponseCode() === 200 && pdf.getContent().length > 10000) {
+        options.attachments = [pdf.getBlob().setContentType('application/pdf')
+          .setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
+        avecPdf = true;
+      } else {
+        soucisPdf.push('source ' + (s + 1) + ' : code ' + pdf.getResponseCode());
+      }
+    } catch (err) {
+      soucisPdf.push('source ' + (s + 1) + ' : ' + String((err && err.message) || err).slice(0, 120));
     }
-  } catch (err) {
-    /* si le PDF est momentanément injoignable, le mail part sans pièce jointe */
   }
   GmailApp.sendEmail(dest, sujet, corps, options);
-  return reponseTexte(avecPdf ? 'ok' : 'ok sans pdf');
+  return reponseTexte(avecPdf ? 'ok' : 'ok sans pdf (' + soucisPdf.join(' ; ') + ')');
 }
 
 /* Le texte du mail tel quel, sans aucune mise en forme ajoutée : même
