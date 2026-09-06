@@ -38,6 +38,16 @@ var PAIEMENTS = {
   stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' }
 };
 
+/* Liens d'essai à 0 € : ils apparaissent dans les mails de validation
+   pour tester le parcours de paiement sans payer.
+   ⚠️ Les vrais parents les voient aussi : mettre ESSAIS_ACTIFS à false
+   (puis publier une « Nouvelle version ») dès que les tests sont finis. */
+var ESSAIS_ACTIFS = true;
+var PAIEMENTS_TEST = {
+  cours: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02' },
+  stage: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03' }
+};
+
 /* Motifs de refus : un clic dans le mail de l'académie, et le parent
    reçoit automatiquement un message courtois avec ce motif.
    {enfant} et {detail} sont remplacés par le prénom/nom et la formule ou le stage. */
@@ -215,12 +225,21 @@ function doGet(e) {
     ];
   }
 
+  var boutonsEssai = null, libelleEssai = null;
+  if (ESSAIS_ACTIFS) {
+    var essai = PAIEMENTS_TEST[donnees.type === 'cours' ? 'cours' : 'stage'];
+    boutonsEssai = [{ texte: essai.libelle, url: essai.url, plein: false }];
+    libelleEssai = 'Lien d’essai pendant nos tests : il ne débite rien.';
+  }
+
   var html = gabaritMail(
     'Votre demande est validée ! 🎉',
     intro,
     [],
     boutons,
-    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'
+    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.',
+    boutonsEssai,
+    libelleEssai
   );
 
   GmailApp.sendEmail(donnees.parentEmail, 'Votre inscription est validée !',
