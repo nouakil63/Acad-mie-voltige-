@@ -25,6 +25,12 @@
 var ADRESSE_ACADEMIE = 'academiedevoltige@gmail.com';
 var SITE = 'https://academiedevoltige.com';
 
+/* Clé d'envoi de la prospection : REMPLACEZ CHANGEZ-MOI par un mot de
+   passe de votre choix (lettres et chiffres), puis saisissez le même
+   dans la page Prospection du builder (Réglages de l'envoi automatique).
+   Sans cela, l'envoi automatique de prospection reste désactivé. */
+var CLE_PROSPECTION = 'CHANGEZ-MOI';
+
 /* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
   cours_unite:     { libelle: 'Payer le cours (25 €)',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
@@ -66,6 +72,7 @@ function doPost(e) {
   var d;
   try { d = JSON.parse(e.postData.contents); }
   catch (err) { return reponseTexte('demande illisible'); }
+  if (d && d.type === 'prospection') { return envoyerProspection(d); }
   if (!d || (d.type !== 'cours' && d.type !== 'stage')) { return reponseTexte('type inconnu'); }
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
@@ -131,6 +138,28 @@ function doPost(e) {
     name: 'Site de l’académie'
   });
 
+  return reponseTexte('ok');
+}
+
+/* ============ Envoi d'un mail de prospection depuis le builder ============ */
+function envoyerProspection(d) {
+  if (!CLE_PROSPECTION || CLE_PROSPECTION === 'CHANGEZ-MOI') {
+    return reponseTexte('cle non configuree dans le script');
+  }
+  if (String(d.cle || '') !== CLE_PROSPECTION) { return reponseTexte('cle incorrecte'); }
+
+  var dest = String(d.destinataire || '').trim();
+  if (!/^[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+$/.test(dest) || dest.length > 200) {
+    return reponseTexte('destinataire invalide');
+  }
+  var sujet = String(d.sujet || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 250);
+  var corps = String(d.corps || '').slice(0, 12000);
+  if (!sujet || !corps) { return reponseTexte('sujet ou texte manquant'); }
+
+  GmailApp.sendEmail(dest, sujet, corps, {
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
   return reponseTexte('ok');
 }
 

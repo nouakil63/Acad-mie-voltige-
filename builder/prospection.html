@@ -94,7 +94,7 @@
 
 <main>
   <h1>Remplir les stages et les cours 🐴</h1>
-  <p class="sous">Tous les organismes susceptibles d'envoyer des jeunes à l'académie, avec leurs contacts. Pour chacun : cliquez « ✉️ Envoyer la présentation », votre messagerie s'ouvre avec le mail déjà rédigé au nom de l'organisme, il n'y a qu'à appuyer sur Envoyer. Puis notez où vous en êtes avec le statut. Tout est enregistré dans ce navigateur.</p>
+  <p class="sous">Tous les organismes susceptibles d'envoyer des jeunes à l'académie, avec leurs contacts. Pour chacun : « 🚀 Envoyer automatiquement » fait partir le mail tout seul depuis la boîte de l'académie (le statut passe à « Présentation envoyée »), ou « ✉️ Ou via ma messagerie » ouvre votre messagerie avec le mail déjà rédigé. Tout est enregistré dans ce navigateur.</p>
 
   <!-- ============ Le mail type ============ -->
   <div class="bloc">
@@ -105,6 +105,23 @@
     <label for="corps">Message</label>
     <textarea id="corps"></textarea>
     <p style="margin:12px 0 0"><button class="btn btn-ghost" id="raz-mail">Revenir au texte d'origine</button></p>
+  </div>
+
+  <!-- ============ Envoi automatique ============ -->
+  <div class="bloc">
+    <details id="bloc-envoi">
+      <summary>🚀 Envoi automatique depuis la boîte de l'académie</summary>
+      <p class="note" style="margin-top:12px">Le bouton « 🚀 Envoyer automatiquement » des contacts fait partir le mail directement depuis la boîte Gmail où le script de l'académie est installé, sans ouvrir votre messagerie. Pour l'activer : ouvrez le script sur script.google.com, remplacez CHANGEZ-MOI par un mot de passe de votre choix, publiez une « Nouvelle version », puis saisissez le même mot de passe ci-dessous. Commencez toujours par un mail de test !</p>
+      <div class="ajout-grille">
+        <div><label for="cle-envoi">Mot de passe d'envoi (le même que dans le script)</label><input type="password" id="cle-envoi" autocomplete="off"></div>
+        <div><label for="url-service">Adresse du service (se termine par /exec)</label><input type="text" id="url-service"></div>
+        <div><label for="email-test">Adresse pour le mail de test</label><input type="text" id="email-test"></div>
+      </div>
+      <p style="margin:14px 0 0">
+        <button class="btn btn-rouge" id="btn-test">🧪 M'envoyer un mail de test</button>
+        <span class="note" id="etat-test" style="display:inline-block;margin-left:10px"></span>
+      </p>
+    </details>
   </div>
 
   <!-- ============ Les contacts ============ -->
@@ -237,6 +254,69 @@
   function tous() { return CONTACTS.concat(ajouts); }
   function etatDe(c) { return etats[c.id] || { statut: 'À contacter', note: '' }; }
 
+  /* ============ Envoi automatique via le service de l'académie ============ */
+  var SERVICE_DEFAUT = 'https://script.google.com/macros/s/AKfycbwdzYKL2g-tV8PYMPswFgdU8Vi4PbrkRG7yrRvTaTv5daT2XTpOkaboswyi0jzntALYqw/exec';
+  var champCle = document.getElementById('cle-envoi');
+  var champService = document.getElementById('url-service');
+  var champTest = document.getElementById('email-test');
+  champCle.value = lire('av:prospection:cle', '');
+  champService.value = lire('av:prospection:service', SERVICE_DEFAUT);
+  champTest.value = lire('av:prospection:test', 'normanouakil63@gmail.com');
+  champCle.addEventListener('input', function () { ecrire('av:prospection:cle', champCle.value); });
+  champService.addEventListener('input', function () { ecrire('av:prospection:service', champService.value); });
+  champTest.addEventListener('input', function () { ecrire('av:prospection:test', champTest.value); });
+
+  var ERREURS_SERVICE = {
+    'cle non configuree dans le script': 'Le script n’a pas encore de mot de passe : ouvrez le script, remplacez CHANGEZ-MOI, puis publiez une « Nouvelle version ».',
+    'cle incorrecte': 'Mot de passe incorrect : saisissez ici le même mot de passe que dans le script.',
+    'destinataire invalide': 'L’adresse e-mail du destinataire n’est pas valide.',
+    'sujet ou texte manquant': 'L’objet ou le texte du mail est vide.'
+  };
+
+  function envoyerAuto(destinataire, nomOrganisme, fini) {
+    var url = champService.value.trim();
+    var cle = champCle.value.trim();
+    if (!cle) {
+      alert('Configurez d’abord l’envoi automatique : ouvrez « 🚀 Envoi automatique » ci-dessus et saisissez le mot de passe d’envoi.');
+      document.getElementById('bloc-envoi').open = true;
+      fini(false); return;
+    }
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) {
+      alert('L’adresse du service ne semble pas valide : elle doit commencer par https://script.google.com et se terminer par /exec.');
+      document.getElementById('bloc-envoi').open = true;
+      fini(false); return;
+    }
+    var corps = champCorps.value.split('{organisme}').join(nomOrganisme);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'prospection', cle: cle, destinataire: destinataire, sujet: champSujet.value, corps: corps })
+    }).then(function (r) { return r.text(); }).then(function (t) {
+      t = t.trim();
+      if (t === 'ok') { fini(true); return; }
+      alert('Le service a refusé l’envoi : ' + (ERREURS_SERVICE[t] || t));
+      fini(false);
+    }).catch(function () {
+      alert('Impossible de joindre le service d’envoi. Vérifiez l’adresse du service et votre connexion, puis réessayez.');
+      fini(false);
+    });
+  }
+
+  document.getElementById('btn-test').addEventListener('click', function () {
+    var btn = this;
+    var etat = document.getElementById('etat-test');
+    var dest = champTest.value.trim();
+    if (!/.+@.+\..+/.test(dest)) { etat.textContent = 'Indiquez une adresse e-mail de test valide.'; return; }
+    btn.disabled = true;
+    etat.textContent = 'Envoi du test en cours…';
+    envoyerAuto(dest, 'votre organisme', function (ok) {
+      btn.disabled = false;
+      etat.textContent = ok
+        ? '✅ Test parti vers ' + dest + ' ! Vérifiez la réception (regardez aussi les spams).'
+        : 'Le test n’est pas parti.';
+    });
+  });
+
   function lienMail(c) {
     var corps = champCorps.value.split('{organisme}').join(c.nom);
     return 'mailto:' + encodeURIComponent(c.email) +
@@ -268,7 +348,8 @@
       if (c.tel) { coord.push('📞 ' + e(c.tel)); }
       if (c.site) { coord.push('🔗 <a href="' + e(c.site) + '" target="_blank" rel="noopener">' + e(c.site.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]) + '</a>'); }
       var action = c.email
-        ? '<a class="btn btn-rouge" href="' + e(lienMail(c)) + '">✉️ Envoyer la présentation</a>'
+        ? '<button type="button" class="btn btn-rouge" data-envoyer>🚀 Envoyer automatiquement</button>' +
+          '<a class="btn btn-ghost" href="' + e(lienMail(c)) + '">✉️ Ou via ma messagerie</a>'
         : '<a class="btn btn-ghost" href="' + e(c.site || '#') + '" target="_blank" rel="noopener">🔗 Formulaire sur leur site</a>';
       return '<div class="carte-contact ' + (CLASSES[et.statut] || '') + '" data-id="' + e(c.id) + '">' +
         '<div class="cc-nom"><b>' + e(c.nom) + '</b>' +
@@ -289,6 +370,29 @@
     if (!b) { return; }
     filtreActif = b.dataset.cat;
     rendre();
+  });
+
+  document.getElementById('liste').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button[data-envoyer]');
+    if (!btn) { return; }
+    var carte = btn.closest('.carte-contact');
+    var c = tous().filter(function (x) { return x.id === carte.dataset.id; })[0];
+    if (!c || !c.email) { return; }
+    if (!confirm('Envoyer la présentation à « ' + c.nom + ' » (' + c.email + ') depuis la boîte de l’académie ?')) { return; }
+    btn.disabled = true;
+    btn.textContent = 'Envoi en cours…';
+    envoyerAuto(c.email, c.nom, function (ok) {
+      if (ok) {
+        var et = etats[c.id] || { statut: 'À contacter', note: '' };
+        et.statut = 'Présentation envoyée';
+        etats[c.id] = et;
+        ecrire('av:prospection:etats', etats);
+        rendre();
+      } else {
+        btn.disabled = false;
+        btn.textContent = '🚀 Envoyer automatiquement';
+      }
+    });
   });
 
   document.getElementById('liste').addEventListener('change', function (ev) {
