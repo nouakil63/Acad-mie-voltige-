@@ -29,7 +29,7 @@ var SITE = 'https://academiedevoltige.com';
    passe de votre choix (lettres et chiffres), puis saisissez le même
    dans la page Prospection du builder (Réglages de l'envoi automatique).
    Sans cela, l'envoi automatique de prospection reste désactivé. */
-var CLE_PROSPECTION = 'CHANGEZ-MOI';
+var CLE_PROSPECTION = 'test';
 
 /* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
