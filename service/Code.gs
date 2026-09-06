@@ -166,15 +166,62 @@ function envoyerProspection(d) {
   var corps = String(d.corps || '').slice(0, 12000);
   if (!sujet || !corps) { return reponseTexte('sujet ou texte manquant'); }
 
-  var options = { replyTo: ADRESSE_ACADEMIE, name: 'Académie de voltige équestre' };
+  var options = {
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre',
+    htmlBody: prospectionHtml(corps)
+  };
   try {
-    var pdf = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf');
-    options.attachments = [pdf.getBlob().setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
+    var pdf = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf', { muteHttpExceptions: true });
+    if (pdf.getResponseCode() === 200) {
+      options.attachments = [pdf.getBlob().setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
+    }
   } catch (err) {
     /* si le PDF est momentanément injoignable, le mail part sans pièce jointe */
   }
   GmailApp.sendEmail(dest, sujet, corps, options);
   return reponseTexte('ok');
+}
+
+/* Met le texte de prospection en forme aux couleurs du site, sans le
+   changer : paragraphes, listes à puces, liens cliquables. */
+function prospectionHtml(corps) {
+  function echapper(v) {
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function lier(t) {
+    return t.replace(/(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" style="color:' + ROUGE + ';font-weight:650">$1</a>');
+  }
+  var style = 'margin:0 0 16px;color:#3d3439;font-size:15px;line-height:1.65';
+  var blocs = String(corps).split(/\n\s*\n/).map(function (bloc) {
+    var lignes = bloc.split('\n').filter(function (l) { return l.trim() !== ''; });
+    if (!lignes.length) { return ''; }
+    var puces = lignes.every(function (l) { return l.trim().indexOf('•') === 0; });
+    if (puces) {
+      return '<ul style="margin:0 0 16px;padding-left:22px">' + lignes.map(function (l) {
+        return '<li style="' + style.replace('16px', '10px') + '">' + lier(echapper(l.trim().replace(/^•\s*/, ''))) + '</li>';
+      }).join('') + '</ul>';
+    }
+    return '<p style="' + style + '">' + lignes.map(function (l) { return lier(echapper(l)); }).join('<br>') + '</p>';
+  }).join('');
+
+  return enEntites('' +
+  '<div style="margin:0;padding:26px 12px;background:' + VOILE + ';font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;width:100%">' +
+      '<tr><td style="background:' + ENCRE + ';border-radius:16px 16px 0 0;padding:18px 26px">' +
+        '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+          '<td><img src="' + SITE + '/assets/img/logo.jpeg" width="40" height="40" alt="" style="border-radius:50%;display:block"></td>' +
+          '<td style="padding-left:12px;color:#ffffff;font-weight:800;font-size:16px">Académie de voltige équestre' +
+            '<div style="color:#b9aeb2;font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase">Fleur &amp; Georges Cotrait · Auberville, Normandie</div></td>' +
+        '</tr></table>' +
+      '</td></tr>' +
+      '<tr><td style="background:#ffffff;padding:30px 28px 22px;border-radius:0 0 16px 16px">' + blocs + '</td></tr>' +
+      '<tr><td style="padding:14px 8px;text-align:center;color:#a89ba0;font-size:11.5px">' +
+        'Académie de voltige équestre · Auberville, Normandie · <a href="' + SITE + '" style="color:' + ROUGE + '">' + SITE.replace('https://', '') + '</a>' +
+      '</td></tr>' +
+    '</table>' +
+  '</div>');
 }
 
 /* ============ Clic sur « Valider » ou « Refuser » dans le mail ============ */
