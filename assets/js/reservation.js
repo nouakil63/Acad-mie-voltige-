@@ -78,7 +78,7 @@
 
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
-  var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbyHgoOBXy65ZD3GxnlrFEfnN63gLiMDBzjq1PlIodcNlO92VIZOoADNmm6MOpX0R4Y25w/exec';
+  var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwZlpRH-g8jSJcqdg7NVoL5wEyWdiDLglP30np2mfCCJj6Jv1e6io9lvKIf6_s4eNhytg/exec';
 
   function confirmationAuto() {
     var c = document.getElementById('confirmation');
