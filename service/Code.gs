@@ -27,7 +27,19 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '11';
+var VERSION_SCRIPT = '12';
+
+/* ============ À EXÉCUTER UNE FOIS DEPUIS L'ÉDITEUR ============
+   Le script a besoin de la permission de Google pour aller chercher
+   le PDF sur internet. Pour la donner : dans la barre d'outils de
+   l'éditeur, choisissez la fonction « autoriserRecuperationPdf » dans
+   le menu déroulant, cliquez « Exécuter », et acceptez l'autorisation
+   demandée par Google. Le journal d'exécution doit ensuite afficher
+   « Code de réponse : 200 ». À faire une seule fois. */
+function autoriserRecuperationPdf() {
+  var r = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf', { muteHttpExceptions: true });
+  Logger.log('Code de réponse : ' + r.getResponseCode() + ' — taille : ' + r.getContent().length + ' octets');
+}
 
 /* Clé d'envoi de la prospection : REMPLACEZ CHANGEZ-MOI par un mot de
    passe de votre choix (lettres et chiffres), puis saisissez le même
