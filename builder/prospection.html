@@ -235,14 +235,40 @@
 
   var champSujet = document.getElementById('sujet');
   var champCorps = document.getElementById('corps');
-  champSujet.value = lire('av:prospection:sujet', SUJET_DEFAUT);
-  champCorps.value = lire('av:prospection:corps', CORPS_DEFAUT);
+
+  /* Le texte enregistré suit les mises à jour du texte d'origine, sauf
+     s'il a été modifié à la main. La « base » retient la version
+     d'origine dont découle le texte enregistré ; les listes ci-dessous
+     reconnaissent les anciennes versions pour les remplacer aussi. */
+  var SUJETS_ANCIENS = [
+    'Une activité unique en France pour vos jeunes : la voltige équestre, près de Deauville',
+    'Offrez à vos jeunes une expérience unique en France : la voltige équestre, à 10 minutes de Deauville',
+    'Une aventure qui change : du cheval, du théâtre et des souvenirs plein la tête !',
+    'Une sortie qui change : du cheval, du théâtre et des souvenirs plein la tête !'
+  ];
+  var DEBUTS_ANCIENS = [
+    'Bonjour,\n\nJe me permets de',
+    'Bonjour,\n\nVous cherchez une activité originale',
+    'Bonjour,\n\nEt si vous proposiez à vos jeunes'
+  ];
+  var sujetSauve = lire('av:prospection:sujet', null);
+  var corpsSauve = lire('av:prospection:corps', null);
+  if (sujetSauve === null || sujetSauve === lire('av:prospection:sujet-base', null) ||
+      SUJETS_ANCIENS.indexOf(sujetSauve) !== -1) { sujetSauve = SUJET_DEFAUT; }
+  if (corpsSauve === null || corpsSauve === lire('av:prospection:corps-base', null) ||
+      DEBUTS_ANCIENS.some(function (d) { return corpsSauve.indexOf(d) === 0; })) { corpsSauve = CORPS_DEFAUT; }
+  champSujet.value = sujetSauve;
+  champCorps.value = corpsSauve;
+  ecrire('av:prospection:sujet', sujetSauve); ecrire('av:prospection:corps', corpsSauve);
+  ecrire('av:prospection:sujet-base', SUJET_DEFAUT); ecrire('av:prospection:corps-base', CORPS_DEFAUT);
+
   champSujet.addEventListener('input', function () { ecrire('av:prospection:sujet', champSujet.value); });
   champCorps.addEventListener('input', function () { ecrire('av:prospection:corps', champCorps.value); });
   document.getElementById('raz-mail').addEventListener('click', function () {
     if (!confirm('Revenir au texte d’origine du mail ?')) { return; }
     champSujet.value = SUJET_DEFAUT; champCorps.value = CORPS_DEFAUT;
     ecrire('av:prospection:sujet', SUJET_DEFAUT); ecrire('av:prospection:corps', CORPS_DEFAUT);
+    ecrire('av:prospection:sujet-base', SUJET_DEFAUT); ecrire('av:prospection:corps-base', CORPS_DEFAUT);
   });
 
   function tous() { return CONTACTS.concat(ajouts); }
