@@ -326,8 +326,8 @@
     }).then(function (r) { return r.text(); }).then(function (t) {
       t = t.trim();
       if (t === 'ok') { fini(true); return; }
-      if (t === 'ok sans pdf') {
-        alert('Le mail est bien parti, mais SANS la proposition en PDF : le script n’a pas réussi à récupérer le fichier sur le site. Signalez-le à Claude.');
+      if (t.indexOf('ok sans pdf') === 0) {
+        alert('Le mail est bien parti, mais SANS la proposition en PDF. Détail à transmettre à Claude : ' + t);
         fini(true); return;
       }
       alert('Le service a refusé l’envoi : ' + (ERREURS_SERVICE[t] || t));
