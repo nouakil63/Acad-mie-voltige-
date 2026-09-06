@@ -124,6 +124,16 @@
     </details>
   </div>
 
+  <!-- ============ Envoi groupé ============ -->
+  <div class="bloc">
+    <h2>📣 Envoyer à tous les contacts restants</h2>
+    <p class="note">Envoie la présentation (avec le PDF) à tous les contacts qui ont une adresse e-mail et sont encore au statut « À contacter », un par un. Les organismes déjà contactés ne reçoivent rien, et chaque statut passe à « Présentation envoyée » au fur et à mesure. Laissez la page ouverte pendant l'envoi.</p>
+    <p style="margin:0">
+      <button class="btn btn-rouge" id="btn-tous">🚀 Lancer l'envoi groupé</button>
+      <span class="note" id="etat-tous" style="display:inline-block;margin-left:10px"></span>
+    </p>
+  </div>
+
   <!-- ============ Les contacts ============ -->
   <div class="stats" id="stats"></div>
   <div class="filtre" id="filtre"></div>
@@ -341,6 +351,96 @@
       fini(false);
     });
   }
+
+  /* Vérifie mot de passe et adresse du service ; renvoie null si incomplet. */
+  function reglagesEnvoi() {
+    var url = champService.value.trim();
+    var cle = champCle.value.trim();
+    if (!cle) {
+      alert('Configurez d’abord l’envoi automatique : ouvrez « 🚀 Envoi automatique » ci-dessus et saisissez le mot de passe d’envoi.');
+      document.getElementById('bloc-envoi').open = true;
+      return null;
+    }
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) {
+      alert('L’adresse du service ne semble pas valide : elle doit commencer par https://script.google.com et se terminer par /exec.');
+      document.getElementById('bloc-envoi').open = true;
+      return null;
+    }
+    return { url: url, cle: cle };
+  }
+
+  /* Envoi sans aucune fenêtre d'alerte : rend la réponse brute du service
+     ('ok', 'ok sans pdf (…)', un message d'erreur, ou 'reseau'). */
+  function envoyerBrut(reglages, destinataire, nomOrganisme, fini) {
+    var corps = champCorps.value.split('{organisme}').join(nomOrganisme);
+    fetch(reglages.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'prospection', cle: reglages.cle, destinataire: destinataire, sujet: champSujet.value, corps: corps })
+    }).then(function (r) { return r.text(); })
+      .then(function (t) { fini(t.trim()); })
+      .catch(function () { fini('reseau'); });
+  }
+
+  /* ============ Envoi groupé ============ */
+  var ERREURS_BLOQUANTES = ['cle non configuree dans le script', 'cle incorrecte', 'sujet ou texte manquant', 'reseau'];
+  document.getElementById('btn-tous').addEventListener('click', function () {
+    var btn = this;
+    var etat = document.getElementById('etat-tous');
+    var cibles = tous().filter(function (c) { return c.email && etatDe(c).statut === 'À contacter'; });
+    if (!cibles.length) {
+      etat.textContent = 'Personne à contacter : tous les contacts avec une adresse e-mail ont déjà été traités.';
+      return;
+    }
+    var reglages = reglagesEnvoi();
+    if (!reglages) { return; }
+    var minutes = Math.max(1, Math.round(cibles.length * 2.5 / 60));
+    if (!confirm('Envoyer la présentation à ' + cibles.length + ' organismes, un par un, depuis la boîte de l’académie ?\n\n' +
+      'Durée : environ ' + minutes + ' minute' + (minutes > 1 ? 's' : '') + '. Laissez la page ouverte jusqu’au message de fin.')) { return; }
+
+    btn.disabled = true;
+    var envoyes = 0, echecs = 0, sansPdf = 0, arret = '';
+    var i = 0;
+
+    function suivant() {
+      if (i >= cibles.length || arret) { terminer(); return; }
+      var c = cibles[i];
+      etat.textContent = 'Envoi ' + (i + 1) + ' sur ' + cibles.length + ' : ' + c.nom + '…';
+      envoyerBrut(reglages, c.email, c.nom, function (t) {
+        if (t === 'ok' || t.indexOf('ok sans pdf') === 0) {
+          if (t !== 'ok') { sansPdf++; }
+          envoyes++;
+          var et = etats[c.id] || { statut: 'À contacter', note: '' };
+          et.statut = 'Présentation envoyée';
+          etats[c.id] = et;
+          ecrire('av:prospection:etats', etats);
+          rendre();
+        } else if (ERREURS_BLOQUANTES.indexOf(t) !== -1) {
+          arret = ERREURS_SERVICE[t] || 'Impossible de joindre le service d’envoi. Vérifiez l’adresse du service et votre connexion.';
+        } else {
+          echecs++;
+          var eu = etats[c.id] || { statut: 'À contacter', note: '' };
+          eu.note = (eu.note ? eu.note + ' · ' : '') + 'Envoi groupé refusé : ' + t;
+          etats[c.id] = eu;
+          ecrire('av:prospection:etats', etats);
+        }
+        i++;
+        setTimeout(suivant, 2000);
+      });
+    }
+
+    function terminer() {
+      btn.disabled = false;
+      var bilan = '✅ ' + envoyes + ' présentation' + (envoyes > 1 ? 's' : '') + ' envoyée' + (envoyes > 1 ? 's' : '');
+      if (echecs) { bilan += ' · ' + echecs + ' adresse' + (echecs > 1 ? 's' : '') + ' refusée' + (echecs > 1 ? 's' : '') + ' (voir les notes)'; }
+      etat.textContent = bilan + (arret ? ' · Arrêt : ' + arret : '');
+      if (arret) { alert('Envoi groupé interrompu après ' + envoyes + ' envoi(s) : ' + arret); }
+      else if (sansPdf) { alert('Les mails sont partis, mais ' + sansPdf + ' sans la proposition en PDF. Signalez-le à Claude.'); }
+      rendre();
+    }
+
+    suivant();
+  });
 
   document.getElementById('btn-test').addEventListener('click', function () {
     var btn = this;
