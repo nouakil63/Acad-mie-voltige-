@@ -166,10 +166,14 @@ function envoyerProspection(d) {
   var corps = String(d.corps || '').slice(0, 12000);
   if (!sujet || !corps) { return reponseTexte('sujet ou texte manquant'); }
 
-  GmailApp.sendEmail(dest, sujet, corps, {
-    replyTo: ADRESSE_ACADEMIE,
-    name: 'Académie de voltige équestre'
-  });
+  var options = { replyTo: ADRESSE_ACADEMIE, name: 'Académie de voltige équestre' };
+  try {
+    var pdf = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf');
+    options.attachments = [pdf.getBlob().setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
+  } catch (err) {
+    /* si le PDF est momentanément injoignable, le mail part sans pièce jointe */
+  }
+  GmailApp.sendEmail(dest, sujet, corps, options);
   return reponseTexte('ok');
 }
 
