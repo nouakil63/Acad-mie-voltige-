@@ -272,10 +272,11 @@
   function etatDe(c) { return etats[c.id] || { statut: 'À contacter', note: '' }; }
 
   /* ============ Envoi automatique via le service de l'académie ============ */
-  var SERVICE_DEFAUT = 'https://script.google.com/macros/s/AKfycbwZlpRH-g8jSJcqdg7NVoL5wEyWdiDLglP30np2mfCCJj6Jv1e6io9lvKIf6_s4eNhytg/exec';
+  var SERVICE_DEFAUT = 'https://script.google.com/macros/s/AKfycbyh8w4OmKgySvtzNLz2WHhojzOFbuNZNoBUPC9aVq1rUjXQH46B12AAuSFzCuQhYMc3sg/exec';
   /* Adresses des anciens déploiements : si l'une d'elles est encore
      enregistrée dans ce navigateur, on la remplace par la nouvelle. */
   var SERVICES_ANCIENS = [
+    'AKfycbwZlpRH-g8jSJcqdg7NVoL5wEyWdiDLglP30np2mfCCJj6Jv1e6io9lvKIf6_s4eNhytg',
     'AKfycbyHgoOBXy65ZD3GxnlrFEfnN63gLiMDBzjq1PlIodcNlO92VIZOoADNmm6MOpX0R4Y25w',
     'AKfycbw8AI_ahiH4YXn6azDmCvOtqg8nzj3Jl0h3TRQXXRAnKoW9KJ0QC6tKsfCW3tHN6pLEqQ',
     'AKfycbxSWmC-eeYbtSkMFTxtZhkGir1LYEXcUmklkJNFEJ8YvF502kwFxRXpTyu1FZScpHBCow',
