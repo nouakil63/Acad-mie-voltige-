@@ -1916,6 +1916,16 @@
       $('#boite-droite').classList.remove('ouvert');
     });
 
+    $('#btn-tout-reinitialiser').addEventListener('click', function () {
+      if (!confirm('Abandonner tous les brouillons non publiés et revenir à la version en ligne de toutes les pages ?')) { return; }
+      try {
+        Object.keys(localStorage).forEach(function (cle) {
+          if (cle.indexOf('av:brouillon:') === 0) { localStorage.removeItem(cle); }
+        });
+      } catch (e) {}
+      location.reload();
+    });
+
     $('#btn-annuler').addEventListener('click', annuler);
     $('#btn-retablir').addEventListener('click', retablir);
     $('#btn-publier').addEventListener('click', ouvrirPublication);
