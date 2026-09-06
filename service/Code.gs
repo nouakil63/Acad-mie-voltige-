@@ -29,7 +29,7 @@ var SITE = 'https://academiedevoltige.com';
    passe de votre choix (lettres et chiffres), puis saisissez le même
    dans la page Prospection du builder (Réglages de l'envoi automatique).
    Sans cela, l'envoi automatique de prospection reste désactivé. */
-var CLE_PROSPECTION = 'test';
+var CLE_PROSPECTION = 'CHANGEZ-MOI';
 
 /* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
@@ -42,7 +42,7 @@ var PAIEMENTS = {
    pour tester le parcours de paiement sans payer.
    ⚠️ Les vrais parents les voient aussi : mettre ESSAIS_ACTIFS à false
    (puis publier une « Nouvelle version ») dès que les tests sont finis. */
-var ESSAIS_ACTIFS = true;
+var ESSAIS_ACTIFS = false;
 var PAIEMENTS_TEST = {
   cours: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02' },
   stage: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03' }
