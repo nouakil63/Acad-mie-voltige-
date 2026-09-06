@@ -272,12 +272,24 @@
   function etatDe(c) { return etats[c.id] || { statut: 'À contacter', note: '' }; }
 
   /* ============ Envoi automatique via le service de l'académie ============ */
-  var SERVICE_DEFAUT = 'https://script.google.com/macros/s/AKfycbxSWmC-eeYbtSkMFTxtZhkGir1LYEXcUmklkJNFEJ8YvF502kwFxRXpTyu1FZScpHBCow/exec';
+  var SERVICE_DEFAUT = 'https://script.google.com/macros/s/AKfycbw8AI_ahiH4YXn6azDmCvOtqg8nzj3Jl0h3TRQXXRAnKoW9KJ0QC6tKsfCW3tHN6pLEqQ/exec';
+  /* Adresses des anciens déploiements : si l'une d'elles est encore
+     enregistrée dans ce navigateur, on la remplace par la nouvelle. */
+  var SERVICES_ANCIENS = [
+    'AKfycbxSWmC-eeYbtSkMFTxtZhkGir1LYEXcUmklkJNFEJ8YvF502kwFxRXpTyu1FZScpHBCow',
+    'AKfycbyPHas_gtEt96ajSKNaD3GtFLRlnw2PvZrTCz2ut03rQMhKPCfDcmQRNt-5XgCtappCBA',
+    'AKfycbyvViMwNJXb6wZeLu-YcEFKDLywTzhAD69mAycJIhe9PHBNqRDgiNum37JPx38-Wlq9hA'
+  ];
   var champCle = document.getElementById('cle-envoi');
   var champService = document.getElementById('url-service');
   var champTest = document.getElementById('email-test');
   champCle.value = lire('av:prospection:cle', '');
-  champService.value = lire('av:prospection:service', SERVICE_DEFAUT);
+  var serviceSauve = lire('av:prospection:service', SERVICE_DEFAUT);
+  if (SERVICES_ANCIENS.some(function (id) { return serviceSauve.indexOf(id) !== -1; })) {
+    serviceSauve = SERVICE_DEFAUT;
+    ecrire('av:prospection:service', SERVICE_DEFAUT);
+  }
+  champService.value = serviceSauve;
   champTest.value = lire('av:prospection:test', 'normanouakil63@gmail.com');
   champCle.addEventListener('input', function () { ecrire('av:prospection:cle', champCle.value); });
   champService.addEventListener('input', function () { ecrire('av:prospection:service', champService.value); });
