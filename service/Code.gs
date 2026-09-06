@@ -25,6 +25,10 @@
 var ADRESSE_ACADEMIE = 'academiedevoltige@gmail.com';
 var SITE = 'https://academiedevoltige.com';
 
+/* Numéro de version du script : ouvrez l'adresse /exec dans un
+   navigateur pour vérifier quelle version est réellement en ligne. */
+var VERSION_SCRIPT = '10';
+
 /* Clé d'envoi de la prospection : REMPLACEZ CHANGEZ-MOI par un mot de
    passe de votre choix (lettres et chiffres), puis saisissez le même
    dans la page Prospection du builder (Réglages de l'envoi automatique).
@@ -168,25 +172,40 @@ function envoyerProspection(d) {
 
   var options = {
     replyTo: ADRESSE_ACADEMIE,
-    name: 'Académie de voltige équestre'
+    name: 'Académie de voltige équestre',
+    htmlBody: texteEnHtml(corps)
   };
+  var avecPdf = false;
   try {
     var pdf = UrlFetchApp.fetch(SITE + '/assets/doc/proposition-partenariat-academie-voltige.pdf', { muteHttpExceptions: true });
     if (pdf.getResponseCode() === 200) {
       options.attachments = [pdf.getBlob().setName('Proposition de partenariat - Académie de voltige équestre.pdf')];
+      avecPdf = true;
     }
   } catch (err) {
     /* si le PDF est momentanément injoignable, le mail part sans pièce jointe */
   }
   GmailApp.sendEmail(dest, sujet, corps, options);
-  return reponseTexte('ok');
+  return reponseTexte(avecPdf ? 'ok' : 'ok sans pdf');
+}
+
+/* Le texte du mail tel quel, sans aucune mise en forme ajoutée : même
+   aspect qu'un mail écrit à la main dans Gmail. Cela évite seulement
+   les coupures de ligne et les caractères cassés de l'envoi en texte
+   brut, et rend les liens cliquables. */
+function texteEnHtml(corps) {
+  var t = String(corps)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
+    .replace(/\n/g, '<br>');
+  return enEntites('<div dir="ltr">' + t + '</div>');
 }
 
 /* ============ Clic sur « Valider » ou « Refuser » dans le mail ============ */
 function doGet(e) {
   var p = e.parameter || {};
   if ((p.action !== 'valider' && p.action !== 'refuser') || !p.d || !p.s) {
-    return pageHtml('Service des inscriptions', 'Ce service reçoit les demandes du site de l’académie. Rien à voir ici !');
+    return pageHtml('Service des inscriptions', 'Ce service reçoit les demandes du site de l’académie. Rien à voir ici ! Version du script : ' + VERSION_SCRIPT + '.');
   }
   var donnees = verifierJeton(p.d, p.s);
   if (!donnees) {
