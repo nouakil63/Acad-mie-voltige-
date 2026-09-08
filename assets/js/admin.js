@@ -303,8 +303,17 @@
     nuage.retrouverEmail().then(function (s) {
       if (!s) { montrer('p-connexion'); return; }
       nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
-        .then(function (r) { return r && r.ok ? r.json() : []; })
+        .then(function (r) {
+          /* la table admins ne répond pas : l'installation SQL n'a pas été faite */
+          if (!r || !r.ok) {
+            montrer('p-refuse');
+            el('p-refuse-detail').hidden = false;
+            return null;
+          }
+          return r.json();
+        })
         .then(function (l) {
+          if (!l) { return; }
           if (!l.length) { montrer('p-refuse'); return; }
           el('p-compte').textContent = s.email || '';
           el('p-deconnexion').hidden = false;

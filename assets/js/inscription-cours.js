@@ -1,16 +1,18 @@
-/* Demande d'inscription aux cours à l'année — quatre étapes, récapitulatif en
-   direct, signature en ligne. La demande part vers l'académie ; Georges Cotrait
-   la valide sous 24 h maximum, puis le client reçoit un lien de paiement.
-   Les réponses remplissent aussi le dossier d'inscription téléchargeable. */
+/* Demande d'inscription aux cours — trois étapes, récapitulatif en direct :
+   le voltigeur, la famille, puis les dates cochées sur le planning des
+   mercredis et des samedis (à l'unité ou au trimestre). La demande part
+   vers l'académie ; Georges Cotrait la valide sous 24 h maximum, puis le
+   client reçoit le lien de paiement correspondant. */
 (function () {
   'use strict';
 
-  var FORMULES = [
-    { nom: 'Cours du mercredi', creneau: 'Mercredi 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' },
-    { nom: 'Cours du samedi', creneau: 'Samedi 10h00 — 13h00 · 14h00 — 16h00', tarif: '25 € / cours ou 325 € / trimestre' }
-  ];
+  var HORAIRES = {
+    mercredi: 'Mercredi 14h00 — 16h00',
+    samedi: 'Samedi 10h00 — 13h00 · 14h00 — 16h00'
+  };
+  var SEMAINES = 10; /* nombre de mercredis et de samedis proposés sur le planning */
 
-  /* liens de paiement Stripe (publics), joints à la demande pour la réponse de validation */
+  /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
   var PAIEMENTS = {
     unite: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00',      /* 25 € — cours à l'unité */
     trimestre: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01'   /* 325 € — trimestre */
@@ -35,50 +37,67 @@
     form.closest('.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  /* ---- signature au doigt ou à la souris ---- */
+  /* ---- le planning : les prochains mercredis et samedis à cocher ---- */
+  function fabriquerPlanning() {
+    var conteneurs = { mercredi: document.getElementById('dates-mercredi'), samedi: document.getElementById('dates-samedi') };
+    if (!conteneurs.mercredi || !conteneurs.samedi) { return; }
+    [{ jour: 'mercredi', cible: 3 }, { jour: 'samedi', cible: 6 }].forEach(function (regle) {
+      var d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() + 1); /* on commence demain au plus tôt */
+      while (d.getDay() !== regle.cible) { d.setDate(d.getDate() + 1); }
+      for (var i = 0; i < SEMAINES; i++) {
+        var puce = document.createElement('button');
+        puce.type = 'button';
+        puce.className = 'date-chip';
+        puce.dataset.jour = regle.jour;
+        puce.dataset.iso = d.toISOString().slice(0, 10);
+        puce.textContent = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        conteneurs[regle.jour].appendChild(puce);
+        d.setDate(d.getDate() + 7);
+      }
+    });
+  }
+  fabriquerPlanning();
+
+  var planning = document.getElementById('planning-cours');
+  if (planning) {
+    planning.addEventListener('click', function (e) {
+      var puce = e.target.closest('.date-chip');
+      if (!puce) { return; }
+      puce.classList.toggle('choisi');
+      planning.classList.remove('erreur');
+      majRecap();
+    });
+  }
+
+  function datesChoisies() {
+    var liste = [];
+    form.querySelectorAll('.date-chip.choisi').forEach(function (puce) {
+      liste.push({ jour: puce.dataset.jour, iso: puce.dataset.iso, label: puce.textContent });
+    });
+    liste.sort(function (a, b) { return a.iso < b.iso ? -1 : 1; });
+    return liste;
+  }
+
+  function resumeCours() {
+    var dates = datesChoisies();
+    if (!dates.length) { return ''; }
+    var mercredis = dates.filter(function (d) { return d.jour === 'mercredi'; }).length;
+    var samedis = dates.length - mercredis;
+    var morceaux = [];
+    if (mercredis) { morceaux.push(mercredis + (mercredis > 1 ? ' mercredis' : ' mercredi')); }
+    if (samedis) { morceaux.push(samedis + (samedis > 1 ? ' samedis' : ' samedi')); }
+    return dates.length + (dates.length > 1 ? ' cours (' : ' cours (') + morceaux.join(', ') + ')';
+  }
+
+  function listeDates() {
+    return datesChoisies().map(function (d) { return d.label; }).join(', ');
+  }
+
+  /* ---- signature : plus demandée pour les cours (elle reste sur les stages) ---- */
   var toile = document.getElementById('signature');
   var signatureFaite = false;
-  if (toile) {
-    var ctx = toile.getContext('2d');
-    ctx.lineWidth = 2.4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#1c1417';
-    var enTrace = false;
-    function pointDe(ev) {
-      var r = toile.getBoundingClientRect();
-      return { x: (ev.clientX - r.left) * (toile.width / r.width), y: (ev.clientY - r.top) * (toile.height / r.height) };
-    }
-    toile.addEventListener('pointerdown', function (ev) {
-      ev.preventDefault();
-      toile.setPointerCapture(ev.pointerId);
-      enTrace = true;
-      var p = pointDe(ev);
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x + 0.1, p.y + 0.1);
-      ctx.stroke();
-      signatureFaite = true;
-      var champ = document.getElementById('champ-signature');
-      if (champ) { champ.classList.remove('erreur'); }
-    });
-    toile.addEventListener('pointermove', function (ev) {
-      if (!enTrace) { return; }
-      var p = pointDe(ev);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-    });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
-      toile.addEventListener(t, function () { enTrace = false; });
-    });
-    var btnEffacer = document.getElementById('signature-effacer');
-    if (btnEffacer) {
-      btnEffacer.addEventListener('click', function () {
-        ctx.clearRect(0, 0, toile.width, toile.height);
-        signatureFaite = false;
-      });
-    }
-  }
 
   /* MODE ESSAI : tous les champs sont facultatifs le temps des tests du
      parcours. Pour revenir a la normale, passer MODE_ESSAI a false. */
@@ -96,9 +115,8 @@
       if (champ) { champ.classList.toggle('erreur', invalide); }
       if (invalide) { ok = false; }
     });
-    if (toile && pas.contains(toile) && !signatureFaite) {
-      var champSig = document.getElementById('champ-signature');
-      if (champSig) { champSig.classList.add('erreur'); }
+    if (planning && pas.contains(planning) && !datesChoisies().length) {
+      planning.classList.add('erreur');
       ok = false;
     }
     return ok;
@@ -114,39 +132,40 @@
 
   /* ---- récapitulatif en direct ---- */
   function texte(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
-  function gabaritTexte() { return texte('enfant-gabarit'); }
   function paiementChoisi() {
     var p = form.querySelector('input[name="paiement"]:checked');
     return p ? p.value : '';
   }
-  function tarifChoisi(f) {
+  function tarifChoisi() {
     var p = paiementChoisi();
-    if (p === 'unite') { return '25 € / cours'; }
+    var n = datesChoisies().length;
     if (p === 'trimestre') { return '325 € / trimestre'; }
-    return f ? f.tarif : '';
+    if (p === 'unite') { return n ? (n * 25) + ' € (' + n + ' × 25 €)' : '25 € / cours'; }
+    return n ? n + ' × 25 € ou 325 € / trimestre' : '';
   }
   function majRecap() {
-    var choisi = form.querySelector('input[name="formule"]:checked');
-    var f = choisi ? FORMULES[Number(choisi.value)] : null;
-    document.getElementById('r-formule').textContent = f ? f.nom : '—';
-    document.getElementById('r-creneau').textContent = f ? f.creneau : '—';
-    document.getElementById('r-total').textContent = tarifChoisi(f) || '—';
+    var dates = datesChoisies();
+    document.getElementById('r-formule').textContent = resumeCours() || '—';
+    var courts = dates.slice(0, 4).map(function (d) { return d.label; }).join(', ');
+    document.getElementById('r-creneau').textContent = dates.length
+      ? courts + (dates.length > 4 ? '…' : '')
+      : '—';
+    document.getElementById('r-total').textContent = tarifChoisi() || '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
-    document.getElementById('r-poids').textContent = gabaritTexte() || '—';
+    document.getElementById('r-poids').textContent = texte('enfant-gabarit') || '—';
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
+    var resume = document.getElementById('planning-resume');
+    if (resume) {
+      resume.textContent = dates.length
+        ? 'Vos dates : ' + listeDates() + '.'
+        : 'Aucune date choisie pour l’instant.';
+    }
   }
   form.addEventListener('input', majRecap);
   form.addEventListener('change', majRecap);
-
-  /* ---- présélection depuis la page cours (?formule=n) ---- */
-  var voulu = new URLSearchParams(window.location.search).get('formule');
-  if (voulu !== null && FORMULES[Number(voulu)]) {
-    var radio = form.querySelector('input[name="formule"][value="' + voulu + '"]');
-    if (radio) { radio.checked = true; }
-  }
   majRecap();
 
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
@@ -154,12 +173,18 @@
   var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwy3AdlqdFYKeCnOmMugR_KvsBHBbT7AOHvDsclWJoYJG0VpaW-U3GnD0WId-4FG4Kf/exec';
 
   /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
-  function donneesDossier(f) {
+  function donneesDossier() {
     var maintenant = new Date();
+    var dates = datesChoisies();
+    var horaires = [];
+    if (dates.some(function (d) { return d.jour === 'mercredi'; })) { horaires.push(HORAIRES.mercredi); }
+    if (dates.some(function (d) { return d.jour === 'samedi'; })) { horaires.push(HORAIRES.samedi); }
     return {
       type: 'cours',
       annee: '2026/2027',
-      formule: f.nom, creneau: f.creneau, tarif: tarifChoisi(f) || f.tarif,
+      formule: resumeCours() || 'Cours à l’unité',
+      creneau: (listeDates() || '—') + (horaires.length ? ' · ' + horaires.join(' · ') : ''),
+      tarif: tarifChoisi() || '25 € / cours ou 325 € / trimestre',
       paiement: paiementChoisi(),
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
       enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
@@ -174,7 +199,7 @@
       licence: texte('licence-ffe'), recommandations: texte('recommandations'),
       faitA: texte('parent-ville'),
       signeLe: maintenant.toLocaleDateString('fr-FR'),
-      signature: (toile && signatureFaite) ? toile.toDataURL('image/png') : ''
+      signature: ''
     };
   }
 
@@ -195,10 +220,8 @@
     e.preventDefault();
     var pas = form.querySelector('.pas[data-pas="' + dernierPas + '"]');
     if (!champsValides(pas)) { return; }
-    var choisi = form.querySelector('input[name="formule"]:checked');
-    var f = FORMULES[choisi ? Number(choisi.value) : 0];
 
-    var dossier = donneesDossier(f);
+    var dossier = donneesDossier();
     try { localStorage.setItem('av:dossier-inscription', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
     document.dispatchEvent(new CustomEvent('av:demande-envoyee', { detail: dossier }));
 
@@ -208,8 +231,8 @@
         mode: 'no-cors',
         body: JSON.stringify({
           type: 'cours',
-          formule: f.nom,
-          creneau: f.creneau,
+          formule: dossier.formule,
+          creneau: dossier.creneau,
           tarif: dossier.tarif,
           paiement: dossier.paiement,
           enfantPrenom: dossier.enfantPrenom,
@@ -232,52 +255,47 @@
           secuNumero: dossier.secuNumero,
           licence: dossier.licence,
           recommandations: dossier.recommandations,
-          droitImage: 'Accepté en ligne',
-          autorisationMedicale: 'Acceptée en ligne',
-          signeLe: 'Signé en ligne le ' + dossier.signeLe + (dossier.faitA ? ' à ' + dossier.faitA : '')
+          signeLe: 'Demande envoyée en ligne le ' + dossier.signeLe + (dossier.faitA ? ' depuis ' + dossier.faitA : '')
         })
-      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(f, dossier); });
+      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(dossier); });
       return;
     }
-    envoyerParMessagerie(f, dossier);
+    envoyerParMessagerie(dossier);
   });
 
-  function envoyerParMessagerie(f, dossier) {
+  function envoyerParMessagerie(dossier) {
     var corps = [
       'Bonjour,',
       '',
-      'DEMANDE D\'INSCRIPTION aux cours à l\'année :',
+      'DEMANDE D’INSCRIPTION aux cours :',
       '',
-      'Formule : ' + f.nom,
-      'Créneau : ' + f.creneau,
+      'Cours choisis : ' + dossier.formule,
+      'Dates : ' + dossier.creneau,
       'Tarif : ' + dossier.tarif,
       '',
       'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
-      'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
+      'Date de naissance : ' + dossier.enfantNaissance,
       'Gabarit : ' + dossier.gabarit,
       'Niveau : ' + dossier.niveau,
       '',
       'Responsable légal : ' + dossier.parentNom,
       'Adresse : ' + dossier.adresse + ', ' + dossier.cp + ' ' + dossier.ville,
-      'Téléphone : ' + dossier.parentTel + (dossier.telDomicile ? ' / ' + dossier.telDomicile : ''),
+      'Téléphone : ' + dossier.parentTel,
       'E-mail : ' + dossier.parentEmail,
-      dossier.secuCaisse || dossier.secuNumero ? 'Sécurité sociale : ' + dossier.secuCaisse + ' ' + dossier.secuNumero : '',
-      dossier.licence ? 'Licence FFE : ' + dossier.licence : '',
       dossier.recommandations ? 'Recommandations : ' + dossier.recommandations : '',
       '',
-      'Droit à l\'image et autorisation médicale acceptés, signé en ligne le ' + dossier.signeLe + '.',
-      'J\'ai compris que cette demande sera validée sous 24 h maximum,',
+      'J’ai compris que cette demande sera validée sous 24 h maximum,',
       'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
       '',
       '--------------------------------------------------',
-      'Pour l\'académie — à joindre à la réponse de validation :',
-      '· Paiement du cours à l\'unité (25 €) :',
+      'Pour l’académie — à joindre à la réponse de validation :',
+      '· Paiement du cours à l’unité (25 €) :',
       PAIEMENTS.unite,
       '· Paiement du trimestre (325 €) :',
       PAIEMENTS.trimestre,
       '--------------------------------------------------',
     ].filter(function (l) { return l !== ''; }).join('\n');
-    var sujet = 'Demande d\'inscription cours — ' + f.nom;
+    var sujet = 'Demande d’inscription cours — ' + (dossier.formule || 'planning');
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');
