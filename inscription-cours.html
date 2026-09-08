@@ -111,20 +111,6 @@
             </div>
             <div class="rang">
               <div class="champ"><label for="enfant-naissance">Date de naissance <b>*</b></label><input id="enfant-naissance" name="enfant-naissance" type="date" required></div>
-              <div class="champ"><label for="enfant-lieu">Né(e) à</label><input id="enfant-lieu" name="enfant-lieu"></div>
-            </div>
-            <div class="rang">
-              <div class="champ"><label for="enfant-nationalite">Nationalité</label><input id="enfant-nationalite" name="enfant-nationalite" value="Française"></div>
-              <div class="champ">
-                <label for="enfant-sexe">Sexe <b>*</b></label>
-                <select id="enfant-sexe" name="enfant-sexe" required>
-                  <option value="">Choisir…</option>
-                  <option value="F">Fille</option>
-                  <option value="M">Garçon</option>
-                </select>
-              </div>
-            </div>
-            <div class="rang">
               <div class="champ">
                 <label for="enfant-gabarit">Gabarit de l'enfant (poids et taille) <b>*</b></label>
                 <select id="enfant-gabarit" name="enfant-gabarit" required>
@@ -134,6 +120,8 @@
                   <option>Autre gabarit (l'académie étudie la demande)</option>
                 </select>
               </div>
+            </div>
+            <div class="rang">
               <div class="champ">
                 <label for="enfant-niveau">Niveau</label>
                 <select id="enfant-niveau" name="enfant-niveau">
@@ -142,6 +130,7 @@
                   <option value="Voltige">Pratique déjà la voltige</option>
                 </select>
               </div>
+              <div class="champ" aria-hidden="true"></div>
             </div>
             <p style="border-left:1.4px solid var(--accent);background:var(--fond-2);padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--texte-2)">
               <b style="color:var(--texte)">Pourquoi demandons-nous le gabarit ?</b>
@@ -160,42 +149,19 @@
         <!-- Étape 2 : la famille -->
         <fieldset class="pas" data-pas="2">
           <h2>La famille.</h2>
-          <p class="aide">Les coordonnées du responsable légal, comme sur le dossier d'inscription papier.</p>
+          <p class="aide">Juste l'essentiel : vos coordonnées pour vous répondre et confirmer le créneau.</p>
           <div class="champs">
-            <div class="rang">
-              <div class="champ">
-                <label for="parent-qualite">Vous êtes <b>*</b></label>
-                <select id="parent-qualite" name="parent-qualite" required>
-                  <option value="">Choisir…</option>
-                  <option>Père</option>
-                  <option>Mère</option>
-                  <option>Tuteur</option>
-                </select>
-              </div>
-              <div class="champ"><label for="parent-nom">Votre nom et prénom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
-            </div>
+            <div class="champ"><label for="parent-nom">Votre nom et prénom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
             <div class="champ"><label for="parent-adresse">Adresse permanente <b>*</b></label><input id="parent-adresse" name="parent-adresse" autocomplete="street-address" required></div>
             <div class="rang">
               <div class="champ"><label for="parent-cp">Code postal <b>*</b></label><input id="parent-cp" name="parent-cp" autocomplete="postal-code" inputmode="numeric" required></div>
               <div class="champ"><label for="parent-ville">Ville <b>*</b></label><input id="parent-ville" name="parent-ville" autocomplete="address-level2" required></div>
             </div>
-            <div class="rang">
-              <div class="champ"><label for="parent-tel">Votre mobile <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
-              <div class="champ"><label for="parent-tel-domicile">Autre téléphone</label><input id="parent-tel-domicile" name="parent-tel-domicile" type="tel"></div>
-            </div>
+            <div class="champ"><label for="parent-tel">Votre mobile <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
             <div class="champ">
               <label for="parent-email">Votre e-mail <b>*</b></label>
               <input id="parent-email" name="parent-email" type="email" autocomplete="email" required>
               <span class="indice">La proposition de créneau et la confirmation arrivent à cette adresse.</span>
-            </div>
-            <div class="rang">
-              <div class="champ"><label for="secu-caisse">Sécurité sociale : caisse <b>*</b></label><input id="secu-caisse" name="secu-caisse" required></div>
-              <div class="champ"><label for="secu-numero">N° couvrant l'enfant <b>*</b></label><input id="secu-numero" name="secu-numero" required></div>
-            </div>
-            <div class="champ">
-              <label for="licence-ffe">N° de licence Assurance Fédérale <small>(facultatif)</small></label>
-              <input id="licence-ffe" name="licence-ffe">
-              <span class="indice">Sans licence, joignez au premier cours un certificat médical d'aptitude à l'équitation de moins d'un an.</span>
             </div>
             <div class="champ">
               <label for="recommandations">Vos recommandations</label>
@@ -234,7 +200,18 @@
               </span>
             </label>
           </div>
-          <p class="aide" style="margin:14px 0 0">Le tarif au trimestre (325&nbsp;€) est proposé au moment du paiement. L'académie confirme l'horaire exact du groupe de votre enfant.</p>
+          <div class="champ" style="margin-top:20px">
+            <label>Comment souhaitez-vous régler ? <b>*</b></label>
+            <label class="case">
+              <input type="radio" name="paiement" value="unite" required>
+              <span><b>Au cours :</b> 25&nbsp;€ par cours, réglé cours par cours.</span>
+            </label>
+            <label class="case">
+              <input type="radio" name="paiement" value="trimestre">
+              <span><b>Au trimestre :</b> 325&nbsp;€ le trimestre.</span>
+            </label>
+          </div>
+          <p class="aide" style="margin:14px 0 0">Le lien de paiement correspondant arrive par e-mail après validation de la demande. L'académie confirme l'horaire exact du groupe de votre enfant.</p>
           <div class="btns-pas">
             <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
             <button type="button" class="btn btn-rouge" data-suivant><span>Signer la demande</span></button>
@@ -330,8 +307,8 @@
 
 <script src="assets/js/main.js?v=33"></script>
 <script src="assets/js/compte-config.js?v=2"></script>
-<script src="assets/js/nuage.js?v=1"></script>
-<script src="assets/js/famille.js?v=3"></script>
-<script src="assets/js/inscription-cours.js?v=51"></script>
+<script src="assets/js/nuage.js?v=2"></script>
+<script src="assets/js/famille.js?v=4"></script>
+<script src="assets/js/inscription-cours.js?v=52"></script>
 </body>
 </html>

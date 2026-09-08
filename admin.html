@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Espace académie — Académie de voltige équestre</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=30">
+  <link rel="stylesheet" href="assets/css/style.css?v=32">
+</head>
+<body class="nav-toujours-blanche">
+
+<a class="acces-rapide" href="#admin">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="theatre.html">Le théâtre</a>
+    <a href="galerie.html">Galerie</a>
+    <a href="index.html#infos">Infos pratiques</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn-compte" href="compte.html" aria-label="Mon compte" title="Mon compte"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7"/></svg></a>
+  <a class="btn btn-plein btn-nav" href="compte.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="theatre.html">Le théâtre</a>
+  <a href="galerie.html">Galerie</a>
+  <a href="index.html#infos">Infos pratiques</a>
+  <a href="contact.html">Contact</a>
+  <a href="compte.html">Inscription</a>
+</nav>
+
+<!-- ============ En-tête de page ============ -->
+<header class="page-hero claire" style="padding-bottom:clamp(32px,5vw,48px)">
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+  </svg>
+  <div class="contenu">
+    <div>
+      <nav class="ariane" aria-label="Fil d'ariane">
+        <a href="index.html">Accueil</a><i>→</i><span>Espace académie</span>
+      </nav>
+      <h1>
+        <span class="ligne"><span>Espace</span></span>
+        <span class="ligne"><span><em>académie</em>.</span></span>
+      </h1>
+      <p class="sous-titre">Toutes les demandes d'inscription, à valider ou refuser en un clic : le parent reçoit aussitôt la réponse par e-mail, avec le lien de paiement en cas de validation.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ============ Les demandes ============ -->
+<section class="section" id="admin" style="padding-top:clamp(40px,6vw,56px)">
+  <div class="contenu" style="max-width:860px">
+
+    <div class="pas actif" id="a-attente">
+      <p class="aide">Un instant…</p>
+    </div>
+
+    <!-- pas connecté : petite connexion sur place -->
+    <form class="pas" id="a-connexion" novalidate>
+      <h2>Réservé à l'académie.</h2>
+      <p class="aide">Connectez-vous avec votre compte de l'académie pour voir les demandes.</p>
+      <div class="champs">
+        <div class="champ">
+          <label for="ad-email">E-mail <b>*</b></label>
+          <input id="ad-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="champ">
+          <label for="ad-mdp">Mot de passe <b>*</b></label>
+          <input id="ad-mdp" type="password" autocomplete="current-password" required>
+        </div>
+        <p class="message" id="m-admin" role="alert" hidden></p>
+      </div>
+      <div class="btns-pas">
+        <span></span>
+        <button type="submit" class="btn btn-rouge"><span>Se connecter</span></button>
+      </div>
+    </form>
+
+    <!-- connecté mais pas admin -->
+    <div class="pas" id="a-refuse">
+      <h2>Réservé à l'académie.</h2>
+      <p class="aide">Cette page est réservée à Fleur et Georges. Votre espace à vous, c'est <a href="compte.html" style="font-weight:700">Mon compte</a> : votre famille et vos demandes y sont.</p>
+    </div>
+
+    <!-- la liste des demandes -->
+    <div class="pas" id="a-liste">
+      <h2>Les demandes.</h2>
+      <p class="aide">Connecté(e) en tant que <b id="a-compte"></b> · <a href="#" id="a-rafraichir">Rafraîchir</a><br>
+      « Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px" id="a-filtres">
+        <button type="button" class="btn btn-contour actif-filtre" data-filtre="toutes"><span>Toutes</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="en attente"><span>En attente</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="validée"><span>Validées</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="refusée"><span>Refusées</span></button>
+      </div>
+      <p class="message" id="m-liste" role="alert" hidden></p>
+      <div id="a-demandes" style="display:flex;flex-direction:column;gap:14px"></div>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .message{font-size:14px;line-height:1.6;font-weight:600;border-radius:10px;padding:12px 16px}
+  .message.souci{color:var(--rouge);background:color-mix(in srgb, var(--rouge) 6%, var(--fond))}
+  .message.bonne{color:#1d7a3d;background:color-mix(in srgb, #1d7a3d 8%, var(--fond))}
+  .carte-demande{border:1.4px solid var(--trait);border-radius:14px;padding:16px 18px}
+  .carte-demande .entete{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+  .carte-demande .pastille{padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .pastille.attente{background:#f2b705;color:#1D1216}
+  .pastille.validee{background:#1d7a3d;color:#fff}
+  .pastille.refusee{background:#D00828;color:#fff}
+  .pastille.type-cours{background:#D00828;color:#fff}
+  .pastille.type-stage{border:1.4px solid #D00828;color:#D00828}
+  .carte-demande .quand{margin-left:auto;font-size:12.5px;color:#8a7f83;white-space:nowrap}
+  .carte-demande .corps{margin-top:8px;font-size:14px;color:var(--texte-2);line-height:1.6}
+  .carte-demande details{margin-top:8px;font-size:13px;color:var(--texte-2)}
+  .carte-demande details pre{white-space:pre-wrap;background:var(--fond-2);border-radius:10px;padding:12px 14px;margin-top:8px;font-family:inherit}
+  .carte-demande .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
+  .carte-demande select{padding:9px 12px;border-radius:10px;border:1.4px solid var(--trait);font-family:inherit;font-size:13.5px}
+  #a-filtres .actif-filtre{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+</style>
+
+<script src="assets/js/main.js?v=33"></script>
+<script src="assets/js/compte-config.js?v=2"></script>
+<script src="assets/js/nuage.js?v=2"></script>
+<script src="assets/js/admin.js?v=1"></script>
+</body>
+</html>

@@ -213,8 +213,27 @@
         if (famille) { ecrireFamilleLocale(famille); }
         afficherFamille(famille, session);
         if (motBienvenue) { message('m-famille', motBienvenue, true); }
+        proposerEspaceAcademie();
       });
     });
+  }
+
+  /* Fleur et Georges voient en plus le bouton vers l'espace académie. */
+  function proposerEspaceAcademie() {
+    if (!nuage.requeteAuth || document.getElementById('lien-academie')) { return; }
+    nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
+      .then(function (r) { return r && r.ok ? r.json() : []; })
+      .then(function (l) {
+        if (!l.length || document.getElementById('lien-academie')) { return; }
+        var a = document.createElement('a');
+        a.id = 'lien-academie';
+        a.className = 'btn btn-contour';
+        a.href = 'admin.html';
+        a.innerHTML = '<span>🎪 Espace académie</span>';
+        var ctas = el('fa-ctas');
+        if (ctas) { ctas.appendChild(a); }
+      })
+      .catch(function () { /* rien */ });
   }
 
   /* ---------- Les formulaires ---------- */

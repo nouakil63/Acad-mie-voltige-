@@ -27,7 +27,67 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '14';
+var VERSION_SCRIPT = '15';
+
+/* ============ L'espace académie (page admin.html du site) ============
+   Chaque demande reçue est aussi rangée dans la base Supabase de
+   l'académie : la page admin.html du site les affiche toutes et permet
+   de valider ou refuser en un clic.
+   REMPLACEZ la ligne COLLEZ-ICI... par la clé « service_role » de
+   Supabase (menu Project Settings → API Keys → service_role → Reveal).
+   ⚠️ Cette clé est SECRÈTE : elle ne se colle QUE dans cet éditeur,
+   jamais sur le site, jamais dans un mail ou une discussion.
+   Tant qu'elle n'est pas collée, tout marche comme avant : les demandes
+   arrivent par mail, simplement sans la page admin. */
+var SUPABASE_URL = 'https://vtrmohmupfvxzbsnubye.supabase.co';
+var SUPABASE_CLE_SERVICE = 'COLLEZ-ICI-LA-CLE-SERVICE-ROLE';
+
+function supabasePret() {
+  return SUPABASE_URL && SUPABASE_CLE_SERVICE && SUPABASE_CLE_SERVICE.indexOf('COLLEZ') !== 0;
+}
+
+/* Range une demande dans la base (silencieux : un souci ici n'empêche
+   jamais le mail de partir). */
+function enregistrerDemande(ligne) {
+  if (!supabasePret()) { return; }
+  try {
+    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/demandes', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        apikey: SUPABASE_CLE_SERVICE,
+        Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE,
+        Prefer: 'return=minimal'
+      },
+      payload: JSON.stringify(ligne),
+      muteHttpExceptions: true
+    });
+  } catch (e) { /* rien */ }
+}
+
+/* Note le statut (validée / refusée) après une décision, que le clic
+   vienne du mail ou de la page admin du site. */
+function majStatutDemande(dTok, statut) {
+  if (!supabasePret() || !dTok) { return; }
+  try {
+    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/demandes?jeton_d=eq.' + encodeURIComponent(dTok), {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        apikey: SUPABASE_CLE_SERVICE,
+        Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE,
+        Prefer: 'return=minimal'
+      },
+      payload: JSON.stringify({ statut: statut, decide: new Date().toISOString() }),
+      muteHttpExceptions: true
+    });
+  } catch (e) { /* rien */ }
+}
+
+/* Texte brut, sans les protections HTML des mails. */
+function brut(v) {
+  return String(v == null ? '' : v).slice(0, 300);
+}
 
 /* ============ À EXÉCUTER UNE FOIS DEPUIS L'ÉDITEUR ============
    Le script a besoin de la permission de Google pour aller chercher
@@ -106,10 +166,15 @@ function doPost(e) {
   var enfant = nettoyer(d.enfantPrenom) + ' ' + nettoyer(d.enfantNom);
   var sujet = (d.type === 'cours' ? 'Demande d’inscription aux cours de ' : 'Réservation de stage de ') + enfant;
 
+  /* Règlement choisi pour les cours : le mail de validation ne proposera
+     que le lien de paiement correspondant. */
+  var paiement = (d.paiement === 'unite' || d.paiement === 'trimestre') ? d.paiement : '';
+
   var lignes = d.type === 'cours' ? [
     ['Formule', nettoyer(d.formule)],
     ['Créneau', nettoyer(d.creneau)],
     ['Tarif', nettoyer(d.tarif)],
+    ['Règlement choisi', paiement === 'unite' ? 'Au cours (25 €)' : paiement === 'trimestre' ? 'Au trimestre (325 €)' : '—'],
     ['Voltigeur', enfant],
     ['Date de naissance', nettoyer(d.enfantNaissance)],
     ['Gabarit', nettoyer(d.gabarit)],
@@ -135,6 +200,7 @@ function doPost(e) {
     enfant: enfant,
     parentEmail: nettoyer(d.parentEmail),
     parentNom: nettoyer(d.parentNom),
+    paiement: paiement,
     detail: d.type === 'cours' ? nettoyer(d.formule) : nettoyer(d.stage) + ' (' + nettoyer(d.dates) + ')'
   });
   /* Les boutons passent par une page du site : elle appelle le service en
@@ -167,6 +233,20 @@ function doPost(e) {
     htmlBody: html,
     replyTo: nettoyer(d.parentEmail),
     name: 'Site de l’académie'
+  });
+
+  enregistrerDemande({
+    type: d.type,
+    enfant: (brut(d.enfantPrenom) + ' ' + brut(d.enfantNom)).trim(),
+    parent_nom: brut(d.parentNom),
+    parent_email: brut(d.parentEmail),
+    detail: d.type === 'cours'
+      ? (brut(d.formule) + (d.creneau ? ' · ' + brut(d.creneau) : ''))
+      : (brut(d.stage) + (d.dates ? ' (' + brut(d.dates) + ')' : '')),
+    tarif: brut(d.tarif),
+    lignes: versTexte(lignes).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'),
+    jeton_d: jeton.d,
+    jeton_s: jeton.s
   });
 
   return reponseTexte('ok');
@@ -283,6 +363,7 @@ function executerDecision(action, motifCle, dTok, sTok) {
       replyTo: ADRESSE_ACADEMIE,
       name: 'Académie de voltige équestre'
     });
+    majStatutDemande(String(dTok || ''), 'refusée (' + motif.bouton + ')');
     return { code: 'ok refuse', titre: 'Refus envoyé',
       texte: 'Le message de refus (motif : ' + motif.bouton + ') vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
         '<br><br>Vous pouvez fermer cette page.',
@@ -291,12 +372,25 @@ function executerDecision(action, motifCle, dTok, sTok) {
 
   var boutons, intro;
   if (donnees.type === 'cours') {
-    intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
-      'Pour finaliser l’inscription, choisissez votre formule et réglez en ligne, en toute sécurité :';
-    boutons = [
-      { texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true },
-      { texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }
-    ];
+    /* Le parent a choisi son règlement pendant l'inscription : on ne
+       propose que le lien correspondant (les anciennes demandes sans
+       choix gardent les deux liens). */
+    if (donnees.paiement === 'unite') {
+      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
+        'Pour finaliser l’inscription, réglez votre cours en ligne, en toute sécurité :';
+      boutons = [{ texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true }];
+    } else if (donnees.paiement === 'trimestre') {
+      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
+        'Pour finaliser l’inscription, réglez votre trimestre en ligne, en toute sécurité :';
+      boutons = [{ texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }];
+    } else {
+      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
+        'Pour finaliser l’inscription, choisissez votre formule et réglez en ligne, en toute sécurité :';
+      boutons = [
+        { texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true },
+        { texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }
+      ];
+    }
   } else {
     intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
       'Pour finaliser l’inscription, réglez en ligne, en toute sécurité :';
@@ -329,6 +423,7 @@ function executerDecision(action, motifCle, dTok, sTok) {
     name: 'Académie de voltige équestre'
   });
 
+  majStatutDemande(String(dTok || ''), 'validée');
   return { code: 'ok valide', titre: 'C’est validé ✅',
     texte: 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
       '<br><br>Vous pouvez fermer cette page.',
