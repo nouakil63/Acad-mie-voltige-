@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '15';
+var VERSION_SCRIPT = '16';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -111,8 +111,20 @@ var CLE_PROSPECTION = 'CHANGEZ-MOI';
 var PAIEMENTS = {
   cours_unite:     { libelle: 'Payer le cours (25 €)',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
   cours_trimestre: { libelle: 'Payer le trimestre (325 €)',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
-  stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' }
+  stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' },
+  /* Les stages se règlent en deux temps : l'acompte de 300 € à
+     l'inscription, le solde (540 €) au plus tard 30 jours avant le
+     début du stage. CRÉEZ ces deux liens de paiement dans Stripe
+     (300 € et 540 €) et collez-les ici à la place de COLLEZ-ICI…
+     Tant qu'ils n'y sont pas, le mail de validation garde l'ancien
+     paiement en une fois (840 €). */
+  stage_acompte:   { libelle: 'Payer l’acompte du stage (300 €)', url: 'COLLEZ-ICI-LE-LIEN-STRIPE-ACOMPTE-300' },
+  stage_solde:     { libelle: 'Payer le solde du stage (540 €)',  url: 'COLLEZ-ICI-LE-LIEN-STRIPE-SOLDE-540' }
 };
+
+function lienPret(p) {
+  return p && p.url && p.url.indexOf('COLLEZ') !== 0;
+}
 
 /* Liens d'essai à 0 € : ils apparaissent dans les mails de validation
    pour tester le parcours de paiement sans payer.
@@ -160,6 +172,7 @@ function doPost(e) {
   catch (err) { return reponseTexte('demande illisible'); }
   if (d && d.type === 'prospection') { return envoyerProspection(d); }
   if (d && d.type === 'decision') { return traiterDecisionPost(d); }
+  if (d && d.type === 'relance') { return traiterRelance(d); }
   if (!d || (d.type !== 'cours' && d.type !== 'stage')) { return reponseTexte('type inconnu'); }
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
@@ -391,6 +404,16 @@ function executerDecision(action, motifCle, dTok, sTok) {
         { texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }
       ];
     }
+  } else if (lienPret(PAIEMENTS.stage_acompte)) {
+    intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
+      'Pour la garantir, réglez l’acompte de 300 € en ligne, en toute sécurité. ' +
+      'Le solde (540 €) sera à régler au plus tard 30 jours avant le début du stage.';
+    boutons = [
+      { texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true }
+    ];
+    if (lienPret(PAIEMENTS.stage_solde)) {
+      boutons.push({ texte: PAIEMENTS.stage_solde.libelle, url: PAIEMENTS.stage_solde.url, plein: false });
+    }
   } else {
     intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
       'Pour finaliser l’inscription, réglez en ligne, en toute sécurité :';
@@ -428,6 +451,63 @@ function executerDecision(action, motifCle, dTok, sTok) {
     texte: 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
       '<br><br>Vous pouvez fermer cette page.',
     parentEmail: donnees.parentEmail, enfant: donnees.enfant };
+}
+
+/* ============ Relances et annulations (espace académie) ============
+   La page admin du site relance un paiement ou annonce une annulation :
+   le lien est prouvé par le même jeton signé que les décisions. */
+function traiterRelance(d) {
+  var donnees = verifierJeton(String(d.d || ''), String(d.s || ''));
+  if (!donnees) { return reponseTexte('lien invalide'); }
+  var sous = String(d.relance || '');
+  var titre, intro, boutons = [], pied =
+    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
+    'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
+
+  if (sous === 'acompte') {
+    titre = 'Un petit rappel pour ' + donnees.enfant;
+    intro = 'La place de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est réservée : ' +
+      'il ne manque que l’acompte de 300 € pour la garantir. Le solde (540 €) sera à régler au plus tard 30 jours avant le début du stage.';
+    if (lienPret(PAIEMENTS.stage_acompte)) { boutons.push({ texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true }); }
+  } else if (sous === 'solde') {
+    titre = 'Le solde du stage de ' + donnees.enfant;
+    intro = 'Le ' + donnees.detail + ' approche pour <b>' + donnees.enfant + '</b> ! ' +
+      'Le solde du stage (540 €) est à régler au plus tard 30 jours avant le début du stage.';
+    if (lienPret(PAIEMENTS.stage_solde)) { boutons.push({ texte: PAIEMENTS.stage_solde.libelle, url: PAIEMENTS.stage_solde.url, plein: true }); }
+    else if (lienPret(PAIEMENTS.stage)) { boutons.push({ texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true }); }
+  } else if (sous === 'paiement') {
+    titre = 'Un petit rappel pour ' + donnees.enfant;
+    intro = 'La demande de <b>' + donnees.enfant + '</b> (' + donnees.detail + ') est validée : ' +
+      'il ne reste que le règlement pour finaliser l’inscription.';
+    if (donnees.type === 'cours') {
+      if (donnees.paiement === 'trimestre') { boutons.push({ texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }); }
+      else { boutons.push({ texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true }); }
+    } else if (lienPret(PAIEMENTS.stage_acompte)) {
+      boutons.push({ texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true });
+    } else {
+      boutons.push({ texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true });
+    }
+  } else if (sous === 'annulation') {
+    var montant = nettoyer(d.montant);
+    titre = 'Au sujet du stage de ' + donnees.enfant;
+    intro = 'L’inscription de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est annulée. ' +
+      (montant && montant !== '0' && montant !== '0 €'
+        ? 'Un remboursement de <b>' + montant + '</b> va vous être adressé.'
+        : 'Conformément à nos conditions, les sommes déjà versées restent acquises à l’académie.');
+    pied = 'Nous espérons accueillir ' + donnees.enfant + ' à une prochaine occasion. N’hésitez pas à répondre à ce message.<br>' +
+      'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
+  } else {
+    return reponseTexte('relance inconnue');
+  }
+
+  var html = gabaritMail(titre, intro, [], boutons, pied);
+  GmailApp.sendEmail(donnees.parentEmail, titre.replace(/<[^>]+>/g, ''),
+    intro.replace(/<[^>]+>/g, ''), {
+    htmlBody: html,
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return reponseTexte('ok relance;' + donnees.parentEmail);
 }
 
 /* Clic direct sur un lien /exec (anciens mails) : mêmes actions, en page web. */
