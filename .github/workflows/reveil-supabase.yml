@@ -1,0 +1,28 @@
+# Le plan gratuit de Supabase met un projet « en pause » après une
+# semaine sans aucune activité : les parents ne pourraient plus se
+# connecter. Cette petite visite automatique, deux fois par semaine,
+# compte comme de l'activité et garde l'espace famille éveillé.
+name: Garder l'espace famille éveillé
+
+on:
+  schedule:
+    - cron: '17 6 * * 1,4' # lundi et jeudi matin
+  workflow_dispatch:
+
+jobs:
+  visite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Petite visite au service des comptes
+        run: |
+          URL=$(sed -n "s/^ *url: '\(.*\)',*$/\1/p" assets/js/compte-config.js)
+          CLE=$(sed -n "s/^ *cle: '\(.*\)',*$/\1/p" assets/js/compte-config.js)
+          if [ -z "$URL" ] || [ -z "$CLE" ]; then
+            echo "Espace famille pas encore configuré : rien à faire."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: $CLE" -H "Authorization: Bearer $CLE" \
+            "$URL/rest/v1/familles?select=user_id&limit=1")
+          echo "Réponse du service : $code"

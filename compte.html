@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mon compte — Académie de voltige équestre · Auberville, Normandie</title>
+  <meta name="theme-color" content="#D00828">
+  <meta name="description" content="Créez votre compte famille à l'Académie de voltige : vos coordonnées et vos voltigeurs enregistrés une bonne fois pour toutes, retrouvés sur tous vos appareils au moment de s'inscrire.">
+  <link rel="canonical" href="https://academiedevoltige.com/compte.html">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/img/favicon-512.png">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Académie de voltige équestre Fleur &amp; Georges Cotrait">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="Mon compte">
+  <meta property="og:description" content="Créez votre compte famille : vos informations enregistrées une bonne fois pour toutes pour les inscriptions aux cours et aux stages.">
+  <meta property="og:url" content="https://academiedevoltige.com/compte.html">
+  <meta property="og:image" content="https://academiedevoltige.com/assets/img/partage.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="assets/css/fonts.css?v=30">
+  <link rel="stylesheet" href="assets/css/style.css?v=31">
+</head>
+<body class="nav-toujours-blanche">
+
+<a class="acces-rapide" href="#compte">Aller au contenu</a>
+
+<!-- ============ Navigation ============ -->
+<header class="nav">
+  <a class="marque" href="index.html">
+    <img src="assets/img/logo.jpeg" alt="Logo de l'Académie de voltige : tête de cheval rouge dans un cercle de longe">
+    <span>
+      <b>Académie de voltige</b>
+      <small>Fleur &amp; Georges Cotrait</small>
+    </span>
+  </a>
+  <nav class="nav-liens" aria-label="Navigation principale">
+    <a href="histoire.html">L'académie</a>
+    <a href="stages.html">Stages</a>
+    <a href="cours.html">Cours</a>
+    <a href="theatre.html">Le théâtre</a>
+    <a href="galerie.html">Galerie</a>
+    <a href="index.html#infos">Infos pratiques</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- menu mobile plein écran -->
+<nav class="menu-mobile" id="menu-mobile" aria-label="Menu">
+  <a href="histoire.html">L'académie</a>
+  <a href="stages.html">Stages</a>
+  <a href="cours.html">Cours</a>
+  <a href="theatre.html">Le théâtre</a>
+  <a href="galerie.html">Galerie</a>
+  <a href="index.html#infos">Infos pratiques</a>
+  <a href="contact.html">Contact</a>
+  <a href="compte.html">Mon compte</a>
+  <a href="inscription.html">Inscription</a>
+</nav>
+
+<!-- ============ En-tête de page ============ -->
+<header class="page-hero claire" style="padding-bottom:clamp(32px,5vw,48px)">
+  <svg class="longe" viewBox="0 0 600 600" aria-hidden="true">
+    <ellipse cx="300" cy="300" rx="285" ry="210" transform="rotate(-14 300 300)"/>
+  </svg>
+  <div class="contenu">
+    <div>
+      <nav class="ariane" aria-label="Fil d'ariane">
+        <a href="index.html">Accueil</a><i>→</i><span>Mon compte</span>
+      </nav>
+      <h1>
+        <span class="ligne"><span>Mon</span></span>
+        <span class="ligne"><span><em>compte</em>.</span></span>
+      </h1>
+      <p class="sous-titre">Vos coordonnées et vos voltigeurs, enregistrés une bonne fois pour toutes : au moment de s'inscrire à un cours ou à un stage, tout se remplit tout seul, depuis n'importe quel appareil.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ============ L'espace famille ============ -->
+<section class="section" id="compte" style="padding-top:clamp(40px,6vw,56px)">
+  <div class="contenu" style="max-width:720px">
+
+    <!-- pendant la vérification de la session -->
+    <div class="pas actif" id="v-attente">
+      <p class="aide">Un instant…</p>
+    </div>
+
+    <!-- service pas encore ouvert -->
+    <div class="pas" id="v-indisponible">
+      <h2>Bientôt disponible.</h2>
+      <p class="aide">L'espace famille ouvre très prochainement. En attendant, vos informations sont déjà retenues sur cet appareil après chaque inscription, et vous pouvez nous écrire à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a> pour toute question.</p>
+      <a class="btn btn-rouge" href="inscription.html"><span>Aller aux inscriptions</span></a>
+    </div>
+
+    <!-- connexion -->
+    <form class="pas" id="f-connexion" novalidate>
+      <h2>Se connecter.</h2>
+      <p class="aide">Retrouvez vos informations de famille en un instant. Pas encore de compte ? <a href="#" data-vue="f-creation" style="font-weight:700">Créez-le en une minute</a>.</p>
+      <div class="champs">
+        <div class="champ">
+          <label for="cx-email">Votre e-mail <b>*</b></label>
+          <input id="cx-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="champ">
+          <label for="cx-mdp">Votre mot de passe <b>*</b></label>
+          <input id="cx-mdp" type="password" autocomplete="current-password" required>
+          <span class="indice"><a href="#" data-vue="f-oubli">Mot de passe oublié ?</a></span>
+        </div>
+        <p class="message" id="m-connexion" role="alert" hidden></p>
+      </div>
+      <div class="btns-pas">
+        <a class="btn btn-contour" href="#" data-vue="f-creation"><span>Créer mon compte</span></a>
+        <button type="submit" class="btn btn-rouge"><span>Se connecter</span></button>
+      </div>
+    </form>
+
+    <!-- création de compte -->
+    <form class="pas" id="f-creation" novalidate>
+      <h2>Créer mon compte.</h2>
+      <p class="aide">Une adresse e-mail, un mot de passe, et c'est tout : vos informations de famille vous suivront ensuite sur tous vos appareils. Déjà un compte ? <a href="#" data-vue="f-connexion" style="font-weight:700">Connectez-vous</a>.</p>
+      <div class="champs">
+        <div class="champ">
+          <label for="cr-email">Votre e-mail <b>*</b></label>
+          <input id="cr-email" type="email" autocomplete="email" required>
+          <span class="indice">L'e-mail de confirmation du compte arrive à cette adresse.</span>
+        </div>
+        <div class="rang">
+          <div class="champ">
+            <label for="cr-mdp">Choisissez un mot de passe <b>*</b></label>
+            <input id="cr-mdp" type="password" autocomplete="new-password" minlength="8" required>
+            <span class="indice">8 caractères minimum.</span>
+          </div>
+          <div class="champ">
+            <label for="cr-mdp2">Le même, pour vérifier <b>*</b></label>
+            <input id="cr-mdp2" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+        </div>
+        <p class="message" id="m-creation" role="alert" hidden></p>
+      </div>
+      <div class="btns-pas">
+        <a class="btn btn-contour" href="#" data-vue="f-connexion"><span>← Se connecter</span></a>
+        <button type="submit" class="btn btn-rouge"><span>Créer mon compte</span></button>
+      </div>
+      <div class="confirmation" id="creation-envoyee">
+        <h3>Plus qu'un clic !</h3>
+        <p>Un e-mail de confirmation vient de partir vers <b id="creation-adresse"></b>. Ouvrez-le et cliquez sur son lien pour activer votre compte. Pensez au dossier « spam » s'il n'apparaît pas d'ici deux minutes. Si vous aviez déjà un compte avec cette adresse, utilisez plutôt « Se connecter » ou « Mot de passe oublié ».</p>
+      </div>
+    </form>
+
+    <!-- mot de passe oublié -->
+    <form class="pas" id="f-oubli" novalidate>
+      <h2>Mot de passe oublié.</h2>
+      <p class="aide">Indiquez l'adresse du compte : nous vous envoyons un lien pour en choisir un nouveau.</p>
+      <div class="champs">
+        <div class="champ">
+          <label for="ou-email">Votre e-mail <b>*</b></label>
+          <input id="ou-email" type="email" autocomplete="email" required>
+        </div>
+        <p class="message" id="m-oubli" role="alert" hidden></p>
+      </div>
+      <div class="btns-pas">
+        <a class="btn btn-contour" href="#" data-vue="f-connexion"><span>← Se connecter</span></a>
+        <button type="submit" class="btn btn-rouge"><span>Recevoir le lien</span></button>
+      </div>
+      <div class="confirmation" id="oubli-envoye">
+        <h3>C'est envoyé !</h3>
+        <p>Si un compte existe avec cette adresse, un e-mail avec le lien vient de partir. Pensez au dossier « spam » s'il n'apparaît pas d'ici deux minutes.</p>
+      </div>
+    </form>
+
+    <!-- nouveau mot de passe (au retour du lien reçu par e-mail) -->
+    <form class="pas" id="f-nouveau" novalidate>
+      <h2>Choisir un nouveau mot de passe.</h2>
+      <p class="aide">Vous voilà de retour par le lien reçu par e-mail : choisissez votre nouveau mot de passe.</p>
+      <div class="champs">
+        <div class="rang">
+          <div class="champ">
+            <label for="nv-mdp">Nouveau mot de passe <b>*</b></label>
+            <input id="nv-mdp" type="password" autocomplete="new-password" minlength="8" required>
+            <span class="indice">8 caractères minimum.</span>
+          </div>
+          <div class="champ">
+            <label for="nv-mdp2">Le même, pour vérifier <b>*</b></label>
+            <input id="nv-mdp2" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+        </div>
+        <p class="message" id="m-nouveau" role="alert" hidden></p>
+      </div>
+      <div class="btns-pas">
+        <span></span>
+        <button type="submit" class="btn btn-rouge"><span>Enregistrer le mot de passe</span></button>
+      </div>
+    </form>
+
+    <!-- connecté : la famille -->
+    <form class="pas" id="v-famille" novalidate>
+      <h2>Votre famille.</h2>
+      <p class="aide">Connecté(e) en tant que <b id="fa-compte"></b> · <a href="#" id="fa-deconnexion">Se déconnecter</a><br>
+      Ces informations pré-remplissent les inscriptions aux <a href="inscription-cours.html" style="font-weight:700">cours</a> et aux <a href="reservation.html" style="font-weight:700">stages</a> sur tous vos appareils.</p>
+
+      <h3 style="font-size:19px;margin:26px 0 14px">Le responsable légal</h3>
+      <div class="champs">
+        <div class="rang">
+          <div class="champ">
+            <label for="c-qualite">Vous êtes</label>
+            <select id="c-qualite">
+              <option value="">Choisir…</option>
+              <option>Père</option>
+              <option>Mère</option>
+              <option>Tuteur</option>
+            </select>
+          </div>
+          <div class="champ"><label for="c-nom">Votre nom et prénom</label><input id="c-nom" autocomplete="name"></div>
+        </div>
+        <div class="champ"><label for="c-adresse">Adresse permanente</label><input id="c-adresse" autocomplete="street-address"></div>
+        <div class="rang">
+          <div class="champ"><label for="c-cp">Code postal</label><input id="c-cp" autocomplete="postal-code" inputmode="numeric"></div>
+          <div class="champ"><label for="c-ville">Ville</label><input id="c-ville" autocomplete="address-level2"></div>
+        </div>
+        <div class="rang">
+          <div class="champ"><label for="c-tel">Votre mobile</label><input id="c-tel" type="tel" autocomplete="tel"></div>
+          <div class="champ"><label for="c-tel2">Autre téléphone</label><input id="c-tel2" type="tel"></div>
+        </div>
+        <div class="champ">
+          <label for="c-courriel">E-mail de contact</label>
+          <input id="c-courriel" type="email" autocomplete="email">
+          <span class="indice">Les confirmations d'inscription arrivent à cette adresse.</span>
+        </div>
+        <div class="rang">
+          <div class="champ"><label for="c-secu-caisse">Sécurité sociale : caisse</label><input id="c-secu-caisse"></div>
+          <div class="champ"><label for="c-secu-numero">N° couvrant l'enfant</label><input id="c-secu-numero"></div>
+        </div>
+      </div>
+
+      <h3 style="font-size:19px;margin:30px 0 14px">Vos voltigeurs</h3>
+      <div id="liste-enfants" style="display:flex;flex-direction:column;gap:18px"></div>
+      <p style="margin-top:14px">
+        <button type="button" class="btn btn-contour" id="fa-ajouter"><span>+ Ajouter un voltigeur</span></button>
+      </p>
+
+      <p class="message" id="m-famille" role="alert" hidden></p>
+      <div class="btns-pas">
+        <span></span>
+        <button type="submit" class="btn btn-rouge"><span>Enregistrer ma famille</span></button>
+      </div>
+    </form>
+
+  </div>
+</section>
+
+<!-- ============ Pied de page ============ -->
+<footer class="pied">
+  <div class="contenu">
+    <div class="pied-haut">
+      <a class="marque" href="index.html" style="color:var(--texte)">
+        <img src="assets/img/logo.jpeg" alt="">
+        <span>
+          <b>Académie de voltige</b>
+          <small>Fleur &amp; Georges Cotrait</small>
+        </span>
+      </a>
+      <nav class="pied-nav" aria-label="Pied de page">
+        <a href="histoire.html">L'académie</a>
+        <a href="stages.html">Stages</a>
+        <a href="cours.html">Cours</a>
+        <a href="theatre.html">Le théâtre</a>
+        <a href="galerie.html">Galerie</a>
+        <a href="index.html#infos">Infos pratiques</a>
+        <a href="contact.html">Contact</a>
+        <a href="compte.html">Mon compte</a>
+      </nav>
+    </div>
+    <div class="pied-bas">
+      <span>© 2026 Académie de voltige équestre Fleur &amp; Georges Cotrait · Auberville, Normandie · <a href="mentions-legales.html" style="color:inherit">Mentions légales</a> · <a href="confidentialite.html" style="color:inherit">Confidentialité</a></span>
+      <span class="sociaux">
+        <a href="https://www.instagram.com/academiedevoltige/" target="_blank" rel="noopener">Instagram</a>
+        <a href="https://www.facebook.com/academiecotrait/" target="_blank" rel="noopener">Facebook</a>
+        <a href="https://www.youtube.com/channel/UCVWNBdhexKOj-6WiQdvCf5g" target="_blank" rel="noopener">YouTube</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .message{font-size:14px;line-height:1.6;font-weight:600;border-radius:10px;padding:12px 16px}
+  .message.souci{color:var(--rouge);background:color-mix(in srgb, var(--rouge) 6%, var(--fond))}
+  .message.bonne{color:#1d7a3d;background:color-mix(in srgb, #1d7a3d 8%, var(--fond))}
+  .carte-enfant{border:1.4px solid var(--trait);border-radius:14px;padding:18px}
+  .carte-enfant .entete-enfant{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .carte-enfant .entete-enfant b{font-size:15.5px}
+  .carte-enfant .retirer{border:0;background:transparent;color:#6d6266;font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit}
+</style>
+
+<script src="assets/js/main.js?v=32"></script>
+<script src="assets/js/compte-config.js?v=1"></script>
+<script src="assets/js/nuage.js?v=1"></script>
+<script src="assets/js/compte.js?v=1"></script>
+</body>
+</html>
