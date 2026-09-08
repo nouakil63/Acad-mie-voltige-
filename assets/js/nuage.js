@@ -186,8 +186,21 @@
     });
   }
 
+  /* Appel authentifié générique (utilisé par l'espace académie). */
+  function requeteAuth(chemin, options) {
+    return sessionValide().then(function (s) {
+      if (!s) { return null; }
+      options = options || {};
+      var entetes = options.headers || {};
+      entetes.Authorization = 'Bearer ' + s.jeton;
+      options.headers = entetes;
+      return appel(chemin, options);
+    });
+  }
+
   window.AVNuage = {
     configure: configure,
+    requeteAuth: requeteAuth,
     lireSession: lireSession,
     sessionValide: sessionValide,
     creation: creation,

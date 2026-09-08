@@ -115,12 +115,22 @@
   /* ---- récapitulatif en direct ---- */
   function texte(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
   function gabaritTexte() { return texte('enfant-gabarit'); }
+  function paiementChoisi() {
+    var p = form.querySelector('input[name="paiement"]:checked');
+    return p ? p.value : '';
+  }
+  function tarifChoisi(f) {
+    var p = paiementChoisi();
+    if (p === 'unite') { return '25 € / cours'; }
+    if (p === 'trimestre') { return '325 € / trimestre'; }
+    return f ? f.tarif : '';
+  }
   function majRecap() {
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = choisi ? FORMULES[Number(choisi.value)] : null;
     document.getElementById('r-formule').textContent = f ? f.nom : '—';
     document.getElementById('r-creneau').textContent = f ? f.creneau : '—';
-    document.getElementById('r-total').textContent = f ? f.tarif : '—';
+    document.getElementById('r-total').textContent = tarifChoisi(f) || '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
     document.getElementById('r-poids').textContent = gabaritTexte() || '—';
@@ -149,7 +159,8 @@
     return {
       type: 'cours',
       annee: '2026/2027',
-      formule: f.nom, creneau: f.creneau, tarif: f.tarif,
+      formule: f.nom, creneau: f.creneau, tarif: tarifChoisi(f) || f.tarif,
+      paiement: paiementChoisi(),
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
       enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
       nationalite: texte('enfant-nationalite'), sexe: texte('enfant-sexe'),
@@ -199,7 +210,8 @@
           type: 'cours',
           formule: f.nom,
           creneau: f.creneau,
-          tarif: f.tarif,
+          tarif: dossier.tarif,
+          paiement: dossier.paiement,
           enfantPrenom: dossier.enfantPrenom,
           enfantNom: dossier.enfantNom,
           enfantNaissance: dossier.enfantNaissance,
@@ -238,14 +250,14 @@
       '',
       'Formule : ' + f.nom,
       'Créneau : ' + f.creneau,
-      'Tarif : ' + f.tarif,
+      'Tarif : ' + dossier.tarif,
       '',
       'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
       'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
-      'Sexe : ' + dossier.sexe + ' · Gabarit : ' + dossier.gabarit,
+      'Gabarit : ' + dossier.gabarit,
       'Niveau : ' + dossier.niveau,
       '',
-      'Responsable légal (' + dossier.qualite + ') : ' + dossier.parentNom,
+      'Responsable légal : ' + dossier.parentNom,
       'Adresse : ' + dossier.adresse + ', ' + dossier.cp + ' ' + dossier.ville,
       'Téléphone : ' + dossier.parentTel + (dossier.telDomicile ? ' / ' + dossier.telDomicile : ''),
       'E-mail : ' + dossier.parentEmail,

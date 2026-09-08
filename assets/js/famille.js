@@ -158,15 +158,25 @@
   }
 
   /* ---- à l'envoi : retenir la famille et le voltigeur (mise à jour sans doublon) ---- */
+  /* Un champ vide n'écrase jamais une information déjà connue : le
+     formulaire des cours, plus court, ne fait pas perdre les détails
+     donnés ailleurs (sexe, sécurité sociale, licence…). */
+  function completer(nouveau, ancien) {
+    Object.keys(nouveau).forEach(function (k) {
+      if (!nouveau[k] && ancien && ancien[k]) { nouveau[k] = ancien[k]; }
+    });
+    return nouveau;
+  }
+
   form.addEventListener('submit', function () {
     var f = lire() || {};
-    f.responsable = {
+    f.responsable = completer({
       qualite: val('parent-qualite'), nom: val('parent-nom'),
       adresse: val('parent-adresse'), cp: val('parent-cp'), ville: val('parent-ville'),
       tel: val('parent-tel'), telDomicile: val('parent-tel-domicile'),
       email: val('parent-email'),
       secuCaisse: val('secu-caisse'), secuNumero: val('secu-numero')
-    };
+    }, f.responsable);
     var enfant = {
       prenom: val('enfant-prenom'), nom: val('enfant-nom'),
       naissance: val('enfant-naissance'), lieu: val('enfant-lieu'),
@@ -182,7 +192,7 @@
       f.enfants.forEach(function (x, n) {
         if ((x.prenom + ' ' + x.nom).toLowerCase().trim() === cleEnfant) { i = n; }
       });
-      if (i >= 0) { f.enfants[i] = enfant; } else { f.enfants.push(enfant); }
+      if (i >= 0) { f.enfants[i] = completer(enfant, f.enfants[i]); } else { f.enfants.push(enfant); }
     }
     ecrire(f);
   }, true);
