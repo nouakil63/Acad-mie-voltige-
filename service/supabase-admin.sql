@@ -51,6 +51,13 @@ create policy "les admins lisent les demandes" on public.demandes
     exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
   );
 
+-- La base clients : les admins voient toutes les familles enregistrées.
+drop policy if exists "les admins lisent les familles" on public.familles;
+create policy "les admins lisent les familles" on public.familles
+  for select using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
 drop policy if exists "les admins classent les demandes" on public.demandes;
 create policy "les admins classent les demandes" on public.demandes
   for update using (
