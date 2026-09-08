@@ -67,6 +67,127 @@
     el('c-familles').textContent = String(familles.length);
     var aujourdHui = isoLocal(new Date());
     el('c-resa').textContent = String(reservations.filter(function (r) { return r.date >= aujourdHui; }).length);
+    el('c-encaisser').textContent = String(demandes.filter(function (d) {
+      return classeStatut(d.statut) === 'validee' && !d.paye;
+    }).length);
+  }
+
+  /* ================= Les paiements =================
+     Note maison : le trimestre est dû, que le voltigeur vienne ou non. */
+  function montantNumerique(texte) {
+    var m = String(texte || '').replace(',', '.').match(/\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : 0;
+  }
+
+  function marquerPaye(d) {
+    var montant = prompt('Montant encaissé pour ' + (d.enfant || 'ce voltigeur') + ' :', d.tarif || '');
+    if (montant === null) { return; }
+    var patch = { paye: true, paye_le: isoLocal(new Date()), paye_montant: montant.trim() };
+    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(patch)
+    }).then(function (r) {
+      if (!r || !r.ok) { alert('Le paiement n’a pas pu être noté (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
+      Object.assign(d, patch);
+      afficherDemandes();
+      afficherPaiements();
+      majCompteurs();
+    });
+  }
+
+  function annulerPaye(d) {
+    if (!confirm('Retirer la marque « payé » sur la demande de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    var patch = { paye: false, paye_le: null, paye_montant: null };
+    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(patch)
+    }).then(function () {
+      Object.assign(d, patch);
+      afficherDemandes();
+      afficherPaiements();
+      majCompteurs();
+    });
+  }
+
+  function lignePaiement(d, regle) {
+    var ligne = document.createElement('div');
+    ligne.className = 'carte-demande st-' + (regle ? 'validee' : 'attente');
+    var entete = document.createElement('div');
+    entete.className = 'entete';
+    var type = document.createElement('span');
+    type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
+    type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
+    entete.appendChild(type);
+    var nom = document.createElement('span');
+    nom.className = 'nom';
+    nom.textContent = d.enfant || 'Voltigeur';
+    entete.appendChild(nom);
+    var quand = document.createElement('span');
+    quand.className = 'quand';
+    quand.textContent = regle && d.paye_le
+      ? 'réglé le ' + new Date(d.paye_le + 'T12:00:00').toLocaleDateString('fr-FR')
+      : quandLisible(d.cree);
+    entete.appendChild(quand);
+    ligne.appendChild(entete);
+    var corps = document.createElement('div');
+    corps.className = 'corps';
+    corps.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '') + ' · ' +
+      (regle ? (d.paye_montant || d.tarif || '') : (d.tarif || ''));
+    ligne.appendChild(corps);
+    var actions = document.createElement('div');
+    actions.className = 'actions';
+    if (regle) {
+      var retirer = document.createElement('button');
+      retirer.type = 'button';
+      retirer.className = 'lien-doux';
+      retirer.textContent = 'Retirer la marque « payé »';
+      retirer.addEventListener('click', function () { annulerPaye(d); });
+      actions.appendChild(retirer);
+    } else {
+      var payer = document.createElement('button');
+      payer.type = 'button';
+      payer.className = 'btn btn-rouge';
+      payer.innerHTML = '<span>💶 Marquer payé</span>';
+      payer.addEventListener('click', function () { marquerPaye(d); });
+      actions.appendChild(payer);
+    }
+    ligne.appendChild(actions);
+    return ligne;
+  }
+
+  function afficherPaiements() {
+    var encaisser = el('a-encaisser');
+    var payes = el('a-payes');
+    if (!encaisser || !payes) { return; }
+    encaisser.innerHTML = '';
+    payes.innerHTML = '';
+    var dus = demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' && !d.paye; });
+    var regles = demandes.filter(function (d) { return d.paye; });
+    var totalDu = 0, totalRegle = 0;
+    dus.forEach(function (d) { totalDu += montantNumerique(d.tarif); encaisser.appendChild(lignePaiement(d, false)); });
+    regles.forEach(function (d) { totalRegle += montantNumerique(d.paye_montant || d.tarif); payes.appendChild(lignePaiement(d, true)); });
+    el('t-encaisser').textContent = dus.length ? 'environ ' + totalDu + ' €' : '';
+    el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
+    if (!dus.length) {
+      var v1 = document.createElement('p');
+      v1.className = 'aide';
+      v1.textContent = 'Rien à encaisser : toutes les demandes validées sont réglées.';
+      encaisser.appendChild(v1);
+    }
+    if (!regles.length) {
+      var v2 = document.createElement('p');
+      v2.className = 'aide';
+      v2.textContent = 'Aucun paiement noté pour l’instant.';
+      payes.appendChild(v2);
+    }
+  }
+
+  /* ================= Les feuilles de présence ================= */
+  function ouvrirFeuille(feuille) {
+    try { localStorage.setItem('av:feuille', JSON.stringify(feuille)); } catch (e) { return; }
+    window.open('feuille.html', '_blank', 'noopener');
   }
 
   /* ================= Le dossier d'inscription rempli =================
@@ -199,6 +320,20 @@
       c.boutons = [valider, refuser];
     }
 
+    if (d.paye) {
+      var payee = document.createElement('span');
+      payee.className = 'pastille validee';
+      payee.textContent = '💶 payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
+      entete.insertBefore(payee, quand);
+    } else if (classeStatut(d.statut) === 'validee') {
+      var payer = document.createElement('button');
+      payer.type = 'button';
+      payer.className = 'lien-doux';
+      payer.textContent = '💶 Marquer payé';
+      payer.addEventListener('click', function () { marquerPaye(d); });
+      actions.appendChild(payer);
+    }
+
     var dossier = document.createElement('button');
     dossier.type = 'button';
     dossier.className = 'lien-doux';
@@ -282,6 +417,8 @@
         demandes = l;
         el('m-liste').hidden = true;
         afficherDemandes();
+        afficherStages();
+        afficherPaiements();
       })
       .catch(function () { message('m-liste', 'Impossible de charger les demandes. Rechargez la page dans un instant.'); });
   }
@@ -317,6 +454,74 @@
         liste.appendChild(li);
       });
       carte.appendChild(liste);
+      var actions = document.createElement('div');
+      actions.className = 'actions';
+      var imprimer = document.createElement('button');
+      imprimer.type = 'button';
+      imprimer.className = 'lien-doux';
+      imprimer.textContent = '🖨 Feuille de présence';
+      imprimer.addEventListener('click', function () {
+        ouvrirFeuille({
+          titre: 'Cours du ' + jourLisible(date),
+          sousTitre: 'Cours de voltige · 14h00 à 16h00',
+          colonnes: ['Présent'],
+          lignes: parJour[date].map(function (r) { return { nom: r.enfant || 'Voltigeur', info: r.email || '' }; })
+        });
+      });
+      actions.appendChild(imprimer);
+      carte.appendChild(actions);
+      conteneur.appendChild(carte);
+    });
+  }
+
+  /* les stages et leurs inscrits (demandes de stage validées) */
+  function afficherStages() {
+    var conteneur = el('a-stages');
+    if (!conteneur) { return; }
+    conteneur.innerHTML = '';
+    var validees = demandes.filter(function (d) { return d.type === 'stage' && classeStatut(d.statut) === 'validee'; });
+    if (!validees.length) {
+      var vide = document.createElement('p');
+      vide.className = 'aide';
+      vide.textContent = 'Aucun inscrit à un stage pour l’instant (les demandes de stage validées apparaissent ici).';
+      conteneur.appendChild(vide);
+      return;
+    }
+    var parStage = {};
+    validees.forEach(function (d) {
+      var cle = d.detail || 'Stage';
+      (parStage[cle] = parStage[cle] || []).push(d);
+    });
+    Object.keys(parStage).sort().forEach(function (stage) {
+      var carte = document.createElement('div');
+      carte.className = 'carte-jour';
+      var titre = document.createElement('h3');
+      titre.textContent = stage + ' · ' + parStage[stage].length +
+        (parStage[stage].length > 1 ? ' inscrits' : ' inscrit');
+      carte.appendChild(titre);
+      var liste = document.createElement('ul');
+      parStage[stage].forEach(function (d) {
+        var li = document.createElement('li');
+        li.textContent = '🧒 ' + (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
+        liste.appendChild(li);
+      });
+      carte.appendChild(liste);
+      var actions = document.createElement('div');
+      actions.className = 'actions';
+      var imprimer = document.createElement('button');
+      imprimer.type = 'button';
+      imprimer.className = 'lien-doux';
+      imprimer.textContent = '🖨 Feuille de présence de la semaine';
+      imprimer.addEventListener('click', function () {
+        ouvrirFeuille({
+          titre: 'Feuille de présence · ' + stage,
+          sousTitre: 'Une colonne par jour de stage',
+          colonnes: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+          lignes: parStage[stage].map(function (d) { return { nom: d.enfant || 'Voltigeur', info: (d.parent_nom || '') + (d.parent_tel ? ' · ' + d.parent_tel : '') }; })
+        });
+      });
+      actions.appendChild(imprimer);
+      carte.appendChild(actions);
       conteneur.appendChild(carte);
     });
   }
@@ -549,6 +754,7 @@
     el('o-demandes').hidden = onglet !== 'demandes';
     el('o-familles').hidden = onglet !== 'familles';
     el('o-reservations').hidden = onglet !== 'reservations';
+    el('o-paiements').hidden = onglet !== 'paiements';
   });
 
   el('a-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerDemandes(); });

@@ -10,7 +10,11 @@
     mercredi: 'Mercredi 14h00 — 16h00',
     samedi: 'Samedi 10h00 — 13h00 · 14h00 — 16h00'
   };
-  var SEMAINES = 10; /* nombre de mercredis et de samedis proposés sur le planning */
+  var SEMAINES = 10; /* nombre de semaines proposées sur le planning */
+
+  /* SAMEDI EN PAUSE : pour rouvrir les cours du samedi, remettez
+     JOURS_COURS = ['mercredi', 'samedi'] (tout le reste suit). */
+  var JOURS_COURS = ['mercredi'];
 
   /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
   var PAIEMENTS = {
@@ -42,6 +46,11 @@
     var conteneurs = { mercredi: document.getElementById('dates-mercredi'), samedi: document.getElementById('dates-samedi') };
     if (!conteneurs.mercredi || !conteneurs.samedi) { return; }
     [{ jour: 'mercredi', cible: 3 }, { jour: 'samedi', cible: 6 }].forEach(function (regle) {
+      if (JOURS_COURS.indexOf(regle.jour) === -1) {
+        var groupe = conteneurs[regle.jour].closest('.jour-groupe');
+        if (groupe) { groupe.hidden = true; }
+        return;
+      }
       var d = new Date();
       d.setHours(12, 0, 0, 0);
       d.setDate(d.getDate() + 1); /* on commence demain au plus tôt */
@@ -177,8 +186,9 @@
     var maintenant = new Date();
     var dates = datesChoisies();
     var horaires = [];
-    if (dates.some(function (d) { return d.jour === 'mercredi'; })) { horaires.push(HORAIRES.mercredi); }
-    if (dates.some(function (d) { return d.jour === 'samedi'; })) { horaires.push(HORAIRES.samedi); }
+    JOURS_COURS.forEach(function (j) {
+      if (dates.some(function (d) { return d.jour === j; })) { horaires.push(HORAIRES[j]); }
+    });
     return {
       type: 'cours',
       annee: '2026/2027',

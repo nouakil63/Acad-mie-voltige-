@@ -167,11 +167,13 @@
       <div class="chiffre"><b id="c-demandes">—</b><span>demandes</span></div>
       <div class="chiffre"><b id="c-familles">—</b><span>familles</span></div>
       <div class="chiffre"><b id="c-resa">—</b><span>cours à venir</span></div>
+      <div class="chiffre"><b id="c-encaisser" class="alerte">—</b><span>à encaisser</span></div>
     </div>
 
     <nav class="onglets" aria-label="Sections">
       <button type="button" class="actif-onglet" data-onglet="demandes">Les demandes</button>
-      <button type="button" data-onglet="reservations">Le planning des cours</button>
+      <button type="button" data-onglet="reservations">Le planning</button>
+      <button type="button" data-onglet="paiements">Les paiements</button>
       <button type="button" data-onglet="familles">La base clients</button>
     </nav>
 
@@ -188,11 +190,23 @@
       <div id="a-demandes" style="display:flex;flex-direction:column;gap:14px"></div>
     </section>
 
-    <!-- Onglet planning des réservations -->
+    <!-- Onglet planning : cours réservés et stages -->
     <section id="o-reservations" hidden>
-      <p class="aide" style="margin-bottom:14px">Les cours réservés par les abonnés au trimestre, jour par jour. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
+      <p class="aide" style="margin-bottom:14px">Les cours réservés par les abonnés au trimestre, jour par jour, puis les stages avec leurs inscrits. Chaque carte a sa feuille de présence à imprimer. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
       <p class="message" id="m-resa" role="alert" hidden></p>
+      <h3 style="font-size:17px;margin:0 0 12px">Les cours du mercredi</h3>
       <div id="a-reservations" style="display:flex;flex-direction:column;gap:14px"></div>
+      <h3 style="font-size:17px;margin:26px 0 12px">Les stages</h3>
+      <div id="a-stages" style="display:flex;flex-direction:column;gap:14px"></div>
+    </section>
+
+    <!-- Onglet paiements -->
+    <section id="o-paiements" hidden>
+      <p class="aide" style="margin-bottom:14px">Qui a réglé quoi, et ce qui reste à encaisser sur les demandes validées. Rappel maison : le trimestre est dû, que le voltigeur vienne ou non.</p>
+      <h3 style="font-size:17px;margin:0 0 12px">À encaisser <span class="quand" id="t-encaisser" style="margin-left:8px"></span></h3>
+      <div id="a-encaisser" style="display:flex;flex-direction:column;gap:12px;margin-bottom:26px"></div>
+      <h3 style="font-size:17px;margin:0 0 12px">Encaissés <span class="quand" id="t-payes" style="margin-left:8px"></span></h3>
+      <div id="a-payes" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
 
     <!-- Onglet base clients -->
@@ -210,6 +224,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=5"></script>
+<script src="../assets/js/admin.js?v=6"></script>
 </body>
 </html>

@@ -66,6 +66,13 @@ create policy "les admins classent les demandes" on public.demandes
     exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
   );
 
+-- Suivi des paiements : l'académie note sur chaque demande validée
+-- si elle a été réglée (et combien). Rappel maison : le trimestre est
+-- dû, que le voltigeur vienne ou non.
+alter table public.demandes add column if not exists paye boolean not null default false;
+alter table public.demandes add column if not exists paye_le date;
+alter table public.demandes add column if not exists paye_montant text;
+
 -- ============================================================
 -- Les trimestres et les réservations de cours
 -- ------------------------------------------------------------
