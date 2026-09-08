@@ -2,8 +2,8 @@
    À la fin d'une demande (cours ou stage), le responsable légal et le
    voltigeur sont retenus dans CE navigateur. Au retour, les informations
    de la famille sont pré-remplies et chaque enfant enregistré se remet
-   en un clic. Rien ne part sur internet : tout reste dans le navigateur,
-   et « Oublier mes informations » efface tout. */
+   en un clic. Avec un compte (page « Mon compte »), les informations
+   suivent la famille sur tous ses appareils. */
 (function () {
   'use strict';
 
@@ -11,6 +11,9 @@
   if (!form) { return; }
 
   var CLE = 'av:famille';
+  var nuage = window.AVNuage || null;
+  function connecte() { return !!(nuage && nuage.configure() && nuage.lireSession()); }
+
   function lire() {
     try { return JSON.parse(localStorage.getItem(CLE)) || null; } catch (e) { return null; }
   }
@@ -48,9 +51,20 @@
     }
   }
 
-  /* ---- au retour : pré-remplir et proposer les voltigeurs enregistrés ---- */
-  var famille = lire();
-  if (famille && famille.responsable && famille.responsable.nom) {
+  function lienCompte(texte) {
+    var a = document.createElement('a');
+    a.href = 'compte.html';
+    a.textContent = texte;
+    a.style.cssText = 'color:#D00828;font-weight:700';
+    return a;
+  }
+
+  /* ---- pré-remplir et proposer les voltigeurs enregistrés ---- */
+  function afficher(famille) {
+    var ancien = document.getElementById('carnet-famille');
+    if (ancien) { ancien.remove(); }
+    if (!famille || !famille.responsable || !famille.responsable.nom) { return; }
+
     remplirResponsable(famille.responsable);
     notifier();
 
@@ -102,8 +116,45 @@
     });
     bandeau.appendChild(oublier);
 
+    /* le mot du compte : déjà relié, ou invitation à en créer un */
+    var mot = document.createElement('div');
+    mot.style.cssText = 'margin-top:6px;font-size:12.5px;color:#6d6266';
+    if (connecte()) {
+      mot.appendChild(document.createTextNode('Reliées à votre compte, à modifier depuis '));
+      mot.appendChild(lienCompte('Mon compte'));
+      mot.appendChild(document.createTextNode('.'));
+    } else if (nuage && nuage.configure()) {
+      mot.appendChild(document.createTextNode('💡 '));
+      mot.appendChild(lienCompte('Créez votre compte'));
+      mot.appendChild(document.createTextNode(' pour les retrouver sur tous vos appareils.'));
+    }
+    if (mot.childNodes.length) { bandeau.appendChild(mot); }
+
     var repere = form.querySelector('.pas-nav');
     if (repere) { form.insertBefore(bandeau, repere); }
+  }
+
+  var locale = lire();
+  afficher(locale);
+
+  if (connecte()) {
+    /* la version du compte fait foi : elle peut venir d'un autre appareil */
+    nuage.chargerFamille().then(function (duCompte) {
+      if (duCompte && JSON.stringify(duCompte) !== JSON.stringify(locale)) {
+        ecrire(duCompte);
+        afficher(duCompte);
+      }
+    });
+  } else if (nuage && nuage.configure() && !locale) {
+    /* première visite : glisser un mot sur l'espace famille */
+    var invite = document.createElement('p');
+    invite.id = 'invite-compte';
+    invite.style.cssText = 'font-size:13px;color:#6d6266;margin:0 0 18px';
+    invite.appendChild(document.createTextNode('💡 Un compte à l’académie évite de tout retaper à chaque fois : '));
+    invite.appendChild(lienCompte('se connecter ou créer mon compte'));
+    invite.appendChild(document.createTextNode('.'));
+    var repere = form.querySelector('.pas-nav');
+    if (repere) { form.insertBefore(invite, repere); }
   }
 
   /* ---- à l'envoi : retenir la famille et le voltigeur (mise à jour sans doublon) ---- */
@@ -134,5 +185,6 @@
       if (i >= 0) { f.enfants[i] = enfant; } else { f.enfants.push(enfant); }
     }
     ecrire(f);
+    if (connecte()) { nuage.enregistrerFamille(f); }
   }, true);
 })();
