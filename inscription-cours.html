@@ -77,7 +77,7 @@
         <span class="ligne"><span>S'inscrire</span></span>
         <span class="ligne"><span>aux <em>cours</em>.</span></span>
       </h1>
-      <p class="sous-titre">Trois étapes, deux minutes. Georges Cotrait valide chaque demande sous 24&nbsp;h maximum — vous recevez alors un lien de paiement sécurisé par e-mail.</p>
+      <p class="sous-titre">Quatre étapes, trois minutes, signature comprise : le dossier d'inscription se remplit tout seul avec vos réponses. Georges Cotrait valide chaque demande sous 24&nbsp;h maximum — vous recevez alors un lien de paiement sécurisé par e-mail.</p>
     </div>
   </div>
 </header>
@@ -90,17 +90,19 @@
 
         <!-- fil des étapes -->
         <div class="pas-nav" aria-label="Étapes de l'inscription">
-          <div class="jalon actif" data-jalon="1"><span class="rond">1</span><span>Vos infos</span></div>
+          <div class="jalon actif" data-jalon="1"><span class="rond">1</span><span>Le voltigeur</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="2"><span class="rond">2</span><span>La formule</span></div>
+          <div class="jalon" data-jalon="2"><span class="rond">2</span><span>La famille</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>Confirmation</span></div>
+          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>La formule</span></div>
+          <div class="lien-jalon" aria-hidden="true"></div>
+          <div class="jalon" data-jalon="4"><span class="rond">4</span><span>Signature</span></div>
         </div>
 
-        <!-- Étape 1 : le voltigeur et la famille -->
+        <!-- Étape 1 : le voltigeur -->
         <fieldset class="pas actif" data-pas="1">
-          <h2>Le voltigeur, et vous.</h2>
-          <p class="aide">Ces informations nous permettent de proposer le bon groupe à votre enfant.</p>
+          <h2>Le voltigeur.</h2>
+          <p class="aide">Ces informations nous permettent de proposer le bon groupe et la bonne monture à votre enfant.</p>
           <div class="champs">
             <div class="rang">
               <div class="champ"><label for="enfant-prenom">Prénom de l'enfant <b>*</b></label><input id="enfant-prenom" name="enfant-prenom" autocomplete="given-name" required></div>
@@ -108,6 +110,22 @@
             </div>
             <div class="rang">
               <div class="champ"><label for="enfant-naissance">Date de naissance <b>*</b></label><input id="enfant-naissance" name="enfant-naissance" type="date" required></div>
+              <div class="champ"><label for="enfant-lieu">Né(e) à</label><input id="enfant-lieu" name="enfant-lieu"></div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="enfant-nationalite">Nationalité</label><input id="enfant-nationalite" name="enfant-nationalite" value="Française"></div>
+              <div class="champ">
+                <label for="enfant-sexe">Sexe <b>*</b></label>
+                <select id="enfant-sexe" name="enfant-sexe" required>
+                  <option value="">Choisir…</option>
+                  <option value="F">Fille</option>
+                  <option value="M">Garçon</option>
+                </select>
+              </div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="enfant-poids">Poids (kg) <b>*</b></label><input id="enfant-poids" name="enfant-poids" type="number" min="10" max="90" step="1" inputmode="numeric" required></div>
+              <div class="champ"><label for="enfant-taille">Taille (cm) <b>*</b></label><input id="enfant-taille" name="enfant-taille" type="number" min="80" max="200" step="1" inputmode="numeric" required></div>
               <div class="champ">
                 <label for="enfant-niveau">Niveau</label>
                 <select id="enfant-niveau" name="enfant-niveau">
@@ -117,40 +135,73 @@
                 </select>
               </div>
             </div>
-            <div class="champ">
-              <label for="enfant-gabarit">Gabarit de l'enfant (poids et taille) <b>*</b></label>
-              <select id="enfant-gabarit" name="enfant-gabarit" required>
-                <option value="">Choisir…</option>
-                <option>Moins de 35 kg et moins d'1m30</option>
-                <option>Moins de 40 kg et moins d'1m60</option>
-                <option>Autre gabarit (l'académie étudie la demande)</option>
-              </select>
-            </div>
             <p style="border-left:1.4px solid var(--accent);background:var(--fond-2);padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--texte-2)">
-              <b style="color:var(--texte)">Pourquoi demandons-nous le gabarit ?</b>
+              <b style="color:var(--texte)">Pourquoi demandons-nous le poids et la taille ?</b>
               La voltige n'est pas de l'équitation traditionnelle : l'enfant évolue en équilibre et en figures
               <em>sur</em> le poney, qui le porte tout au long du cours. Pour préserver nos poneys et garantir
               la sécurité de tous, les montures et les groupes sont attribués en fonction du poids et de la
               taille des voltigeurs.
             </p>
+          </div>
+          <div class="btns-pas">
+            <span></span>
+            <button type="button" class="btn btn-rouge" data-suivant><span>La famille →</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Étape 2 : la famille -->
+        <fieldset class="pas" data-pas="2">
+          <h2>La famille.</h2>
+          <p class="aide">Les coordonnées du responsable légal, comme sur le dossier d'inscription papier. Les champs marqués « facultatif » peuvent être complétés plus tard, au premier cours.</p>
+          <div class="champs">
             <div class="rang">
-              <div class="champ"><label for="parent-nom">Votre nom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
-              <div class="champ"><label for="parent-tel">Votre téléphone <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
+              <div class="champ">
+                <label for="parent-qualite">Vous êtes <b>*</b></label>
+                <select id="parent-qualite" name="parent-qualite" required>
+                  <option value="">Choisir…</option>
+                  <option>Père</option>
+                  <option>Mère</option>
+                  <option>Tuteur</option>
+                </select>
+              </div>
+              <div class="champ"><label for="parent-nom">Votre nom et prénom <b>*</b></label><input id="parent-nom" name="parent-nom" autocomplete="name" required></div>
+            </div>
+            <div class="champ"><label for="parent-adresse">Adresse permanente <b>*</b></label><input id="parent-adresse" name="parent-adresse" autocomplete="street-address" required></div>
+            <div class="rang">
+              <div class="champ"><label for="parent-cp">Code postal <b>*</b></label><input id="parent-cp" name="parent-cp" autocomplete="postal-code" inputmode="numeric" required></div>
+              <div class="champ"><label for="parent-ville">Ville <b>*</b></label><input id="parent-ville" name="parent-ville" autocomplete="address-level2" required></div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="parent-tel">Votre mobile <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
+              <div class="champ"><label for="parent-tel-domicile">Autre téléphone <small>(facultatif)</small></label><input id="parent-tel-domicile" name="parent-tel-domicile" type="tel"></div>
             </div>
             <div class="champ">
               <label for="parent-email">Votre e-mail <b>*</b></label>
               <input id="parent-email" name="parent-email" type="email" autocomplete="email" required>
               <span class="indice">La proposition de créneau et la confirmation arrivent à cette adresse.</span>
             </div>
+            <div class="rang">
+              <div class="champ"><label for="secu-caisse">Sécurité sociale : caisse <small>(facultatif)</small></label><input id="secu-caisse" name="secu-caisse"></div>
+              <div class="champ"><label for="secu-numero">N° couvrant l'enfant <small>(facultatif)</small></label><input id="secu-numero" name="secu-numero"></div>
+            </div>
+            <div class="champ">
+              <label for="licence-ffe">N° de licence Assurance Fédérale <small>(facultatif)</small></label>
+              <input id="licence-ffe" name="licence-ffe">
+              <span class="indice">Sans licence, joignez au premier cours un certificat médical d'aptitude à l'équitation de moins d'un an.</span>
+            </div>
+            <div class="champ">
+              <label for="recommandations">Vos recommandations <small>(facultatif)</small></label>
+              <textarea id="recommandations" name="recommandations" rows="3" placeholder="Allergies, interdictions, contre-indications médicales…"></textarea>
+            </div>
           </div>
           <div class="btns-pas">
-            <span></span>
+            <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
             <button type="button" class="btn btn-rouge" data-suivant><span>Choisir la formule</span></button>
           </div>
         </fieldset>
 
-        <!-- Étape 2 : la formule -->
-        <fieldset class="pas" data-pas="2">
+        <!-- Étape 3 : la formule -->
+        <fieldset class="pas" data-pas="3">
           <h2>Choisissez la formule.</h2>
           <p class="aide">Les groupes sont constitués par âge et par niveau — nous confirmons le créneau exact avec vous.</p>
           <div class="choix-stages">
@@ -178,20 +229,31 @@
           <p class="aide" style="margin:14px 0 0">Le tarif au trimestre (325&nbsp;€) est proposé au moment du paiement. L'académie confirme l'horaire exact du groupe de votre enfant.</p>
           <div class="btns-pas">
             <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
-            <button type="button" class="btn btn-rouge" data-suivant><span>Voir le récapitulatif</span></button>
+            <button type="button" class="btn btn-rouge" data-suivant><span>Signer la demande</span></button>
           </div>
         </fieldset>
 
-        <!-- Étape 3 : confirmation -->
-        <fieldset class="pas" data-pas="3">
-          <h2>Tout est bon ?</h2>
-          <p class="aide">Vérifiez le récapitulatif ci-contre, puis envoyez votre demande d'inscription — Georges Cotrait la valide sous 24&nbsp;h maximum.</p>
-          <p class="aide" style="background:rgba(210,8,40,.06);border:1px solid rgba(210,8,40,.25);border-radius:12px;padding:12px 16px">
-            📄 Pensez aussi au <a href="assets/doc/dossier-inscription-2026-2027.pdf" target="_blank" rel="noopener" style="font-weight:700">dossier d'inscription 2026-2027 (PDF)</a> :
-            imprimez-le, remplissez-le, et apportez-le au premier cours ou renvoyez-le par e-mail à
-            <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.
-          </p>
+        <!-- Étape 4 : signature et envoi -->
+        <fieldset class="pas" data-pas="4">
+          <h2>Lu, approuvé, signé.</h2>
+          <p class="aide">Vérifiez le récapitulatif ci-contre, signez ci-dessous (au doigt ou à la souris), puis envoyez votre demande — Georges Cotrait la valide sous 24&nbsp;h maximum.</p>
           <div class="champs">
+            <label class="case">
+              <input type="checkbox" id="droit-image" required>
+              <span><b>Droit à l'image :</b> l'Académie de Voltige Equestre se réserve le droit, à des fins promotionnelles, de prendre, détenir et diffuser les images (photos, vidéos) faites pendant les heures de cours à l'année, sous quelque forme de support que ce soit. Les images sont acquises définitivement au profit de l'Académie, quelle que soit la période d'utilisation, sans aucun paiement. <b>*</b></span>
+            </label>
+            <label class="case">
+              <input type="checkbox" id="autorisation-medicale" required>
+              <span><b>Autorisation :</b> je soussigné(e), responsable légal de l'enfant, l'autorise à participer à toutes les activités du centre, et autorise le responsable à prendre, le cas échéant, toutes mesures médicales ou chirurgicales reconnues nécessaires par l'état de l'enfant. Je déclare avoir pris connaissance et accepté les conditions générales d'inscription et le règlement intérieur. <b>*</b></span>
+            </label>
+            <div class="champ" id="champ-signature">
+              <label for="signature">Votre signature <b>*</b> <small>(dessinez au doigt ou à la souris)</small></label>
+              <canvas id="signature" width="640" height="180" style="width:100%;max-width:640px;height:180px;background:#fff;border:1.6px dashed var(--accent);border-radius:12px;touch-action:none;cursor:crosshair;display:block"></canvas>
+              <span class="indice" style="display:flex;align-items:center;gap:12px;margin-top:6px">
+                Vaut mention « lu et approuvé ».
+                <button type="button" id="signature-effacer" class="btn btn-contour" style="padding:6px 14px;font-size:13px"><span>Effacer</span></button>
+              </span>
+            </div>
             <label class="case">
               <input type="checkbox" id="accepte" required>
               <span>J'ai compris que ceci est une <b>demande d'inscription</b> : après validation par l'académie (sous 24&nbsp;h maximum), je recevrai par e-mail un lien de paiement sécurisé pour finaliser l'inscription. <b>*</b></span>
@@ -199,12 +261,12 @@
           </div>
           <div class="btns-pas">
             <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
-            <button type="submit" class="btn btn-rouge"><span>Envoyer la demande</span></button>
+            <button type="submit" class="btn btn-rouge"><span>Signer et envoyer la demande</span></button>
           </div>
           <div class="confirmation" id="confirmation">
             <h3>Votre demande est prête à partir !</h3>
-            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Georges Cotrait valide chaque demande sous 24&nbsp;h maximum ; vous recevrez alors un e-mail avec le lien de paiement sécurisé. Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.
-            N'oubliez pas de compléter aussi le <a href="assets/doc/dossier-inscription-2026-2027.pdf" target="_blank" rel="noopener" style="font-weight:700">dossier d'inscription 2026-2027 (PDF)</a>, à apporter au premier cours ou à renvoyer par e-mail.</p>
+            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Georges Cotrait valide chaque demande sous 24&nbsp;h maximum ; vous recevrez alors un e-mail avec le lien de paiement sécurisé. Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
+            <p style="margin-top:12px"><a class="btn btn-contour" id="btn-dossier" href="dossier-rempli.html" target="_blank" rel="noopener"><span>📄 Télécharger mon dossier d'inscription rempli</span></a></p>
           </div>
         </fieldset>
       </form>
@@ -258,6 +320,6 @@
 </footer>
 
 <script src="assets/js/main.js?v=32"></script>
-<script src="assets/js/inscription-cours.js?v=48"></script>
+<script src="assets/js/inscription-cours.js?v=49"></script>
 </body>
 </html>

@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '12';
+var VERSION_SCRIPT = '13';
 
 /* ============ À EXÉCUTER UNE FOIS DEPUIS L'ÉDITEUR ============
    Le script a besoin de la permission de Google pour aller chercher
@@ -99,6 +99,7 @@ function doPost(e) {
   try { d = JSON.parse(e.postData.contents); }
   catch (err) { return reponseTexte('demande illisible'); }
   if (d && d.type === 'prospection') { return envoyerProspection(d); }
+  if (d && d.type === 'decision') { return traiterDecisionPost(d); }
   if (!d || (d.type !== 'cours' && d.type !== 'stage')) { return reponseTexte('type inconnu'); }
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
@@ -116,7 +117,7 @@ function doPost(e) {
     ['Parent', nettoyer(d.parentNom)],
     ['Téléphone', nettoyer(d.parentTel)],
     ['E-mail', nettoyer(d.parentEmail)]
-  ] : [
+  ].concat(lignesDossier(d)) : [
     ['Stage', nettoyer(d.stage)],
     ['Dates', nettoyer(d.dates)],
     ['Tarif', nettoyer(d.tarif)],
@@ -136,7 +137,11 @@ function doPost(e) {
     parentNom: nettoyer(d.parentNom),
     detail: d.type === 'cours' ? nettoyer(d.formule) : nettoyer(d.stage) + ' (' + nettoyer(d.dates) + ')'
   });
-  var base = ScriptApp.getService().getUrl();
+  /* Les boutons passent par une page du site : elle appelle le service en
+     arrière-plan, sans compte Google, ce qui évite la page d'erreur
+     « Impossible d'ouvrir le fichier » quand plusieurs comptes Google
+     sont connectés dans le navigateur. */
+  var base = SITE + '/decision.html';
   var urlValider = base + '?action=valider&d=' + jeton.d + '&s=' + jeton.s;
   var mailtoRefus = 'mailto:' + encodeURIComponent(nettoyer(d.parentEmail)) +
     '?subject=' + encodeURIComponent('Votre demande à l’Académie de voltige') +
@@ -226,20 +231,41 @@ function texteEnHtml(corps) {
   return enEntites('<div dir="ltr">' + t + '</div>');
 }
 
-/* ============ Clic sur « Valider » ou « Refuser » dans le mail ============ */
-function doGet(e) {
-  var p = e.parameter || {};
-  if ((p.action !== 'valider' && p.action !== 'refuser') || !p.d || !p.s) {
-    return pageHtml('Service des inscriptions', 'Ce service reçoit les demandes du site de l’académie. Rien à voir ici ! Version du script : ' + VERSION_SCRIPT + '.');
-  }
-  var donnees = verifierJeton(p.d, p.s);
-  if (!donnees) {
-    return pageHtml('Lien invalide', 'Ce lien n’est pas reconnu. Utilisez les boutons du mail d’origine.');
-  }
+/* ============ Champs du dossier d'inscription (cours) ============ */
+/* Le formulaire du site envoie aussi les questions du dossier papier :
+   on les ajoute au mail de demande seulement quand elles sont remplies. */
+function lignesDossier(d) {
+  var extras = [
+    ['Qualité', d.qualite], ['Adresse', d.adresse],
+    ['Code postal / ville', (nettoyer(d.cp) + ' ' + nettoyer(d.ville)).trim()],
+    ['Tél. domicile', d.telDomicile],
+    ['Né(e) à', d.enfantLieuNaissance], ['Nationalité', d.nationalite],
+    ['Sexe', d.sexe], ['Poids / taille', d.gabaritDetail],
+    ['Sécurité sociale (caisse)', d.secuCaisse], ['N° couvrant l’enfant', d.secuNumero],
+    ['Licence FFE', d.licence],
+    ['Recommandations (allergies…)', d.recommandations],
+    ['Droit à l’image', d.droitImage],
+    ['Autorisation médicale', d.autorisationMedicale],
+    ['Signé en ligne', d.signeLe]
+  ];
+  var lignes = [];
+  extras.forEach(function (l) {
+    var v = nettoyer(l[1]);
+    if (v) { lignes.push([l[0], v]); }
+  });
+  return lignes;
+}
 
-  if (p.action === 'refuser') {
-    var motif = MOTIFS_REFUS[p.motif];
-    if (!motif) { return pageHtml('Lien invalide', 'Motif de refus inconnu. Utilisez les boutons du mail d’origine.'); }
+/* ============ « Valider » ou « Refuser » une demande ============ */
+/* Le cœur est partagé : doGet (anciens mails, lien direct /exec) et
+   doPost type 'decision' (page decision.html du site) font la même chose. */
+function executerDecision(action, motifCle, dTok, sTok) {
+  var donnees = verifierJeton(String(dTok || ''), String(sTok || ''));
+  if (!donnees) { return { code: 'lien invalide' }; }
+
+  if (action === 'refuser') {
+    var motif = MOTIFS_REFUS[motifCle];
+    if (!motif) { return { code: 'motif inconnu' }; }
     var explication = motif.texte.replace(/\{enfant\}/g, donnees.enfant).replace(/\{detail\}/g, donnees.detail);
     var htmlRefus = gabaritMail(
       'Au sujet de votre demande',
@@ -257,9 +283,10 @@ function doGet(e) {
       replyTo: ADRESSE_ACADEMIE,
       name: 'Académie de voltige équestre'
     });
-    return pageHtml('Refus envoyé',
-      'Le message de refus (motif : ' + motif.bouton + ') vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
-      '<br><br>Vous pouvez fermer cette page.');
+    return { code: 'ok refuse', titre: 'Refus envoyé',
+      texte: 'Le message de refus (motif : ' + motif.bouton + ') vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
+        '<br><br>Vous pouvez fermer cette page.',
+      parentEmail: donnees.parentEmail, enfant: donnees.enfant, motifBouton: motif.bouton };
   }
 
   var boutons, intro;
@@ -302,9 +329,30 @@ function doGet(e) {
     name: 'Académie de voltige équestre'
   });
 
-  return pageHtml('C’est validé ✅',
-    'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
-    '<br><br>Vous pouvez fermer cette page.');
+  return { code: 'ok valide', titre: 'C’est validé ✅',
+    texte: 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
+      '<br><br>Vous pouvez fermer cette page.',
+    parentEmail: donnees.parentEmail, enfant: donnees.enfant };
+}
+
+/* Clic direct sur un lien /exec (anciens mails) : mêmes actions, en page web. */
+function doGet(e) {
+  var p = e.parameter || {};
+  if ((p.action !== 'valider' && p.action !== 'refuser') || !p.d || !p.s) {
+    return pageHtml('Service des inscriptions', 'Ce service reçoit les demandes du site de l’académie. Rien à voir ici ! Version du script : ' + VERSION_SCRIPT + '.');
+  }
+  var r = executerDecision(p.action, p.motif, p.d, p.s);
+  if (r.code === 'lien invalide') { return pageHtml('Lien invalide', 'Ce lien n’est pas reconnu. Utilisez les boutons du mail d’origine.'); }
+  if (r.code === 'motif inconnu') { return pageHtml('Lien invalide', 'Motif de refus inconnu. Utilisez les boutons du mail d’origine.'); }
+  return pageHtml(r.titre, r.texte);
+}
+
+/* Appel depuis decision.html : même logique, réponse en texte simple. */
+function traiterDecisionPost(d) {
+  if (d.action !== 'valider' && d.action !== 'refuser') { return reponseTexte('action inconnue'); }
+  var r = executerDecision(d.action, d.motif, d.d, d.s);
+  if (r.code === 'lien invalide' || r.code === 'motif inconnu') { return reponseTexte(r.code); }
+  return reponseTexte(r.code + ';' + r.parentEmail + ';' + r.enfant + (r.motifBouton ? ';' + r.motifBouton : ''));
 }
 
 /* ============ La mise en page des mails (couleurs du site) ============ */

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon dossier d'inscription — Académie de voltige équestre</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<style>
+  :root{ --rouge:#D00828; --encre:#1c1417; --gris:#6d6266; --trait:#c9bfc2; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--encre);
+       font-size:12.5px;line-height:1.5;background:#eee9e5}
+
+  .barre-outils{position:sticky;top:0;z-index:5;background:var(--encre);color:#fff;
+    display:flex;align-items:center;gap:14px;padding:12px 18px;flex-wrap:wrap}
+  .barre-outils b{font-size:15px}
+  .barre-outils small{color:#c9bcc1}
+  .btn-imprimer{margin-left:auto;background:var(--rouge);color:#fff;border:0;border-radius:999px;
+    padding:11px 22px;font-weight:700;font-size:14.5px;cursor:pointer;font-family:inherit}
+  .btn-imprimer:hover{background:#e40f31}
+
+  .feuille{background:#fff;max-width:210mm;margin:18px auto;padding:12mm 13mm;box-shadow:0 8px 30px rgba(28,20,23,.12)}
+
+  .entete{display:flex;align-items:center;gap:10px;border-bottom:2.5px solid var(--rouge);padding-bottom:8px;margin-bottom:12px}
+  .entete img{width:44px;height:44px;border-radius:50%;object-fit:cover}
+  .entete .titres{flex:1}
+  .entete h1{font-size:19px;font-weight:800}
+  .entete .sous{color:var(--gris);font-size:11px;font-weight:600}
+  .entete .annee{text-align:right;color:var(--rouge);font-weight:800;font-size:15px;line-height:1.15}
+  .entete .annee small{display:block;color:var(--gris);font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+
+  h2{font-size:12.5px;font-weight:800;color:var(--rouge);letter-spacing:.04em;text-transform:uppercase;
+     margin:13px 0 6px;display:flex;align-items:center;gap:8px}
+  h2::after{content:'';flex:1;height:1px;background:var(--trait)}
+
+  .champ{display:flex;gap:6px;margin:4px 0;align-items:baseline}
+  .champ b{font-weight:650;white-space:nowrap;color:var(--gris)}
+  .champ span{border-bottom:1px dotted #b9adb1;flex:1;min-height:15px;font-weight:600}
+  .rang{display:flex;gap:20px}
+  .rang .champ{flex:1}
+
+  .juridique{font-size:9.6px;color:#4d4448;text-align:justify;line-height:1.45;margin:3px 0}
+  .juridique .coche{color:#2e7d46;font-weight:800}
+
+  .encadre{border:1px solid var(--trait);border-radius:7px;padding:8px 11px;margin:4px 0;min-height:34px;font-weight:600}
+
+  .signature-boite{border:1.4px solid var(--encre);border-radius:8px;padding:9px 12px;margin-top:8px}
+  .signature-boite img{display:block;max-width:300px;max-height:110px;margin-top:4px}
+
+  .pied{border-top:1px solid var(--trait);margin-top:14px;padding-top:6px;text-align:center;color:var(--gris);font-size:9px;line-height:1.55}
+  .pied b{color:var(--encre)}
+
+  .vide-message{max-width:560px;margin:60px auto;background:#fff;border-radius:16px;padding:34px;text-align:center;box-shadow:0 8px 30px rgba(28,20,23,.1)}
+  .vide-message a{color:var(--rouge);font-weight:700}
+
+  @media print{
+    body{background:#fff}
+    .barre-outils{display:none}
+    .feuille{box-shadow:none;margin:0;max-width:none;padding:8mm 10mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="barre-outils" id="outils" hidden>
+  <b>📄 Votre dossier d'inscription</b>
+  <small>Vérifiez-le, puis imprimez-le ou enregistrez-le en PDF.</small>
+  <button type="button" class="btn-imprimer" onclick="window.print()">🖨️ Imprimer ou enregistrer en PDF</button>
+</div>
+
+<div class="vide-message" id="vide" hidden>
+  <h1 style="font-size:20px;margin-bottom:10px">Aucun dossier à afficher</h1>
+  <p>Ce dossier se remplit automatiquement à la fin d'une <a href="inscription-cours.html">demande d'inscription aux cours</a>. Complétez d'abord le formulaire, puis revenez ici depuis le message de confirmation.</p>
+</div>
+
+<div class="feuille" id="feuille" hidden>
+  <div class="entete">
+    <img src="assets/img/logo.jpeg" alt="">
+    <div class="titres">
+      <h1>Fiche d'inscription · Cours à l'année</h1>
+      <div class="sous">Académie de voltige équestre · Fleur &amp; Georges Cotrait · Auberville</div>
+    </div>
+    <div class="annee"><small>Année scolaire</small><span id="d-annee">2026 / 2027</span></div>
+  </div>
+
+  <h2>Responsable légal</h2>
+  <div class="rang">
+    <div class="champ"><b>Qualité :</b><span id="d-qualite"></span></div>
+    <div class="champ" style="flex:2"><b>Nom, prénom :</b><span id="d-parent"></span></div>
+  </div>
+  <div class="champ"><b>Adresse permanente :</b><span id="d-adresse"></span></div>
+  <div class="rang">
+    <div class="champ"><b>Code postal :</b><span id="d-cp"></span></div>
+    <div class="champ" style="flex:2"><b>Ville :</b><span id="d-ville"></span></div>
+  </div>
+  <div class="rang">
+    <div class="champ"><b>Mobile :</b><span id="d-tel"></span></div>
+    <div class="champ"><b>Autre téléphone :</b><span id="d-tel2"></span></div>
+  </div>
+  <div class="champ"><b>E-mail :</b><span id="d-email"></span></div>
+  <div class="rang">
+    <div class="champ"><b>Sécurité sociale, caisse :</b><span id="d-secu-caisse"></span></div>
+    <div class="champ"><b>N° couvrant l'enfant :</b><span id="d-secu-num"></span></div>
+  </div>
+
+  <h2>L'enfant</h2>
+  <div class="rang">
+    <div class="champ"><b>Nom :</b><span id="d-enfant-nom"></span></div>
+    <div class="champ"><b>Prénom :</b><span id="d-enfant-prenom"></span></div>
+  </div>
+  <div class="rang">
+    <div class="champ"><b>Né(e) le :</b><span id="d-naissance"></span></div>
+    <div class="champ"><b>À :</b><span id="d-lieu"></span></div>
+  </div>
+  <div class="rang">
+    <div class="champ"><b>Nationalité :</b><span id="d-nationalite"></span></div>
+    <div class="champ"><b>Sexe :</b><span id="d-sexe"></span></div>
+    <div class="champ"><b>Poids :</b><span id="d-poids"></span></div>
+    <div class="champ"><b>Taille :</b><span id="d-taille"></span></div>
+  </div>
+  <div class="champ"><b>Niveau d'équitation :</b><span id="d-niveau"></span></div>
+
+  <h2>Assurance</h2>
+  <div class="champ"><b>N° de licence Assurance Fédérale :</b><span id="d-licence"></span></div>
+  <p class="juridique">Sans licence : joindre un certificat médical d'aptitude à la pratique de l'équitation datant de moins d'un an.</p>
+
+  <h2>Recommandations</h2>
+  <div class="encadre" id="d-recommandations"></div>
+
+  <h2>Formule choisie</h2>
+  <div class="rang">
+    <div class="champ"><b>Formule :</b><span id="d-formule"></span></div>
+    <div class="champ"><b>Créneau :</b><span id="d-creneau"></span></div>
+  </div>
+  <div class="champ"><b>Tarif :</b><span id="d-tarif"></span></div>
+  <p class="juridique">Demande envoyée depuis le site : après validation par l'académie, le règlement se fait par le lien de paiement sécurisé reçu par e-mail.</p>
+
+  <h2>Droit à l'image</h2>
+  <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> L'Académie de Voltige Equestre se réserve le droit à des fins promotionnelles de prendre, détenir et diffuser, les images (photos, vidéos) faites pendant les heures de cours à l'année sous quelque forme de support que ce soit, tant par procédé photographique, que par enregistrements audio ou vidéo. Les images sont acquises définitivement, au profit de l'Académie de Voltige Equestre quelle que soit la période d'utilisation de cette image et sans aucun paiement.</p>
+
+  <h2>Autorisation et signature</h2>
+  <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> Je soussigné, responsable légal de l'enfant, l'autorise à participer à toutes les activités du centre, autorise le responsable à prendre, le cas échéant, toutes mesures médicales ou chirurgicales reconnues nécessaires par l'état de l'enfant. « Je déclare avoir pris connaissance et accepté les conditions générales d'inscription, le règlement intérieur et le droit à l'image. »</p>
+  <div class="signature-boite">
+    <div class="rang">
+      <div class="champ"><b>Fait à :</b><span id="d-fait-a"></span></div>
+      <div class="champ"><b>Le :</b><span id="d-signe-le"></span></div>
+    </div>
+    <b style="font-size:11px;color:var(--gris)">Signature du responsable légal (vaut mention « lu et approuvé ») :</b>
+    <img id="d-signature" alt="Signature du responsable légal">
+  </div>
+
+  <div class="pied">
+    <b>Académie de Voltige</b> · 121, Chemin Blandin · 14 640 Auberville · Port : 06 08 24 71 90 · Tél : 06 36 30 17 96<br>
+    academiedevoltige@gmail.com · www.academiedevoltige.com<br>
+    SARL F.G.C. au capital de 45 000 € · SIREN 394 920 656 00037 · R.C. 94 B 41 · APE 926 A
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem('av:dossier-cours')); } catch (e) { /* rien */ }
+  if (!d || !d.parentNom) {
+    document.getElementById('vide').hidden = false;
+    return;
+  }
+  document.getElementById('outils').hidden = false;
+  document.getElementById('feuille').hidden = false;
+
+  function met(id, valeur) { document.getElementById(id).textContent = valeur || ''; }
+  function dateFr(iso) {
+    if (!iso) { return ''; }
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : iso;
+  }
+
+  met('d-annee', d.annee || '2026 / 2027');
+  met('d-qualite', d.qualite);
+  met('d-parent', d.parentNom);
+  met('d-adresse', d.adresse);
+  met('d-cp', d.cp);
+  met('d-ville', d.ville);
+  met('d-tel', d.parentTel);
+  met('d-tel2', d.telDomicile);
+  met('d-email', d.parentEmail);
+  met('d-secu-caisse', d.secuCaisse);
+  met('d-secu-num', d.secuNumero);
+  met('d-enfant-nom', d.enfantNom);
+  met('d-enfant-prenom', d.enfantPrenom);
+  met('d-naissance', dateFr(d.enfantNaissance));
+  met('d-lieu', d.enfantLieu);
+  met('d-nationalite', d.nationalite);
+  met('d-sexe', d.sexe === 'F' ? 'Fille' : d.sexe === 'M' ? 'Garçon' : d.sexe);
+  met('d-poids', d.poids ? d.poids + ' kg' : '');
+  met('d-taille', d.taille ? d.taille + ' cm' : '');
+  met('d-niveau', d.niveau);
+  met('d-licence', d.licence || 'Certificat médical à fournir');
+  met('d-recommandations', d.recommandations || 'Aucune');
+  met('d-formule', d.formule);
+  met('d-creneau', d.creneau);
+  met('d-tarif', d.tarif);
+  met('d-fait-a', d.faitA);
+  met('d-signe-le', d.signeLe);
+  var sig = document.getElementById('d-signature');
+  if (d.signature) { sig.src = d.signature; } else { sig.remove(); }
+})();
+</script>
+</body>
+</html>
