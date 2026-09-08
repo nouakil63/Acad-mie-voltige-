@@ -1139,3 +1139,18 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
   border-color:var(--rouge);color:var(--rouge);
   background:color-mix(in srgb, var(--rouge) 7%, transparent);
 }
+
+/* ---- Le planning des cours (mercredis et samedis à cocher) ---- */
+.planning-cours{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:640px){.planning-cours{grid-template-columns:1fr}}
+.jour-groupe h3{font-size:16px;margin-bottom:10px}
+.jour-groupe h3 small{display:block;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--texte-2);margin-top:2px}
+.jour-dates{display:flex;flex-wrap:wrap;gap:8px}
+.date-chip{
+  padding:9px 16px;border-radius:999px;border:1.4px solid var(--trait);
+  background:var(--blanc);color:var(--texte);font-size:13.5px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:border-color .2s,background .2s,color .2s;
+}
+.date-chip:hover{border-color:var(--rouge);color:var(--rouge)}
+.date-chip.choisi{background:var(--rouge);border-color:var(--rouge);color:#fff}
+.planning-cours.erreur .date-chip{border-color:var(--rouge)}

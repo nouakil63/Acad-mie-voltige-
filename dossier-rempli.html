@@ -135,6 +135,7 @@
   <div class="champ"><b>Tarif :</b><span id="d-tarif"></span></div>
   <p class="juridique">Demande envoyée depuis le site : après validation par l'académie, le règlement se fait par le lien de paiement sécurisé reçu par e-mail.</p>
 
+  <div id="bloc-consentements">
   <h2>Droit à l'image</h2>
   <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> L'Académie de Voltige Equestre se réserve le droit à des fins promotionnelles de prendre, détenir et diffuser, les images (photos, vidéos) faites pendant les stages ou les heures de cours à l'année sous quelque forme de support que ce soit, tant par procédé photographique, que par enregistrements audio ou vidéo. Les images sont acquises définitivement, au profit de l'Académie de Voltige Equestre quelle que soit la période d'utilisation de cette image et sans aucun paiement.</p>
 
@@ -147,6 +148,7 @@
     </div>
     <b style="font-size:11px;color:var(--gris)">Signature du responsable légal (vaut mention « lu et approuvé ») :</b>
     <img id="d-signature" alt="Signature du responsable légal">
+  </div>
   </div>
 
   <div class="pied">
@@ -208,7 +210,9 @@
   met('d-fait-a', d.faitA);
   met('d-signe-le', d.signeLe);
   var sig = document.getElementById('d-signature');
-  if (d.signature) { sig.src = d.signature; } else { sig.remove(); }
+  /* les cours n'ont plus de signature ni de consentements : on retire tout le bloc */
+  if (d.signature) { sig.src = d.signature; }
+  else { document.getElementById('bloc-consentements').remove(); }
 })();
 </script>
 </body>
