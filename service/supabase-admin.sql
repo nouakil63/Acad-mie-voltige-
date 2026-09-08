@@ -73,6 +73,18 @@ alter table public.demandes add column if not exists paye boolean not null defau
 alter table public.demandes add column if not exists paye_le date;
 alter table public.demandes add column if not exists paye_montant text;
 
+-- Les stages se règlent en deux temps : acompte de 300 € à
+-- l'inscription, solde au plus tard 30 jours avant le stage.
+-- Et une annulation peut donner lieu à un remboursement, de 0 €
+-- jusqu'à la totalité, au choix de l'académie.
+alter table public.demandes add column if not exists acompte_paye boolean not null default false;
+alter table public.demandes add column if not exists acompte_le date;
+alter table public.demandes add column if not exists solde_paye boolean not null default false;
+alter table public.demandes add column if not exists solde_le date;
+alter table public.demandes add column if not exists annule boolean not null default false;
+alter table public.demandes add column if not exists annule_le date;
+alter table public.demandes add column if not exists rembourse_montant text;
+
 -- ============================================================
 -- Les trimestres et les réservations de cours
 -- ------------------------------------------------------------

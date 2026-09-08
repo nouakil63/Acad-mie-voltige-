@@ -17,6 +17,7 @@
   var MOTIFS = { complet: 'Complet', age: 'Âge', gabarit: 'Gabarit', creneau: 'Créneau indisponible' };
   var VUES = ['p-attente', 'p-connexion', 'p-refuse', 'p-tableau'];
   var DUREE_TRIMESTRE = 90; /* jours : 13 semaines de cours */
+  var ACOMPTE_STAGE = 300;   /* euros, dus a l'inscription ; solde 30 jours avant le stage */
 
   function el(id) { return document.getElementById(id); }
   function montrer(vue) {
@@ -67,9 +68,88 @@
     el('c-familles').textContent = String(familles.length);
     var aujourdHui = isoLocal(new Date());
     el('c-resa').textContent = String(reservations.filter(function (r) { return r.date >= aujourdHui; }).length);
-    el('c-encaisser').textContent = String(demandes.filter(function (d) {
-      return classeStatut(d.statut) === 'validee' && !d.paye;
-    }).length);
+    el('c-encaisser').textContent = String(demandes.filter(function (d) { return resteAEncaisser(d) > 0; }).length);
+  }
+
+  /* Ce qui reste dû sur une demande validée (0 si soldée ou annulée). */
+  function resteAEncaisser(d) {
+    if (classeStatut(d.statut) !== 'validee' || d.annule) { return 0; }
+    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
+    if (d.type === 'stage') {
+      var reste = 0;
+      if (!d.acompte_paye) { reste += ACOMPTE_STAGE; }
+      if (!d.solde_paye) { reste += Math.max(total - ACOMPTE_STAGE, 0); }
+      return reste;
+    }
+    return d.paye ? 0 : total;
+  }
+
+  function dejaEncaisse(d) {
+    if (d.type === 'stage') {
+      var total = montantNumerique(d.tarif) || 840;
+      return (d.acompte_paye ? ACOMPTE_STAGE : 0) + (d.solde_paye ? Math.max(total - ACOMPTE_STAGE, 0) : 0);
+    }
+    return d.paye ? montantNumerique(d.paye_montant || d.tarif) : 0;
+  }
+
+  /* ---- relances par e-mail (via le service Google, jeton signé) ---- */
+  function relancer(d, sous, montant, silencieux) {
+    if (!d.jeton_d || !d.jeton_s) { alert('Cette demande n’a pas de jeton : relance impossible.'); return; }
+    var etiquettes = { acompte: 'l’acompte (300 €)', solde: 'le solde', paiement: 'le paiement', annulation: 'l’annulation' };
+    if (!silencieux && !confirm('Envoyer au parent le mail concernant ' + (etiquettes[sous] || sous) + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    var corps = { type: 'relance', relance: sous, d: d.jeton_d, s: d.jeton_s };
+    if (montant) { corps.montant = montant; }
+    fetch(SERVICE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(corps)
+    }).then(function (r) { return r.text(); }).then(function (rep) {
+      var morceaux = rep.trim().split(';');
+      if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
+      else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 16 ?'); }
+    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
+  }
+
+  function patchDemande(d, patch, apres) {
+    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(patch)
+    }).then(function (r) {
+      if (!r || !r.ok) { alert('La mise à jour n’a pas abouti (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
+      Object.assign(d, patch);
+      afficherDemandes();
+      afficherPaiements();
+      majCompteurs();
+      if (apres) { apres(); }
+    });
+  }
+
+  function marquerAcompte(d) {
+    if (!confirm('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()) });
+  }
+  function marquerSolde(d) {
+    if (!confirm('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()) });
+  }
+  function annulerDemande(d) {
+    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
+    var montant = prompt(
+      'Annuler l’inscription de ' + (d.enfant || 'ce voltigeur') + '.\n' +
+      'Montant à rembourser (de 0 € à ' + total + ' €) :', '0 €');
+    if (montant === null) { return; }
+    montant = montant.trim() || '0 €';
+    if (!confirm('Confirmer l’annulation' + (montantNumerique(montant) ? ' avec un remboursement de ' + montant : ' sans remboursement') + ' ?')) { return; }
+    patchDemande(d, { annule: true, annule_le: isoLocal(new Date()), rembourse_montant: montant }, function () {
+      if (confirm('Prévenir la famille par e-mail (annulation' + (montantNumerique(montant) ? ' + remboursement de ' + montant : '') + ') ?')) {
+        relancer(d, 'annulation', montant, true);
+      }
+    });
+  }
+  function retablirDemande(d) {
+    if (!confirm('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    patchDemande(d, { annule: false, annule_le: null, rembourse_montant: null });
   }
 
   /* ================= Les paiements =================
@@ -111,9 +191,16 @@
     });
   }
 
-  function lignePaiement(d, regle) {
+  function pastilleEtat(texte, bonne) {
+    var p = document.createElement('span');
+    p.className = 'pastille ' + (bonne ? 'validee' : 'attente');
+    p.textContent = texte;
+    return p;
+  }
+
+  function lignePaiement(d, groupe) {
     var ligne = document.createElement('div');
-    ligne.className = 'carte-demande st-' + (regle ? 'validee' : 'attente');
+    ligne.className = 'carte-demande st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente');
     var entete = document.createElement('div');
     entete.className = 'entete';
     var type = document.createElement('span');
@@ -124,21 +211,81 @@
     nom.className = 'nom';
     nom.textContent = d.enfant || 'Voltigeur';
     entete.appendChild(nom);
+
+    if (groupe === 'annule') {
+      var pAnnule = document.createElement('span');
+      pAnnule.className = 'pastille refusee';
+      pAnnule.textContent = 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : ' · sans remboursement');
+      entete.appendChild(pAnnule);
+    } else if (d.type === 'stage') {
+      entete.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
+      entete.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
+    } else if (d.paye) {
+      entete.appendChild(pastilleEtat('payé' + (d.paye_montant ? ' · ' + d.paye_montant : ''), true));
+    }
+
     var quand = document.createElement('span');
     quand.className = 'quand';
-    quand.textContent = regle && d.paye_le
-      ? 'réglé le ' + new Date(d.paye_le + 'T12:00:00').toLocaleDateString('fr-FR')
-      : quandLisible(d.cree);
+    quand.textContent = groupe === 'annule' && d.annule_le
+      ? 'annulé le ' + new Date(d.annule_le + 'T12:00:00').toLocaleDateString('fr-FR')
+      : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
+        ? 'réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
+        : quandLisible(d.cree);
     entete.appendChild(quand);
     ligne.appendChild(entete);
+
     var corps = document.createElement('div');
     corps.className = 'corps';
-    corps.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '') + ' · ' +
-      (regle ? (d.paye_montant || d.tarif || '') : (d.tarif || ''));
+    var reste = resteAEncaisser(d);
+    corps.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '') + ' · ' + (d.tarif || '') +
+      (groupe === 'du' && d.type === 'stage' ? ' · reste dû : ' + reste + ' €' : '');
     ligne.appendChild(corps);
+
     var actions = document.createElement('div');
     actions.className = 'actions';
-    if (regle) {
+
+    if (groupe === 'annule') {
+      var retablir = document.createElement('button');
+      retablir.type = 'button';
+      retablir.className = 'lien-doux';
+      retablir.textContent = 'Rétablir l’inscription';
+      retablir.addEventListener('click', function () { retablirDemande(d); });
+      actions.appendChild(retablir);
+    } else if (d.type === 'stage') {
+      if (!d.acompte_paye) {
+        var bAcompte = document.createElement('button');
+        bAcompte.type = 'button';
+        bAcompte.className = 'btn btn-rouge';
+        bAcompte.innerHTML = '<span>💶 Acompte reçu</span>';
+        bAcompte.addEventListener('click', function () { marquerAcompte(d); });
+        actions.appendChild(bAcompte);
+        var rAcompte = document.createElement('button');
+        rAcompte.type = 'button';
+        rAcompte.className = 'lien-doux';
+        rAcompte.textContent = '✉️ Relancer l’acompte';
+        rAcompte.addEventListener('click', function () { relancer(d, 'acompte'); });
+        actions.appendChild(rAcompte);
+      } else if (!d.solde_paye) {
+        var bSolde = document.createElement('button');
+        bSolde.type = 'button';
+        bSolde.className = 'btn btn-rouge';
+        bSolde.innerHTML = '<span>💶 Solde reçu</span>';
+        bSolde.addEventListener('click', function () { marquerSolde(d); });
+        actions.appendChild(bSolde);
+        var rSolde = document.createElement('button');
+        rSolde.type = 'button';
+        rSolde.className = 'lien-doux';
+        rSolde.textContent = '✉️ Relancer le solde';
+        rSolde.addEventListener('click', function () { relancer(d, 'solde'); });
+        actions.appendChild(rSolde);
+      }
+      var annuler = document.createElement('button');
+      annuler.type = 'button';
+      annuler.className = 'lien-doux';
+      annuler.textContent = '↩︎ Annuler / rembourser';
+      annuler.addEventListener('click', function () { annulerDemande(d); });
+      actions.appendChild(annuler);
+    } else if (groupe === 'regle') {
       var retirer = document.createElement('button');
       retirer.type = 'button';
       retirer.className = 'lien-doux';
@@ -152,6 +299,12 @@
       payer.innerHTML = '<span>💶 Marquer payé</span>';
       payer.addEventListener('click', function () { marquerPaye(d); });
       actions.appendChild(payer);
+      var rPaiement = document.createElement('button');
+      rPaiement.type = 'button';
+      rPaiement.className = 'lien-doux';
+      rPaiement.textContent = '✉️ Relancer le paiement';
+      rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
+      actions.appendChild(rPaiement);
     }
     ligne.appendChild(actions);
     return ligne;
@@ -160,16 +313,25 @@
   function afficherPaiements() {
     var encaisser = el('a-encaisser');
     var payes = el('a-payes');
-    if (!encaisser || !payes) { return; }
+    var annules = el('a-annules');
+    if (!encaisser || !payes || !annules) { return; }
     encaisser.innerHTML = '';
     payes.innerHTML = '';
-    var dus = demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' && !d.paye; });
-    var regles = demandes.filter(function (d) { return d.paye; });
-    var totalDu = 0, totalRegle = 0;
-    dus.forEach(function (d) { totalDu += montantNumerique(d.tarif); encaisser.appendChild(lignePaiement(d, false)); });
-    regles.forEach(function (d) { totalRegle += montantNumerique(d.paye_montant || d.tarif); payes.appendChild(lignePaiement(d, true)); });
+    annules.innerHTML = '';
+
+    var dus = demandes.filter(function (d) { return resteAEncaisser(d) > 0; });
+    var regles = demandes.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
+    var lesAnnules = demandes.filter(function (d) { return d.annule; });
+
+    var totalDu = 0, totalRegle = 0, totalRembourse = 0;
+    dus.forEach(function (d) { totalDu += resteAEncaisser(d); encaisser.appendChild(lignePaiement(d, 'du')); });
+    regles.forEach(function (d) { totalRegle += dejaEncaisse(d); payes.appendChild(lignePaiement(d, 'regle')); });
+    lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); annules.appendChild(lignePaiement(d, 'annule')); });
+
     el('t-encaisser').textContent = dus.length ? 'environ ' + totalDu + ' €' : '';
     el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
+    el('t-annules').textContent = lesAnnules.length ? totalRembourse + ' € remboursés' : '';
+
     if (!dus.length) {
       var v1 = document.createElement('p');
       v1.className = 'aide';
@@ -179,10 +341,17 @@
     if (!regles.length) {
       var v2 = document.createElement('p');
       v2.className = 'aide';
-      v2.textContent = 'Aucun paiement noté pour l’instant.';
+      v2.textContent = 'Aucun paiement complet pour l’instant.';
       payes.appendChild(v2);
     }
+    if (!lesAnnules.length) {
+      var v3 = document.createElement('p');
+      v3.className = 'aide';
+      v3.textContent = 'Aucune annulation.';
+      annules.appendChild(v3);
+    }
   }
+
 
   /* ================= Les feuilles de présence ================= */
   function ouvrirFeuille(feuille) {
@@ -320,12 +489,26 @@
       c.boutons = [valider, refuser];
     }
 
-    if (d.paye) {
+    if (d.annule) {
+      var pAnnulee = document.createElement('span');
+      pAnnulee.className = 'pastille refusee';
+      pAnnulee.textContent = 'annulé';
+      entete.insertBefore(pAnnulee, quand);
+    } else if (d.type === 'stage' && classeStatut(d.statut) === 'validee') {
+      var pA = document.createElement('span');
+      pA.className = 'pastille ' + (d.acompte_paye ? 'validee' : 'attente');
+      pA.textContent = d.acompte_paye ? 'acompte ✓' : 'acompte dû';
+      entete.insertBefore(pA, quand);
+      var pS = document.createElement('span');
+      pS.className = 'pastille ' + (d.solde_paye ? 'validee' : 'attente');
+      pS.textContent = d.solde_paye ? 'solde ✓' : 'solde dû';
+      entete.insertBefore(pS, quand);
+    } else if (d.paye) {
       var payee = document.createElement('span');
       payee.className = 'pastille validee';
       payee.textContent = '💶 payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
       entete.insertBefore(payee, quand);
-    } else if (classeStatut(d.statut) === 'validee') {
+    } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
       var payer = document.createElement('button');
       payer.type = 'button';
       payer.className = 'lien-doux';
