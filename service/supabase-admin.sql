@@ -65,3 +65,86 @@ create policy "les admins classent les demandes" on public.demandes
   ) with check (
     exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
   );
+
+-- ============================================================
+-- Les trimestres et les réservations de cours
+-- ------------------------------------------------------------
+-- Quand un parent a payé son trimestre, l'académie l'active depuis
+-- la plateforme (base clients → « Activer un trimestre »). Le parent
+-- réserve ensuite ses cours depuis Mon compte : UN cours par semaine
+-- maximum (mercredi ou samedi), uniquement entre le début et la fin
+-- du trimestre. Ces règles sont verrouillées ici, dans la base.
+-- ============================================================
+
+create table if not exists public.abonnements (
+  id      uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  email   text,
+  enfant  text,
+  debut   date not null,
+  fin     date not null,
+  cree    timestamptz not null default now()
+);
+
+alter table public.abonnements enable row level security;
+
+drop policy if exists "voir mes trimestres" on public.abonnements;
+create policy "voir mes trimestres" on public.abonnements
+  for select using (user_id = auth.uid());
+
+drop policy if exists "les admins gerent les trimestres" on public.abonnements;
+create policy "les admins gerent les trimestres" on public.abonnements
+  for all using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  ) with check (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+create table if not exists public.reservations (
+  id             uuid primary key default gen_random_uuid(),
+  abonnement_id  uuid not null references public.abonnements (id) on delete cascade,
+  user_id        uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  email          text,
+  enfant         text,
+  jour           text,
+  date           date not null,
+  semaine        text not null,
+  cree           timestamptz not null default now(),
+  unique (abonnement_id, semaine)  -- le verrou : un seul cours par semaine
+);
+
+alter table public.reservations enable row level security;
+
+drop policy if exists "voir mes reservations" on public.reservations;
+create policy "voir mes reservations" on public.reservations
+  for select using (user_id = auth.uid());
+
+drop policy if exists "reserver dans mon trimestre" on public.reservations;
+create policy "reserver dans mon trimestre" on public.reservations
+  for insert with check (
+    user_id = auth.uid()
+    and date >= current_date
+    and exists (
+      select 1 from public.abonnements a
+      where a.id = abonnement_id
+        and a.user_id = auth.uid()
+        and reservations.date >= a.debut
+        and reservations.date <= a.fin
+    )
+  );
+
+drop policy if exists "annuler une reservation a venir" on public.reservations;
+create policy "annuler une reservation a venir" on public.reservations
+  for delete using (user_id = auth.uid() and date > current_date);
+
+drop policy if exists "les admins voient les reservations" on public.reservations;
+create policy "les admins voient les reservations" on public.reservations
+  for select using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+drop policy if exists "les admins retirent une reservation" on public.reservations;
+create policy "les admins retirent une reservation" on public.reservations
+  for delete using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );

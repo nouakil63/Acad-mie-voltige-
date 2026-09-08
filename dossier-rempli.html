@@ -162,7 +162,13 @@
 (function () {
   'use strict';
   var d = null;
-  try { d = JSON.parse(localStorage.getItem('av:dossier-inscription') || localStorage.getItem('av:dossier-cours')); } catch (e) { /* rien */ }
+  /* ?apercu=admin : l'espace académie ouvre le dossier d'une demande reçue */
+  var depuisAdmin = new URLSearchParams(location.search).get('apercu') === 'admin';
+  try {
+    d = JSON.parse(depuisAdmin
+      ? localStorage.getItem('av:dossier-admin')
+      : (localStorage.getItem('av:dossier-inscription') || localStorage.getItem('av:dossier-cours')));
+  } catch (e) { /* rien */ }
   if (!d || !d.parentNom) {
     document.getElementById('vide').hidden = false;
     return;

@@ -11,43 +11,105 @@
   <link rel="stylesheet" href="../assets/css/style.css?v=33">
   <style>
     body{background:var(--fond)}
-    /* La plateforme a son propre bandeau, sombre, distinct du site public. */
+
+    /* ---- Le bandeau de la plateforme, sombre, à part du site ---- */
     .bandeau-admin{
-      display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-      padding:14px clamp(16px,4vw,44px);background:#1D1216;color:#fff;
+      display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+      padding:16px clamp(16px,4vw,48px);background:var(--encre);color:#fff;
+      border-bottom:3px solid var(--rouge);
     }
-    .bandeau-admin img{width:40px;height:40px;border-radius:50%;background:#fff}
-    .bandeau-admin .titre b{font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);font-size:18px;display:block;line-height:1.1}
-    .bandeau-admin .titre small{font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#b9aeb2}
-    .bandeau-admin .droite{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:13px;color:#d8ccd0;flex-wrap:wrap}
-    .bandeau-admin .droite a{color:#fff;font-weight:700;text-decoration:underline}
-    main{max-width:1020px;margin:0 auto;padding:30px clamp(14px,3vw,24px) 70px}
-    .onglets{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
-    .onglets .btn.actif-onglet{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+    .bandeau-admin img{width:44px;height:44px;border-radius:50%;background:#fff}
+    .bandeau-admin .titre b{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:21px;display:block;line-height:1.05;
+    }
+    .bandeau-admin .titre small{font-size:10.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#b9aeb2}
+    .bandeau-admin .droite{margin-left:auto;display:flex;align-items:center;gap:18px;font-size:13px;color:#d8ccd0;flex-wrap:wrap}
+    .bandeau-admin .droite a{color:#fff;font-weight:700;text-decoration:none;border-bottom:1.4px solid var(--rouge);padding-bottom:1px}
+
+    main{max-width:1020px;margin:0 auto;padding:34px clamp(14px,3vw,24px) 80px}
+
+    /* ---- La ligne des chiffres, sobre, façon site ---- */
+    .chiffres{display:flex;flex-wrap:wrap;gap:0;margin:0 0 30px;border-block:1px solid var(--trait)}
+    .chiffre{padding:18px clamp(18px,3.4vw,36px) 16px;border-right:1px solid var(--trait)}
+    .chiffre:first-child{padding-left:4px}
+    .chiffre b{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(28px,3.4vw,38px);display:block;line-height:1;color:var(--encre);
+    }
+    .chiffre b.alerte{color:var(--rouge)}
+    .chiffre span{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--texte-2)}
+
+    /* ---- Onglets soulignés, comme la navigation du site ---- */
+    .onglets{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 24px;border-bottom:1px solid var(--trait)}
+    .onglets button{
+      border:0;background:transparent;font-family:inherit;cursor:pointer;
+      font-size:14px;font-weight:700;color:var(--texte-2);
+      padding:6px 2px 12px;position:relative;letter-spacing:.02em;
+    }
+    .onglets button::after{
+      content:"";position:absolute;left:0;right:100%;bottom:-1px;height:2.4px;background:var(--rouge);
+      transition:right .3s var(--galop);
+    }
+    .onglets button:hover{color:var(--encre)}
+    .onglets button.actif-onglet{color:var(--encre)}
+    .onglets button.actif-onglet::after{right:0}
+
     .message{font-size:14px;line-height:1.6;font-weight:600;border-radius:10px;padding:12px 16px}
     .message.souci{color:var(--rouge);background:color-mix(in srgb, var(--rouge) 6%, var(--fond))}
     .message.bonne{color:#1d7a3d;background:color-mix(in srgb, #1d7a3d 8%, var(--fond))}
-    .compteurs{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 22px}
-    .compteur{background:#fff;border:1.4px solid var(--trait);border-radius:14px;padding:14px 20px;min-width:140px}
-    .compteur b{font-size:24px;display:block;color:var(--rouge)}
-    .compteur span{font-size:12.5px;color:var(--texte-2)}
-    .carte-demande,.carte-famille{background:#fff;border:1.4px solid var(--trait);border-radius:14px;padding:16px 18px}
+
+    /* ---- Les cartes ---- */
+    .carte-demande,.carte-famille,.carte-jour{
+      background:var(--blanc);border:1px solid var(--trait);border-radius:14px;
+      padding:16px 18px;border-left-width:3px;
+    }
+    .carte-demande.st-attente{border-left-color:#e0a800}
+    .carte-demande.st-validee{border-left-color:#1d7a3d}
+    .carte-demande.st-refusee{border-left-color:var(--rouge)}
+    .carte-famille{border-left-color:var(--encre)}
+    .carte-jour{border-left-color:var(--rouge)}
     .carte-demande .entete,.carte-famille .entete{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-    .pastille{padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
-    .pastille.attente{background:#f2b705;color:#1D1216}
-    .pastille.validee{background:#1d7a3d;color:#fff}
-    .pastille.refusee{background:#D00828;color:#fff}
-    .pastille.type-cours{background:#D00828;color:#fff}
-    .pastille.type-stage{border:1.4px solid #D00828;color:#D00828}
+    .entete .nom{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:18px;color:var(--encre);
+    }
+    .pastille{padding:3px 11px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+    .pastille.attente{background:#fdf3d7;color:#8a6d00;border:1px solid #e8d089}
+    .pastille.validee{background:#e3f2e8;color:#1d7a3d;border:1px solid #b5d9c2}
+    .pastille.refusee{background:#fbe4e8;color:var(--rouge);border:1px solid #efb9c3}
+    .pastille.type-cours{background:var(--rouge);color:#fff}
+    .pastille.type-stage{border:1.4px solid var(--rouge);color:var(--rouge)}
     .quand{margin-left:auto;font-size:12.5px;color:#8a7f83;white-space:nowrap}
-    .corps{margin-top:8px;font-size:14px;color:var(--texte-2);line-height:1.6}
+    .corps{margin-top:8px;font-size:14px;color:var(--texte-2);line-height:1.65}
     .carte-demande details{margin-top:8px;font-size:13px;color:var(--texte-2)}
+    .carte-demande details summary{cursor:pointer;font-weight:600}
     .carte-demande details pre{white-space:pre-wrap;background:var(--fond-2);border-radius:10px;padding:12px 14px;margin-top:8px;font-family:inherit}
-    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
-    .actions select{padding:9px 12px;border-radius:10px;border:1.4px solid var(--trait);font-family:inherit;font-size:13.5px}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;align-items:center}
+    .actions select{padding:9px 12px;border-radius:10px;border:1.4px solid var(--trait);font-family:inherit;font-size:13.5px;background:var(--blanc)}
+    .lien-doux{border:0;background:transparent;color:var(--texte-2);font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit;padding:0}
+    .lien-doux:hover{color:var(--rouge)}
+
     .filtres{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-    .filtres .actif-filtre{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+    .filtres button{
+      padding:8px 16px;border-radius:999px;border:1.4px solid var(--trait);
+      background:var(--blanc);font-family:inherit;font-size:12.5px;font-weight:700;color:var(--texte-2);cursor:pointer;
+      transition:border-color .2s,color .2s,background .2s;
+    }
+    .filtres button:hover{border-color:var(--rouge);color:var(--rouge)}
+    .filtres button.actif-filtre{background:var(--encre);border-color:var(--encre);color:#fff}
+
+    .initiales{
+      width:38px;height:38px;border-radius:50%;background:var(--fond-2);color:var(--rouge);
+      display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+      font-weight:800;font-size:14px;letter-spacing:.02em;
+    }
     .enfant-ligne{display:inline-block;background:var(--fond-2);border-radius:999px;padding:5px 14px;margin:6px 6px 0 0;font-size:13px}
+    .carte-jour h3{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:17px;margin-bottom:6px;
+    }
+    .carte-jour ul{list-style:none;margin:0;padding:0;font-size:14px;color:var(--texte-2);line-height:1.9}
   </style>
 </head>
 <body>
@@ -56,12 +118,12 @@
   <img src="../assets/img/logo.jpeg" alt="">
   <span class="titre">
     <b>Espace académie</b>
-    <small>Académie de voltige équestre</small>
+    <small>Fleur &amp; Georges Cotrait</small>
   </span>
   <span class="droite">
     <span id="p-compte"></span>
     <a href="#" id="p-deconnexion" hidden>Se déconnecter</a>
-    <a href="../index.html">Voir le site →</a>
+    <a href="../index.html">Voir le site</a>
   </span>
 </header>
 
@@ -95,38 +157,47 @@
   <div class="pas" id="p-refuse">
     <h2>Réservé à l'académie.</h2>
     <p class="aide">Cette page est réservée à Fleur et Georges. Votre espace à vous, c'est <a href="../compte.html" style="font-weight:700">Mon compte</a>.</p>
-    <p class="message souci" id="p-refuse-detail" hidden>Vous êtes bien de l'académie ? Alors il manque sans doute une étape d'installation : le fichier « supabase-admin.sql » doit être joué une fois dans le SQL Editor de Supabase (il crée la liste des admins et la table des demandes).</p>
+    <p class="message souci" id="p-refuse-detail" hidden>Vous êtes bien de l'académie ? Alors il manque sans doute une étape d'installation : le fichier « supabase-admin.sql » doit être joué une fois dans le SQL Editor de Supabase (il crée la liste des admins et les tables de l'espace académie).</p>
   </div>
 
   <!-- le tableau de bord -->
   <div class="pas" id="p-tableau">
-    <div class="compteurs">
-      <div class="compteur"><b id="c-attente">—</b><span>demandes en attente</span></div>
-      <div class="compteur"><b id="c-demandes">—</b><span>demandes en tout</span></div>
-      <div class="compteur"><b id="c-familles">—</b><span>familles enregistrées</span></div>
+    <div class="chiffres">
+      <div class="chiffre"><b id="c-attente" class="alerte">—</b><span>en attente</span></div>
+      <div class="chiffre"><b id="c-demandes">—</b><span>demandes</span></div>
+      <div class="chiffre"><b id="c-familles">—</b><span>familles</span></div>
+      <div class="chiffre"><b id="c-resa">—</b><span>cours à venir</span></div>
     </div>
 
     <nav class="onglets" aria-label="Sections">
-      <button type="button" class="btn btn-contour actif-onglet" data-onglet="demandes"><span>📥 Les demandes</span></button>
-      <button type="button" class="btn btn-contour" data-onglet="familles"><span>👨‍👩‍👧 La base clients</span></button>
+      <button type="button" class="actif-onglet" data-onglet="demandes">Les demandes</button>
+      <button type="button" data-onglet="reservations">Le planning des cours</button>
+      <button type="button" data-onglet="familles">La base clients</button>
     </nav>
 
     <!-- Onglet demandes -->
     <section id="o-demandes">
       <p class="aide" style="margin-bottom:14px">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
       <div class="filtres" id="a-filtres">
-        <button type="button" class="btn btn-contour actif-filtre" data-filtre="toutes"><span>Toutes</span></button>
-        <button type="button" class="btn btn-contour" data-filtre="en attente"><span>En attente</span></button>
-        <button type="button" class="btn btn-contour" data-filtre="validée"><span>Validées</span></button>
-        <button type="button" class="btn btn-contour" data-filtre="refusée"><span>Refusées</span></button>
+        <button type="button" class="actif-filtre" data-filtre="toutes">Toutes</button>
+        <button type="button" data-filtre="en attente">En attente</button>
+        <button type="button" data-filtre="validée">Validées</button>
+        <button type="button" data-filtre="refusée">Refusées</button>
       </div>
       <p class="message" id="m-liste" role="alert" hidden></p>
       <div id="a-demandes" style="display:flex;flex-direction:column;gap:14px"></div>
     </section>
 
+    <!-- Onglet planning des réservations -->
+    <section id="o-reservations" hidden>
+      <p class="aide" style="margin-bottom:14px">Les cours réservés par les abonnés au trimestre, jour par jour. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
+      <p class="message" id="m-resa" role="alert" hidden></p>
+      <div id="a-reservations" style="display:flex;flex-direction:column;gap:14px"></div>
+    </section>
+
     <!-- Onglet base clients -->
     <section id="o-familles" hidden>
-      <p class="aide" style="margin-bottom:14px">Tous les comptes familles créés sur le site, avec leurs voltigeurs. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
+      <p class="aide" style="margin-bottom:14px">Tous les comptes familles créés sur le site. « Activer un trimestre » ouvre les réservations de cours du parent qui a réglé son trimestre. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
       <div class="champ" style="max-width:420px;margin-bottom:18px">
         <label for="f-recherche">Rechercher</label>
         <input id="f-recherche" type="search" placeholder="Nom, e-mail, ville, voltigeur…">
@@ -139,6 +210,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=4"></script>
+<script src="../assets/js/admin.js?v=5"></script>
 </body>
 </html>

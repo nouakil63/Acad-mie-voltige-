@@ -211,9 +211,166 @@
           nuage.enregistrerFamille(famille);
         }
         if (famille) { ecrireFamilleLocale(famille); }
+        sessionCourante = session;
         afficherFamille(famille, session);
         if (motBienvenue) { message('m-famille', motBienvenue, true); }
+        chargerTrimestre();
       });
+    });
+  }
+
+  /* ---------- Mes cours du trimestre (abonnés) ----------
+     L'académie active le trimestre après le paiement ; le parent réserve
+     alors UN cours par semaine (mercredi ou samedi) jusqu'à la fin du
+     trimestre. Les règles sont aussi verrouillées côté base de données. */
+  var sessionCourante = null;
+  var abonnement = null;
+
+  function isoLocal(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function depuisIso(iso) {
+    var m = iso.split('-');
+    return new Date(Number(m[0]), Number(m[1]) - 1, Number(m[2]), 12, 0, 0);
+  }
+  function lundiDe(iso) {
+    var d = depuisIso(iso);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return isoLocal(d);
+  }
+  function joliJour(iso) {
+    return depuisIso(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  function joliLong(iso) {
+    return depuisIso(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function chargerTrimestre() {
+    if (!nuage.requeteAuth) { return; }
+    nuage.requeteAuth('/rest/v1/abonnements?select=*&order=fin.desc')
+      .then(function (r) { return r && r.ok ? r.json() : []; })
+      .then(function (liste) {
+        var aujourdHui = isoLocal(new Date());
+        abonnement = null;
+        (liste || []).forEach(function (a) {
+          if (a.fin >= aujourdHui && (!abonnement || a.fin < abonnement.fin)) { abonnement = a; }
+        });
+        if (!abonnement) { el('bloc-trimestre').hidden = true; return; }
+        nuage.requeteAuth('/rest/v1/reservations?select=*&abonnement_id=eq.' + encodeURIComponent(abonnement.id) + '&order=date')
+          .then(function (r) { return r && r.ok ? r.json() : []; })
+          .then(function (resas) { afficherTrimestre(resas || []); });
+      })
+      .catch(function () { /* la section reste cachée */ });
+  }
+
+  function afficherTrimestre(resas) {
+    var bloc = el('bloc-trimestre');
+    bloc.hidden = false;
+    el('m-trimestre').hidden = true;
+    el('tr-intro').textContent = 'Trimestre' + (abonnement.enfant ? ' de ' + abonnement.enfant : '') +
+      ' du ' + joliLong(abonnement.debut) + ' au ' + joliLong(abonnement.fin) + ' · ' +
+      resas.length + (resas.length > 1 ? ' cours réservés.' : ' cours réservé.');
+
+    var aujourdHui = isoLocal(new Date());
+    var semainesReservees = {};
+    var listeEl = el('tr-reservations');
+    listeEl.innerHTML = '';
+    resas.forEach(function (r) {
+      semainesReservees[r.semaine] = r;
+      var ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;align-items:center;gap:10px;border:1.4px solid var(--trait);border-radius:12px;padding:9px 14px;font-size:13.5px';
+      var texteResa = document.createElement('span');
+      texteResa.textContent = '✔ ' + joliJour(r.date) + (r.date < aujourdHui ? ' (passé)' : '');
+      ligne.appendChild(texteResa);
+      if (r.date > aujourdHui) {
+        var annuler = document.createElement('button');
+        annuler.type = 'button';
+        annuler.textContent = 'Annuler';
+        annuler.style.cssText = 'margin-left:auto;border:0;background:transparent;color:#6d6266;font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit';
+        annuler.addEventListener('click', function () {
+          if (!confirm('Annuler le cours du ' + joliJour(r.date) + ' ?')) { return; }
+          nuage.requeteAuth('/rest/v1/reservations?id=eq.' + encodeURIComponent(r.id), { method: 'DELETE' })
+            .then(function () { chargerTrimestre(); });
+        });
+        ligne.appendChild(annuler);
+      }
+      listeEl.appendChild(ligne);
+    });
+
+    /* le planning des semaines restantes du trimestre */
+    var planningEl = el('tr-planning');
+    planningEl.innerHTML = '';
+    var lundi = lundiDe(abonnement.debut >= aujourdHui ? abonnement.debut : aujourdHui);
+    var nbSemaines = 0;
+    while (lundi <= abonnement.fin && nbSemaines < 20) {
+      nbSemaines++;
+      var base = depuisIso(lundi);
+      var jours = [
+        { jour: 'mercredi', decalage: 2 },
+        { jour: 'samedi', decalage: 5 }
+      ];
+      var rang = document.createElement('div');
+      rang.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap';
+      var etiquette = document.createElement('span');
+      etiquette.style.cssText = 'font-size:12.5px;color:var(--texte-2);min-width:130px';
+      etiquette.textContent = 'Semaine du ' + joliJour(lundi);
+      rang.appendChild(etiquette);
+
+      if (semainesReservees[lundi]) {
+        var deja = document.createElement('span');
+        deja.style.cssText = 'font-size:13px;font-weight:700;color:#1d7a3d';
+        deja.textContent = '✔ ' + joliJour(semainesReservees[lundi].date) + ' réservé';
+        rang.appendChild(deja);
+      } else {
+        var propose = 0;
+        jours.forEach(function (j) {
+          var d = new Date(base);
+          d.setDate(d.getDate() + j.decalage);
+          var iso = isoLocal(d);
+          if (iso < abonnement.debut || iso > abonnement.fin || iso < aujourdHui) { return; }
+          propose++;
+          var puce = document.createElement('button');
+          puce.type = 'button';
+          puce.className = 'date-chip';
+          puce.textContent = joliJour(iso);
+          puce.addEventListener('click', function () { reserver(iso, j.jour); });
+          rang.appendChild(puce);
+        });
+        if (!propose) { rang.remove(); lundi = isoLocal(new Date(base.setDate(base.getDate() + 7))); continue; }
+      }
+      planningEl.appendChild(rang);
+      var suivant = depuisIso(lundi);
+      suivant.setDate(suivant.getDate() + 7);
+      lundi = isoLocal(suivant);
+    }
+    if (!planningEl.children.length) {
+      var fini = document.createElement('p');
+      fini.className = 'aide';
+      fini.textContent = 'Votre trimestre est terminé : toutes les semaines sont passées. Parlez-en à l’académie pour le renouveler !';
+      planningEl.appendChild(fini);
+    }
+  }
+
+  function reserver(iso, jour) {
+    if (!confirm('Réserver le cours du ' + joliJour(iso) + (abonnement.enfant ? ' pour ' + abonnement.enfant : '') + ' ?')) { return; }
+    nuage.requeteAuth('/rest/v1/reservations', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        abonnement_id: abonnement.id,
+        email: (sessionCourante && sessionCourante.email) || '',
+        enfant: abonnement.enfant || '',
+        jour: jour,
+        date: iso,
+        semaine: lundiDe(iso)
+      })
+    }).then(function (r) {
+      if (r && r.ok) { chargerTrimestre(); return; }
+      message('m-trimestre', r && r.status === 409
+        ? 'Un cours est déjà réservé cette semaine-là (un seul par semaine).'
+        : 'La réservation n’a pas abouti. Rechargez la page et réessayez.');
+    }).catch(function () {
+      message('m-trimestre', 'La réservation n’a pas abouti. Vérifiez votre connexion et réessayez.');
     });
   }
 
