@@ -23,6 +23,6 @@ jobs:
             exit 0
           fi
           code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "apikey: $CLE" -H "Authorization: Bearer $CLE" \
+            -H "apikey: $CLE" \
             "$URL/rest/v1/familles?select=user_id&limit=1")
           echo "Réponse du service : $code"

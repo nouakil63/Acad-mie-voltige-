@@ -4,6 +4,6 @@
    règles de sécurité configurées côté Supabase, jamais de cette clé).
    Tant qu'elles sont vides, l'espace famille affiche « bientôt disponible ». */
 window.AV_NUAGE = window.AV_NUAGE || {
-  url: '',
-  cle: ''
+  url: 'https://vtrmohmupfvxzbsnubye.supabase.co',
+  cle: 'sb_publishable_-e7rbMZrOVzGYtT9eWzmEg_0ZSQvM-9'
 };
