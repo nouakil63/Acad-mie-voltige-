@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Espace académie — Académie de voltige équestre</title>
+  <meta name="theme-color" content="#1D1216">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
+  <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
+  <link rel="stylesheet" href="../assets/css/style.css?v=32">
+  <style>
+    body{background:var(--fond)}
+    /* La plateforme a son propre bandeau, sombre, distinct du site public. */
+    .bandeau-admin{
+      display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+      padding:14px clamp(16px,4vw,44px);background:#1D1216;color:#fff;
+    }
+    .bandeau-admin img{width:40px;height:40px;border-radius:50%;background:#fff}
+    .bandeau-admin .titre b{font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);font-size:18px;display:block;line-height:1.1}
+    .bandeau-admin .titre small{font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#b9aeb2}
+    .bandeau-admin .droite{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:13px;color:#d8ccd0;flex-wrap:wrap}
+    .bandeau-admin .droite a{color:#fff;font-weight:700;text-decoration:underline}
+    main{max-width:1020px;margin:0 auto;padding:30px clamp(14px,3vw,24px) 70px}
+    .onglets{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
+    .onglets .btn.actif-onglet{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+    .message{font-size:14px;line-height:1.6;font-weight:600;border-radius:10px;padding:12px 16px}
+    .message.souci{color:var(--rouge);background:color-mix(in srgb, var(--rouge) 6%, var(--fond))}
+    .message.bonne{color:#1d7a3d;background:color-mix(in srgb, #1d7a3d 8%, var(--fond))}
+    .compteurs{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 22px}
+    .compteur{background:#fff;border:1.4px solid var(--trait);border-radius:14px;padding:14px 20px;min-width:140px}
+    .compteur b{font-size:24px;display:block;color:var(--rouge)}
+    .compteur span{font-size:12.5px;color:var(--texte-2)}
+    .carte-demande,.carte-famille{background:#fff;border:1.4px solid var(--trait);border-radius:14px;padding:16px 18px}
+    .carte-demande .entete,.carte-famille .entete{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+    .pastille{padding:3px 12px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+    .pastille.attente{background:#f2b705;color:#1D1216}
+    .pastille.validee{background:#1d7a3d;color:#fff}
+    .pastille.refusee{background:#D00828;color:#fff}
+    .pastille.type-cours{background:#D00828;color:#fff}
+    .pastille.type-stage{border:1.4px solid #D00828;color:#D00828}
+    .quand{margin-left:auto;font-size:12.5px;color:#8a7f83;white-space:nowrap}
+    .corps{margin-top:8px;font-size:14px;color:var(--texte-2);line-height:1.6}
+    .carte-demande details{margin-top:8px;font-size:13px;color:var(--texte-2)}
+    .carte-demande details pre{white-space:pre-wrap;background:var(--fond-2);border-radius:10px;padding:12px 14px;margin-top:8px;font-family:inherit}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
+    .actions select{padding:9px 12px;border-radius:10px;border:1.4px solid var(--trait);font-family:inherit;font-size:13.5px}
+    .filtres{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+    .filtres .actif-filtre{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+    .enfant-ligne{display:inline-block;background:var(--fond-2);border-radius:999px;padding:5px 14px;margin:6px 6px 0 0;font-size:13px}
+  </style>
+</head>
+<body>
+
+<header class="bandeau-admin">
+  <img src="../assets/img/logo.jpeg" alt="">
+  <span class="titre">
+    <b>Espace académie</b>
+    <small>Académie de voltige équestre</small>
+  </span>
+  <span class="droite">
+    <span id="p-compte"></span>
+    <a href="#" id="p-deconnexion" hidden>Se déconnecter</a>
+    <a href="../index.html">Voir le site →</a>
+  </span>
+</header>
+
+<main>
+  <div class="pas actif" id="p-attente">
+    <p class="aide">Un instant…</p>
+  </div>
+
+  <!-- connexion sur place -->
+  <form class="pas" id="p-connexion" novalidate style="max-width:520px">
+    <h2>Réservé à l'académie.</h2>
+    <p class="aide">Connectez-vous avec votre compte de l'académie.</p>
+    <div class="champs">
+      <div class="champ">
+        <label for="ad-email">E-mail <b>*</b></label>
+        <input id="ad-email" type="email" autocomplete="email" required>
+      </div>
+      <div class="champ">
+        <label for="ad-mdp">Mot de passe <b>*</b></label>
+        <input id="ad-mdp" type="password" autocomplete="current-password" required>
+      </div>
+      <p class="message" id="m-admin" role="alert" hidden></p>
+    </div>
+    <div class="btns-pas">
+      <span></span>
+      <button type="submit" class="btn btn-rouge"><span>Se connecter</span></button>
+    </div>
+  </form>
+
+  <!-- connecté mais pas admin -->
+  <div class="pas" id="p-refuse">
+    <h2>Réservé à l'académie.</h2>
+    <p class="aide">Cette page est réservée à Fleur et Georges. Votre espace à vous, c'est <a href="../compte.html" style="font-weight:700">Mon compte</a>.</p>
+  </div>
+
+  <!-- le tableau de bord -->
+  <div class="pas" id="p-tableau">
+    <div class="compteurs">
+      <div class="compteur"><b id="c-attente">—</b><span>demandes en attente</span></div>
+      <div class="compteur"><b id="c-demandes">—</b><span>demandes en tout</span></div>
+      <div class="compteur"><b id="c-familles">—</b><span>familles enregistrées</span></div>
+    </div>
+
+    <nav class="onglets" aria-label="Sections">
+      <button type="button" class="btn btn-contour actif-onglet" data-onglet="demandes"><span>📥 Les demandes</span></button>
+      <button type="button" class="btn btn-contour" data-onglet="familles"><span>👨‍👩‍👧 La base clients</span></button>
+    </nav>
+
+    <!-- Onglet demandes -->
+    <section id="o-demandes">
+      <p class="aide" style="margin-bottom:14px">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
+      <div class="filtres" id="a-filtres">
+        <button type="button" class="btn btn-contour actif-filtre" data-filtre="toutes"><span>Toutes</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="en attente"><span>En attente</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="validée"><span>Validées</span></button>
+        <button type="button" class="btn btn-contour" data-filtre="refusée"><span>Refusées</span></button>
+      </div>
+      <p class="message" id="m-liste" role="alert" hidden></p>
+      <div id="a-demandes" style="display:flex;flex-direction:column;gap:14px"></div>
+    </section>
+
+    <!-- Onglet base clients -->
+    <section id="o-familles" hidden>
+      <p class="aide" style="margin-bottom:14px">Tous les comptes familles créés sur le site, avec leurs voltigeurs. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
+      <div class="champ" style="max-width:420px;margin-bottom:18px">
+        <label for="f-recherche">Rechercher</label>
+        <input id="f-recherche" type="search" placeholder="Nom, e-mail, ville, voltigeur…">
+      </div>
+      <p class="message" id="m-familles" role="alert" hidden></p>
+      <div id="a-familles" style="display:flex;flex-direction:column;gap:14px"></div>
+    </section>
+  </div>
+</main>
+
+<script src="../assets/js/compte-config.js?v=2"></script>
+<script src="../assets/js/nuage.js?v=2"></script>
+<script src="../assets/js/admin.js?v=3"></script>
+</body>
+</html>
