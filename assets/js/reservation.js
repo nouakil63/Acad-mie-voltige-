@@ -1,5 +1,7 @@
-/* Parcours de réservation — trois étapes, récapitulatif en direct.
-   En attendant le paiement en ligne, l'envoi ouvre un e-mail pré-rempli. */
+/* Parcours de réservation de stage — quatre étapes, récapitulatif en direct,
+   signature en ligne. La demande part vers l'académie, qui confirme la place et
+   envoie le lien de paiement. Les réponses remplissent aussi le dossier
+   d'inscription téléchargeable. */
 (function () {
   'use strict';
 
@@ -13,6 +15,7 @@
 
   var pasCourant = 1;
   var lesPas = form.querySelectorAll('.pas');
+  var dernierPas = lesPas.length;
   var jalons = form.querySelectorAll('.jalon');
 
   function montrePas(n) {
@@ -26,10 +29,55 @@
     form.closest('.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /* ---- signature au doigt ou à la souris ---- */
+  var toile = document.getElementById('signature');
+  var signatureFaite = false;
+  if (toile) {
+    var ctx = toile.getContext('2d');
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1c1417';
+    var enTrace = false;
+    function pointDe(ev) {
+      var r = toile.getBoundingClientRect();
+      return { x: (ev.clientX - r.left) * (toile.width / r.width), y: (ev.clientY - r.top) * (toile.height / r.height) };
+    }
+    toile.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault();
+      toile.setPointerCapture(ev.pointerId);
+      enTrace = true;
+      var p = pointDe(ev);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + 0.1, p.y + 0.1);
+      ctx.stroke();
+      signatureFaite = true;
+      var champ = document.getElementById('champ-signature');
+      if (champ) { champ.classList.remove('erreur'); }
+    });
+    toile.addEventListener('pointermove', function (ev) {
+      if (!enTrace) { return; }
+      var p = pointDe(ev);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
+      toile.addEventListener(t, function () { enTrace = false; });
+    });
+    var btnEffacer = document.getElementById('signature-effacer');
+    if (btnEffacer) {
+      btnEffacer.addEventListener('click', function () {
+        ctx.clearRect(0, 0, toile.width, toile.height);
+        signatureFaite = false;
+      });
+    }
+  }
+
   function champsValides(pas) {
     var ok = true;
     pas.querySelectorAll('[required]').forEach(function (c) {
-      var champ = c.closest('.champ');
+      var champ = c.closest('.champ') || c.closest('.case');
       var vide = c.type === 'checkbox' ? !c.checked
                : c.type === 'radio' ? !form.querySelector('input[name="' + c.name + '"]:checked')
                : !c.value.trim();
@@ -37,6 +85,11 @@
       if (champ) { champ.classList.toggle('erreur', invalide); }
       if (invalide) { ok = false; }
     });
+    if (toile && pas.contains(toile) && !signatureFaite) {
+      var champSig = document.getElementById('champ-signature');
+      if (champSig) { champSig.classList.add('erreur'); }
+      ok = false;
+    }
     return ok;
   }
 
@@ -80,6 +133,30 @@
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
   var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwy3AdlqdFYKeCnOmMugR_KvsBHBbT7AOHvDsclWJoYJG0VpaW-U3GnD0WId-4FG4Kf/exec';
 
+  /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
+  function donneesDossier(s) {
+    var maintenant = new Date();
+    return {
+      type: 'stage',
+      annee: '2026/2027',
+      formule: s.nom, creneau: s.dates, tarif: s.prix + ' € / semaine',
+      enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
+      enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
+      nationalite: texte('enfant-nationalite'), sexe: texte('enfant-sexe'),
+      gabarit: texte('enfant-gabarit'),
+      niveau: document.getElementById('enfant-niveau').value,
+      qualite: texte('parent-qualite'), parentNom: texte('parent-nom'),
+      adresse: texte('parent-adresse'), cp: texte('parent-cp'), ville: texte('parent-ville'),
+      parentTel: texte('parent-tel'), telDomicile: texte('parent-tel-domicile'),
+      parentEmail: texte('parent-email'),
+      secuCaisse: texte('secu-caisse'), secuNumero: texte('secu-numero'),
+      licence: texte('licence-ffe'), recommandations: texte('enfant-sante'),
+      faitA: texte('parent-ville'),
+      signeLe: maintenant.toLocaleDateString('fr-FR'),
+      signature: (toile && signatureFaite) ? toile.toDataURL('image/png') : ''
+    };
+  }
+
   function confirmationAuto() {
     var c = document.getElementById('confirmation');
     var h = c.querySelector('h3'); var p = c.querySelector('p');
@@ -92,13 +169,16 @@
     c.classList.add('visible');
   }
 
-  /* ---- envoi : e-mail pré-rempli en attendant le paiement en ligne ---- */
+  /* ---- envoi ---- */
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var pas = form.querySelector('.pas[data-pas="3"]');
+    var pas = form.querySelector('.pas[data-pas="' + dernierPas + '"]');
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="stage"]:checked');
     var s = STAGES[Number(choisi.value)];
+
+    var dossier = donneesDossier(s);
+    try { localStorage.setItem('av:dossier-inscription', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
 
     if (URL_SERVICE) {
       fetch(URL_SERVICE, {
@@ -109,22 +189,37 @@
           stage: s.nom,
           dates: s.dates,
           tarif: s.prix + ' € / semaine',
-          enfantPrenom: texte('enfant-prenom'),
-          enfantNom: texte('enfant-nom'),
-          enfantNaissance: texte('enfant-naissance'),
-          niveau: document.getElementById('enfant-niveau').value,
-          sante: texte('enfant-sante'),
-          parentNom: texte('parent-nom'),
-          parentTel: texte('parent-tel'),
-          parentEmail: texte('parent-email')
+          enfantPrenom: dossier.enfantPrenom,
+          enfantNom: dossier.enfantNom,
+          enfantNaissance: dossier.enfantNaissance,
+          enfantLieuNaissance: dossier.enfantLieu,
+          nationalite: dossier.nationalite,
+          sexe: dossier.sexe === 'F' ? 'Fille' : dossier.sexe === 'M' ? 'Garçon' : dossier.sexe,
+          gabaritDetail: dossier.gabarit,
+          niveau: dossier.niveau,
+          sante: dossier.recommandations,
+          qualite: dossier.qualite,
+          parentNom: dossier.parentNom,
+          adresse: dossier.adresse,
+          cp: dossier.cp,
+          ville: dossier.ville,
+          parentTel: dossier.parentTel,
+          telDomicile: dossier.telDomicile,
+          parentEmail: dossier.parentEmail,
+          secuCaisse: dossier.secuCaisse,
+          secuNumero: dossier.secuNumero,
+          licence: dossier.licence,
+          droitImage: 'Accepté en ligne',
+          autorisationMedicale: 'Acceptée en ligne',
+          signeLe: 'Signé en ligne le ' + dossier.signeLe + (dossier.faitA ? ' à ' + dossier.faitA : '')
         })
-      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(s); });
+      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(s, dossier); });
       return;
     }
-    envoyerParMessagerie(s);
+    envoyerParMessagerie(s, dossier);
   });
 
-  function envoyerParMessagerie(s) {
+  function envoyerParMessagerie(s, dossier) {
     var corps = [
       'Bonjour,',
       '',
@@ -134,15 +229,20 @@
       'Dates : ' + s.dates,
       'Tarif : ' + s.prix + ' € / semaine',
       '',
-      'Voltigeur : ' + texte('enfant-prenom') + ' ' + texte('enfant-nom'),
-      'Date de naissance : ' + texte('enfant-naissance'),
-      'Niveau : ' + document.getElementById('enfant-niveau').value,
-      'Santé / remarques : ' + (texte('enfant-sante') || '—'),
+      'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
+      'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
+      'Sexe : ' + dossier.sexe + ' · Gabarit : ' + dossier.gabarit,
+      'Niveau : ' + dossier.niveau,
+      'Santé / remarques : ' + (dossier.recommandations || '—'),
       '',
-      'Parent : ' + texte('parent-nom'),
-      'Téléphone : ' + texte('parent-tel'),
-      'E-mail : ' + texte('parent-email'),
+      'Responsable légal (' + dossier.qualite + ') : ' + dossier.parentNom,
+      'Adresse : ' + dossier.adresse + ', ' + dossier.cp + ' ' + dossier.ville,
+      'Téléphone : ' + dossier.parentTel + (dossier.telDomicile ? ' / ' + dossier.telDomicile : ''),
+      'E-mail : ' + dossier.parentEmail,
+      dossier.secuCaisse || dossier.secuNumero ? 'Sécurité sociale : ' + dossier.secuCaisse + ' ' + dossier.secuNumero : '',
+      dossier.licence ? 'Licence FFE : ' + dossier.licence : '',
       '',
+      'Droit à l\'image et autorisation médicale acceptés, signé en ligne le ' + dossier.signeLe + '.',
       'Merci de me confirmer la disponibilité.',
       '',
       '--------------------------------------------------',
@@ -150,7 +250,7 @@
       '· Paiement du stage :',
       PAIEMENT_STAGE,
       '--------------------------------------------------',
-    ].join('\n');
+    ].filter(function (l) { return l !== ''; }).join('\n');
     var sujet = 'Réservation — ' + s.nom + ' (' + s.dates + ')';
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);

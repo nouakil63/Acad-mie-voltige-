@@ -124,8 +124,15 @@
               </div>
             </div>
             <div class="rang">
-              <div class="champ"><label for="enfant-poids">Poids (kg) <b>*</b></label><input id="enfant-poids" name="enfant-poids" type="number" min="10" max="90" step="1" inputmode="numeric" required></div>
-              <div class="champ"><label for="enfant-taille">Taille (cm) <b>*</b></label><input id="enfant-taille" name="enfant-taille" type="number" min="80" max="200" step="1" inputmode="numeric" required></div>
+              <div class="champ">
+                <label for="enfant-gabarit">Gabarit de l'enfant (poids et taille) <b>*</b></label>
+                <select id="enfant-gabarit" name="enfant-gabarit" required>
+                  <option value="">Choisir…</option>
+                  <option>Moins de 35 kg et moins d'1m30</option>
+                  <option>Moins de 40 kg et moins d'1m60</option>
+                  <option>Autre gabarit (l'académie étudie la demande)</option>
+                </select>
+              </div>
               <div class="champ">
                 <label for="enfant-niveau">Niveau</label>
                 <select id="enfant-niveau" name="enfant-niveau">
@@ -136,7 +143,7 @@
               </div>
             </div>
             <p style="border-left:1.4px solid var(--accent);background:var(--fond-2);padding:14px 18px;font-size:13.5px;line-height:1.65;color:var(--texte-2)">
-              <b style="color:var(--texte)">Pourquoi demandons-nous le poids et la taille ?</b>
+              <b style="color:var(--texte)">Pourquoi demandons-nous le gabarit ?</b>
               La voltige n'est pas de l'équitation traditionnelle : l'enfant évolue en équilibre et en figures
               <em>sur</em> le poney, qui le porte tout au long du cours. Pour préserver nos poneys et garantir
               la sécurité de tous, les montures et les groupes sont attribués en fonction du poids et de la
@@ -152,7 +159,7 @@
         <!-- Étape 2 : la famille -->
         <fieldset class="pas" data-pas="2">
           <h2>La famille.</h2>
-          <p class="aide">Les coordonnées du responsable légal, comme sur le dossier d'inscription papier. Les champs marqués « facultatif » peuvent être complétés plus tard, au premier cours.</p>
+          <p class="aide">Les coordonnées du responsable légal, comme sur le dossier d'inscription papier.</p>
           <div class="champs">
             <div class="rang">
               <div class="champ">
@@ -173,7 +180,7 @@
             </div>
             <div class="rang">
               <div class="champ"><label for="parent-tel">Votre mobile <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required></div>
-              <div class="champ"><label for="parent-tel-domicile">Autre téléphone <small>(facultatif)</small></label><input id="parent-tel-domicile" name="parent-tel-domicile" type="tel"></div>
+              <div class="champ"><label for="parent-tel-domicile">Autre téléphone</label><input id="parent-tel-domicile" name="parent-tel-domicile" type="tel"></div>
             </div>
             <div class="champ">
               <label for="parent-email">Votre e-mail <b>*</b></label>
@@ -181,8 +188,8 @@
               <span class="indice">La proposition de créneau et la confirmation arrivent à cette adresse.</span>
             </div>
             <div class="rang">
-              <div class="champ"><label for="secu-caisse">Sécurité sociale : caisse <small>(facultatif)</small></label><input id="secu-caisse" name="secu-caisse"></div>
-              <div class="champ"><label for="secu-numero">N° couvrant l'enfant <small>(facultatif)</small></label><input id="secu-numero" name="secu-numero"></div>
+              <div class="champ"><label for="secu-caisse">Sécurité sociale : caisse <b>*</b></label><input id="secu-caisse" name="secu-caisse" required></div>
+              <div class="champ"><label for="secu-numero">N° couvrant l'enfant <b>*</b></label><input id="secu-numero" name="secu-numero" required></div>
             </div>
             <div class="champ">
               <label for="licence-ffe">N° de licence Assurance Fédérale <small>(facultatif)</small></label>
@@ -190,7 +197,7 @@
               <span class="indice">Sans licence, joignez au premier cours un certificat médical d'aptitude à l'équitation de moins d'un an.</span>
             </div>
             <div class="champ">
-              <label for="recommandations">Vos recommandations <small>(facultatif)</small></label>
+              <label for="recommandations">Vos recommandations</label>
               <textarea id="recommandations" name="recommandations" rows="3" placeholder="Allergies, interdictions, contre-indications médicales…"></textarea>
             </div>
           </div>
@@ -320,6 +327,6 @@
 </footer>
 
 <script src="assets/js/main.js?v=32"></script>
-<script src="assets/js/inscription-cours.js?v=49"></script>
+<script src="assets/js/inscription-cours.js?v=50"></script>
 </body>
 </html>

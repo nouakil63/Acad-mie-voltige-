@@ -71,14 +71,14 @@
 
 <div class="vide-message" id="vide" hidden>
   <h1 style="font-size:20px;margin-bottom:10px">Aucun dossier à afficher</h1>
-  <p>Ce dossier se remplit automatiquement à la fin d'une <a href="inscription-cours.html">demande d'inscription aux cours</a>. Complétez d'abord le formulaire, puis revenez ici depuis le message de confirmation.</p>
+  <p>Ce dossier se remplit automatiquement à la fin d'une <a href="inscription-cours.html">demande d'inscription aux cours</a> ou d'une <a href="reservation.html">réservation de stage</a>. Complétez d'abord le formulaire, puis revenez ici depuis le message de confirmation.</p>
 </div>
 
 <div class="feuille" id="feuille" hidden>
   <div class="entete">
     <img src="assets/img/logo.jpeg" alt="">
     <div class="titres">
-      <h1>Fiche d'inscription · Cours à l'année</h1>
+      <h1 id="d-titre">Fiche d'inscription · Cours à l'année</h1>
       <div class="sous">Académie de voltige équestre · Fleur &amp; Georges Cotrait · Auberville</div>
     </div>
     <div class="annee"><small>Année scolaire</small><span id="d-annee">2026 / 2027</span></div>
@@ -116,8 +116,7 @@
   <div class="rang">
     <div class="champ"><b>Nationalité :</b><span id="d-nationalite"></span></div>
     <div class="champ"><b>Sexe :</b><span id="d-sexe"></span></div>
-    <div class="champ"><b>Poids :</b><span id="d-poids"></span></div>
-    <div class="champ"><b>Taille :</b><span id="d-taille"></span></div>
+    <div class="champ"><b>Gabarit :</b><span id="d-gabarit"></span></div>
   </div>
   <div class="champ"><b>Niveau d'équitation :</b><span id="d-niveau"></span></div>
 
@@ -128,16 +127,16 @@
   <h2>Recommandations</h2>
   <div class="encadre" id="d-recommandations"></div>
 
-  <h2>Formule choisie</h2>
+  <h2 id="d-titre-formule">Formule choisie</h2>
   <div class="rang">
-    <div class="champ"><b>Formule :</b><span id="d-formule"></span></div>
-    <div class="champ"><b>Créneau :</b><span id="d-creneau"></span></div>
+    <div class="champ"><b id="d-etiq-formule">Formule :</b><span id="d-formule"></span></div>
+    <div class="champ"><b id="d-etiq-creneau">Créneau :</b><span id="d-creneau"></span></div>
   </div>
   <div class="champ"><b>Tarif :</b><span id="d-tarif"></span></div>
   <p class="juridique">Demande envoyée depuis le site : après validation par l'académie, le règlement se fait par le lien de paiement sécurisé reçu par e-mail.</p>
 
   <h2>Droit à l'image</h2>
-  <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> L'Académie de Voltige Equestre se réserve le droit à des fins promotionnelles de prendre, détenir et diffuser, les images (photos, vidéos) faites pendant les heures de cours à l'année sous quelque forme de support que ce soit, tant par procédé photographique, que par enregistrements audio ou vidéo. Les images sont acquises définitivement, au profit de l'Académie de Voltige Equestre quelle que soit la période d'utilisation de cette image et sans aucun paiement.</p>
+  <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> L'Académie de Voltige Equestre se réserve le droit à des fins promotionnelles de prendre, détenir et diffuser, les images (photos, vidéos) faites pendant les stages ou les heures de cours à l'année sous quelque forme de support que ce soit, tant par procédé photographique, que par enregistrements audio ou vidéo. Les images sont acquises définitivement, au profit de l'Académie de Voltige Equestre quelle que soit la période d'utilisation de cette image et sans aucun paiement.</p>
 
   <h2>Autorisation et signature</h2>
   <p class="juridique"><span class="coche">✔ Accepté en ligne.</span> Je soussigné, responsable légal de l'enfant, l'autorise à participer à toutes les activités du centre, autorise le responsable à prendre, le cas échéant, toutes mesures médicales ou chirurgicales reconnues nécessaires par l'état de l'enfant. « Je déclare avoir pris connaissance et accepté les conditions générales d'inscription, le règlement intérieur et le droit à l'image. »</p>
@@ -161,7 +160,7 @@
 (function () {
   'use strict';
   var d = null;
-  try { d = JSON.parse(localStorage.getItem('av:dossier-cours')); } catch (e) { /* rien */ }
+  try { d = JSON.parse(localStorage.getItem('av:dossier-inscription') || localStorage.getItem('av:dossier-cours')); } catch (e) { /* rien */ }
   if (!d || !d.parentNom) {
     document.getElementById('vide').hidden = false;
     return;
@@ -177,6 +176,12 @@
   }
 
   met('d-annee', d.annee || '2026 / 2027');
+  if (d.type === 'stage') {
+    met('d-titre', "Fiche d'inscription · Stage");
+    met('d-titre-formule', 'Stage choisi');
+    met('d-etiq-formule', 'Stage :');
+    met('d-etiq-creneau', 'Dates :');
+  }
   met('d-qualite', d.qualite);
   met('d-parent', d.parentNom);
   met('d-adresse', d.adresse);
@@ -193,8 +198,7 @@
   met('d-lieu', d.enfantLieu);
   met('d-nationalite', d.nationalite);
   met('d-sexe', d.sexe === 'F' ? 'Fille' : d.sexe === 'M' ? 'Garçon' : d.sexe);
-  met('d-poids', d.poids ? d.poids + ' kg' : '');
-  met('d-taille', d.taille ? d.taille + ' cm' : '');
+  met('d-gabarit', d.gabarit);
   met('d-niveau', d.niveau);
   met('d-licence', d.licence || 'Certificat médical à fournir');
   met('d-recommandations', d.recommandations || 'Aucune');

@@ -109,11 +109,7 @@
 
   /* ---- récapitulatif en direct ---- */
   function texte(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
-  function gabaritTexte() {
-    var poids = texte('enfant-poids'), taille = texte('enfant-taille');
-    if (!poids && !taille) { return ''; }
-    return (poids ? poids + ' kg' : '') + (poids && taille ? ' · ' : '') + (taille ? taille + ' cm' : '');
-  }
+  function gabaritTexte() { return texte('enfant-gabarit'); }
   function majRecap() {
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = choisi ? FORMULES[Number(choisi.value)] : null;
@@ -146,12 +142,13 @@
   function donneesDossier(f) {
     var maintenant = new Date();
     return {
+      type: 'cours',
       annee: '2026/2027',
       formule: f.nom, creneau: f.creneau, tarif: f.tarif,
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
       enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
       nationalite: texte('enfant-nationalite'), sexe: texte('enfant-sexe'),
-      poids: texte('enfant-poids'), taille: texte('enfant-taille'),
+      gabarit: texte('enfant-gabarit'),
       niveau: document.getElementById('enfant-niveau').value,
       qualite: texte('parent-qualite'), parentNom: texte('parent-nom'),
       adresse: texte('parent-adresse'), cp: texte('parent-cp'), ville: texte('parent-ville'),
@@ -186,7 +183,7 @@
     var f = FORMULES[Number(choisi.value)];
 
     var dossier = donneesDossier(f);
-    try { localStorage.setItem('av:dossier-cours', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
+    try { localStorage.setItem('av:dossier-inscription', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
 
     if (URL_SERVICE) {
       fetch(URL_SERVICE, {
@@ -203,8 +200,7 @@
           enfantLieuNaissance: dossier.enfantLieu,
           nationalite: dossier.nationalite,
           sexe: dossier.sexe === 'F' ? 'Fille' : dossier.sexe === 'M' ? 'Garçon' : dossier.sexe,
-          gabarit: (dossier.poids ? dossier.poids + ' kg' : '') + (dossier.taille ? ' · ' + dossier.taille + ' cm' : ''),
-          gabaritDetail: dossier.poids + ' kg · ' + dossier.taille + ' cm',
+          gabarit: dossier.gabarit,
           niveau: dossier.niveau,
           qualite: dossier.qualite,
           parentNom: dossier.parentNom,
@@ -240,7 +236,7 @@
       '',
       'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
       'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
-      'Sexe : ' + dossier.sexe + ' · Poids : ' + dossier.poids + ' kg · Taille : ' + dossier.taille + ' cm',
+      'Sexe : ' + dossier.sexe + ' · Gabarit : ' + dossier.gabarit,
       'Niveau : ' + dossier.niveau,
       '',
       'Responsable légal (' + dossier.qualite + ') : ' + dossier.parentNom,
