@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Décision — Académie de voltige équestre</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <style>
+    :root{ --rouge:#D00828; --encre:#1c1417; --gris:#6d6266; }
+    *{box-sizing:border-box}
+    body{margin:0;background:#faf6f3;color:var(--encre);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+         min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .carte{background:#fff;border:1px solid #e7dcd6;border-radius:18px;max-width:520px;width:100%;
+           padding:34px 34px 30px;text-align:center;box-shadow:0 12px 40px rgba(28,20,23,.08)}
+    .carte img{width:56px;height:56px;border-radius:50%;margin-bottom:14px}
+    h1{font-size:22px;margin:0 0 10px}
+    p{color:var(--gris);line-height:1.6;margin:0 0 10px;font-size:15px}
+    p b{color:var(--encre)}
+    .btn{display:inline-block;border:0;border-radius:999px;padding:14px 26px;font-weight:700;font-size:16px;
+         cursor:pointer;margin-top:14px;font-family:inherit}
+    .btn-rouge{background:var(--rouge);color:#fff}
+    .btn-rouge:hover{background:#e40f31}
+    .btn[disabled]{opacity:.6;cursor:default}
+    .ok{color:#2e7d46;font-weight:700}
+    .erreur{color:var(--rouge);font-weight:700}
+    .petit{font-size:13px;margin-top:16px}
+  </style>
+</head>
+<body>
+<div class="carte">
+  <img src="assets/img/logo.jpeg" alt="">
+  <h1 id="titre">Un instant…</h1>
+  <p id="texte">Lecture de la demande.</p>
+  <button type="button" class="btn btn-rouge" id="bouton" hidden></button>
+  <p class="petit" id="pied" hidden>Cette page envoie le mail au parent via le service de l'académie. Vous pourrez fermer la page ensuite.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwy3AdlqdFYKeCnOmMugR_KvsBHBbT7AOHvDsclWJoYJG0VpaW-U3GnD0WId-4FG4Kf/exec';
+  var MOTIFS = { complet: 'Complet', age: 'Âge', gabarit: 'Gabarit', autre: 'Autre' };
+
+  var p = new URLSearchParams(location.search);
+  var action = p.get('action'), motif = p.get('motif'), d = p.get('d'), s = p.get('s');
+  var titre = document.getElementById('titre');
+  var texte = document.getElementById('texte');
+  var bouton = document.getElementById('bouton');
+  var pied = document.getElementById('pied');
+
+  if ((action !== 'valider' && action !== 'refuser') || !d || !s) {
+    titre.textContent = 'Lien incomplet';
+    texte.textContent = 'Ouvrez cette page depuis les boutons du mail « Nouvelle demande » de l’académie.';
+    return;
+  }
+
+  if (action === 'valider') {
+    titre.textContent = 'Valider cette demande ?';
+    texte.innerHTML = 'Le parent recevra aussitôt le <b>mail de validation avec le lien de paiement sécurisé</b>.';
+    bouton.textContent = '✅ Oui, valider et envoyer le lien de paiement';
+  } else {
+    titre.textContent = 'Refuser cette demande ?';
+    texte.innerHTML = 'Le parent recevra un <b>message courtois de refus</b>' +
+      (MOTIFS[motif] ? ' (motif : <b>' + MOTIFS[motif] + '</b>)' : '') + '.';
+    bouton.textContent = '❌ Oui, envoyer le refus';
+  }
+  bouton.hidden = false;
+  pied.hidden = false;
+
+  bouton.addEventListener('click', function () {
+    bouton.disabled = true;
+    bouton.textContent = 'Envoi en cours…';
+    fetch(SERVICE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'decision', action: action, motif: motif, d: d, s: s })
+    }).then(function (r) { return r.text(); }).then(function (t) {
+      t = t.trim();
+      var morceaux = t.split(';');
+      if (morceaux[0] === 'ok valide') {
+        titre.innerHTML = '<span class="ok">C’est validé ✅</span>';
+        texte.innerHTML = 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + morceaux[1] + '</b> pour <b>' + morceaux[2] + '</b>.<br><br>Vous pouvez fermer cette page.';
+        bouton.hidden = true; pied.hidden = true;
+      } else if (morceaux[0] === 'ok refuse') {
+        titre.innerHTML = '<span class="ok">Refus envoyé</span>';
+        texte.innerHTML = 'Le message de refus vient de partir vers <b>' + morceaux[1] + '</b> pour <b>' + morceaux[2] + '</b>.<br><br>Vous pouvez fermer cette page.';
+        bouton.hidden = true; pied.hidden = true;
+      } else if (t === 'lien invalide' || t === 'motif inconnu' || t === 'action inconnue') {
+        titre.innerHTML = '<span class="erreur">Lien non reconnu</span>';
+        texte.textContent = 'Ce lien ne correspond à aucune demande. Utilisez les boutons du mail d’origine, ou répondez directement au parent par e-mail.';
+        bouton.hidden = true;
+      } else {
+        titre.innerHTML = '<span class="erreur">Réponse inattendue</span>';
+        texte.textContent = 'Le service a répondu : « ' + t + ' ». Réessayez, ou répondez directement au parent par e-mail.';
+        bouton.disabled = false;
+        bouton.textContent = 'Réessayer';
+      }
+    }).catch(function () {
+      titre.innerHTML = '<span class="erreur">Service injoignable</span>';
+      texte.textContent = 'Impossible de joindre le service d’envoi. Vérifiez votre connexion et réessayez.';
+      bouton.disabled = false;
+      bouton.textContent = 'Réessayer';
+    });
+  });
+})();
+</script>
+</body>
+</html>

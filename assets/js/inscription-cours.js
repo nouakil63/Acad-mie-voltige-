@@ -1,6 +1,7 @@
-/* Demande d'inscription aux cours à l'année — trois étapes, récapitulatif en direct.
-   La demande part par e-mail ; Georges Cotrait la valide sous 24 h maximum, puis
-   le client reçoit un lien de paiement sécurisé. */
+/* Demande d'inscription aux cours à l'année — quatre étapes, récapitulatif en
+   direct, signature en ligne. La demande part vers l'académie ; Georges Cotrait
+   la valide sous 24 h maximum, puis le client reçoit un lien de paiement.
+   Les réponses remplissent aussi le dossier d'inscription téléchargeable. */
 (function () {
   'use strict';
 
@@ -20,6 +21,7 @@
 
   var pasCourant = 1;
   var lesPas = form.querySelectorAll('.pas');
+  var dernierPas = lesPas.length;
   var jalons = form.querySelectorAll('.jalon');
 
   function montrePas(n) {
@@ -33,10 +35,55 @@
     form.closest('.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /* ---- signature au doigt ou à la souris ---- */
+  var toile = document.getElementById('signature');
+  var signatureFaite = false;
+  if (toile) {
+    var ctx = toile.getContext('2d');
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1c1417';
+    var enTrace = false;
+    function pointDe(ev) {
+      var r = toile.getBoundingClientRect();
+      return { x: (ev.clientX - r.left) * (toile.width / r.width), y: (ev.clientY - r.top) * (toile.height / r.height) };
+    }
+    toile.addEventListener('pointerdown', function (ev) {
+      ev.preventDefault();
+      toile.setPointerCapture(ev.pointerId);
+      enTrace = true;
+      var p = pointDe(ev);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + 0.1, p.y + 0.1);
+      ctx.stroke();
+      signatureFaite = true;
+      var champ = document.getElementById('champ-signature');
+      if (champ) { champ.classList.remove('erreur'); }
+    });
+    toile.addEventListener('pointermove', function (ev) {
+      if (!enTrace) { return; }
+      var p = pointDe(ev);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
+      toile.addEventListener(t, function () { enTrace = false; });
+    });
+    var btnEffacer = document.getElementById('signature-effacer');
+    if (btnEffacer) {
+      btnEffacer.addEventListener('click', function () {
+        ctx.clearRect(0, 0, toile.width, toile.height);
+        signatureFaite = false;
+      });
+    }
+  }
+
   function champsValides(pas) {
     var ok = true;
     pas.querySelectorAll('[required]').forEach(function (c) {
-      var champ = c.closest('.champ');
+      var champ = c.closest('.champ') || c.closest('.case');
       var vide = c.type === 'checkbox' ? !c.checked
                : c.type === 'radio' ? !form.querySelector('input[name="' + c.name + '"]:checked')
                : !c.value.trim();
@@ -44,6 +91,11 @@
       if (champ) { champ.classList.toggle('erreur', invalide); }
       if (invalide) { ok = false; }
     });
+    if (toile && pas.contains(toile) && !signatureFaite) {
+      var champSig = document.getElementById('champ-signature');
+      if (champSig) { champSig.classList.add('erreur'); }
+      ok = false;
+    }
     return ok;
   }
 
@@ -57,6 +109,11 @@
 
   /* ---- récapitulatif en direct ---- */
   function texte(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function gabaritTexte() {
+    var poids = texte('enfant-poids'), taille = texte('enfant-taille');
+    if (!poids && !taille) { return ''; }
+    return (poids ? poids + ' kg' : '') + (poids && taille ? ' · ' : '') + (taille ? taille + ' cm' : '');
+  }
   function majRecap() {
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = choisi ? FORMULES[Number(choisi.value)] : null;
@@ -65,7 +122,7 @@
     document.getElementById('r-total').textContent = f ? f.tarif : '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
-    document.getElementById('r-poids').textContent = texte('enfant-gabarit') || '—';
+    document.getElementById('r-poids').textContent = gabaritTexte() || '—';
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
@@ -85,25 +142,51 @@
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
   var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwy3AdlqdFYKeCnOmMugR_KvsBHBbT7AOHvDsclWJoYJG0VpaW-U3GnD0WId-4FG4Kf/exec';
 
+  /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
+  function donneesDossier(f) {
+    var maintenant = new Date();
+    return {
+      annee: '2026/2027',
+      formule: f.nom, creneau: f.creneau, tarif: f.tarif,
+      enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
+      enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
+      nationalite: texte('enfant-nationalite'), sexe: texte('enfant-sexe'),
+      poids: texte('enfant-poids'), taille: texte('enfant-taille'),
+      niveau: document.getElementById('enfant-niveau').value,
+      qualite: texte('parent-qualite'), parentNom: texte('parent-nom'),
+      adresse: texte('parent-adresse'), cp: texte('parent-cp'), ville: texte('parent-ville'),
+      parentTel: texte('parent-tel'), telDomicile: texte('parent-tel-domicile'),
+      parentEmail: texte('parent-email'),
+      secuCaisse: texte('secu-caisse'), secuNumero: texte('secu-numero'),
+      licence: texte('licence-ffe'), recommandations: texte('recommandations'),
+      faitA: texte('parent-ville'),
+      signeLe: maintenant.toLocaleDateString('fr-FR'),
+      signature: (toile && signatureFaite) ? toile.toDataURL('image/png') : ''
+    };
+  }
+
   function confirmationAuto() {
     var c = document.getElementById('confirmation');
     var h = c.querySelector('h3'); var p = c.querySelector('p');
     if (h) { h.textContent = 'Votre demande est envoyée !'; }
     if (p) {
-      p.innerHTML = 'L’académie vient de la recevoir. Georges Cotrait valide chaque demande sous 24 h maximum ; ' +
+      p.innerHTML = 'L’académie vient de la recevoir. Georges Cotrait valide chaque demande sous 24 h maximum ; ' +
         'vous recevrez alors un e-mail avec le lien de paiement sécurisé. ' +
-        'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
+        'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
     }
     c.classList.add('visible');
   }
 
-  /* ---- envoi : e-mail pré-rempli en attendant le paiement en ligne ---- */
+  /* ---- envoi ---- */
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var pas = form.querySelector('.pas[data-pas="3"]');
+    var pas = form.querySelector('.pas[data-pas="' + dernierPas + '"]');
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="formule"]:checked');
     var f = FORMULES[Number(choisi.value)];
+
+    var dossier = donneesDossier(f);
+    try { localStorage.setItem('av:dossier-cours', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
 
     if (URL_SERVICE) {
       fetch(URL_SERVICE, {
@@ -114,22 +197,38 @@
           formule: f.nom,
           creneau: f.creneau,
           tarif: f.tarif,
-          enfantPrenom: texte('enfant-prenom'),
-          enfantNom: texte('enfant-nom'),
-          enfantNaissance: texte('enfant-naissance'),
-          gabarit: texte('enfant-gabarit'),
-          niveau: document.getElementById('enfant-niveau').value,
-          parentNom: texte('parent-nom'),
-          parentTel: texte('parent-tel'),
-          parentEmail: texte('parent-email')
+          enfantPrenom: dossier.enfantPrenom,
+          enfantNom: dossier.enfantNom,
+          enfantNaissance: dossier.enfantNaissance,
+          enfantLieuNaissance: dossier.enfantLieu,
+          nationalite: dossier.nationalite,
+          sexe: dossier.sexe === 'F' ? 'Fille' : dossier.sexe === 'M' ? 'Garçon' : dossier.sexe,
+          gabarit: (dossier.poids ? dossier.poids + ' kg' : '') + (dossier.taille ? ' · ' + dossier.taille + ' cm' : ''),
+          gabaritDetail: dossier.poids + ' kg · ' + dossier.taille + ' cm',
+          niveau: dossier.niveau,
+          qualite: dossier.qualite,
+          parentNom: dossier.parentNom,
+          adresse: dossier.adresse,
+          cp: dossier.cp,
+          ville: dossier.ville,
+          parentTel: dossier.parentTel,
+          telDomicile: dossier.telDomicile,
+          parentEmail: dossier.parentEmail,
+          secuCaisse: dossier.secuCaisse,
+          secuNumero: dossier.secuNumero,
+          licence: dossier.licence,
+          recommandations: dossier.recommandations,
+          droitImage: 'Accepté en ligne',
+          autorisationMedicale: 'Acceptée en ligne',
+          signeLe: 'Signé en ligne le ' + dossier.signeLe + (dossier.faitA ? ' à ' + dossier.faitA : '')
         })
-      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(f); });
+      }).then(confirmationAuto).catch(function () { envoyerParMessagerie(f, dossier); });
       return;
     }
-    envoyerParMessagerie(f);
+    envoyerParMessagerie(f, dossier);
   });
 
-  function envoyerParMessagerie(f) {
+  function envoyerParMessagerie(f, dossier) {
     var corps = [
       'Bonjour,',
       '',
@@ -139,15 +238,20 @@
       'Créneau : ' + f.creneau,
       'Tarif : ' + f.tarif,
       '',
-      'Voltigeur : ' + texte('enfant-prenom') + ' ' + texte('enfant-nom'),
-      'Date de naissance : ' + texte('enfant-naissance'),
-      'Gabarit : ' + texte('enfant-gabarit'),
-      'Niveau : ' + document.getElementById('enfant-niveau').value,
+      'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
+      'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
+      'Sexe : ' + dossier.sexe + ' · Poids : ' + dossier.poids + ' kg · Taille : ' + dossier.taille + ' cm',
+      'Niveau : ' + dossier.niveau,
       '',
-      'Parent : ' + texte('parent-nom'),
-      'Téléphone : ' + texte('parent-tel'),
-      'E-mail : ' + texte('parent-email'),
+      'Responsable légal (' + dossier.qualite + ') : ' + dossier.parentNom,
+      'Adresse : ' + dossier.adresse + ', ' + dossier.cp + ' ' + dossier.ville,
+      'Téléphone : ' + dossier.parentTel + (dossier.telDomicile ? ' / ' + dossier.telDomicile : ''),
+      'E-mail : ' + dossier.parentEmail,
+      dossier.secuCaisse || dossier.secuNumero ? 'Sécurité sociale : ' + dossier.secuCaisse + ' ' + dossier.secuNumero : '',
+      dossier.licence ? 'Licence FFE : ' + dossier.licence : '',
+      dossier.recommandations ? 'Recommandations : ' + dossier.recommandations : '',
       '',
+      'Droit à l\'image et autorisation médicale acceptés, signé en ligne le ' + dossier.signeLe + '.',
       'J\'ai compris que cette demande sera validée sous 24 h maximum,',
       'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
       '',
@@ -158,7 +262,7 @@
       '· Paiement du trimestre (325 €) :',
       PAIEMENTS.trimestre,
       '--------------------------------------------------',
-    ].join('\n');
+    ].filter(function (l) { return l !== ''; }).join('\n');
     var sujet = 'Demande d\'inscription cours — ' + f.nom;
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
