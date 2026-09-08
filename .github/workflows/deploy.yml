@@ -29,12 +29,13 @@ jobs:
       # Pour remettre la page d'attente : rétablir l'assemblage
       # « construction/. → _site » avec le miroir /builder/site/
       # (voir l'historique git de ce fichier, PR #15).
-      - name: Assemble le site complet et l'éditeur
+      - name: Assemble le site complet, l'éditeur et l'espace académie
         run: |
-          mkdir -p _site/builder
+          mkdir -p _site/builder _site/admin
           cp -r assets *.html sitemap.xml _site/
           cp -r builder/. _site/builder/
-          printf 'User-agent: *\nAllow: /\nDisallow: /builder/\n' > _site/robots.txt
+          cp -r admin/. _site/admin/
+          printf 'User-agent: *\nAllow: /\nDisallow: /builder/\nDisallow: /admin/\n' > _site/robots.txt
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
