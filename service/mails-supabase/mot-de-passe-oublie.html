@@ -1,0 +1,27 @@
+<!-- ============================================================
+  Mail « Reset password » aux couleurs de l'académie.
+  À coller dans Supabase : Authentication → Emails → onglet
+  « Reset password » → remplacer tout le contenu de « Message body »
+  par ce fichier, et l'objet (Subject) par :
+  Choisissez votre nouveau mot de passe
+  ⚠️ Ne pas toucher au morceau {{ .ConfirmationURL }} : Supabase le
+  remplace par le vrai lien au moment de l'envoi.
+============================================================ -->
+<div style="margin:0;padding:26px 12px;background:#F7F3F0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;width:100%">
+    <tr><td style="background:#1D1216;border-radius:16px 16px 0 0;padding:18px 26px">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td><img src="https://academiedevoltige.com/assets/img/logo.jpeg" width="40" height="40" alt="" style="border-radius:50%;display:block"></td>
+        <td style="padding-left:12px;color:#ffffff;font-weight:800;font-size:16px">Acad&#233;mie de voltige
+          <div style="color:#b9aeb2;font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase">Fleur &amp; Georges Cotrait</div></td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="background:#ffffff;padding:30px 26px;border-radius:0 0 16px 16px">
+      <h1 style="margin:0 0 12px;color:#1D1216;font-size:22px">Choisissez un nouveau mot de passe.</h1>
+      <p style="margin:0 0 18px;color:#5f5458;font-size:15px;line-height:1.55">Vous avez demand&#233; &#224; changer le mot de passe de votre compte famille. Un clic sur le bouton ci-dessous vous ram&#232;ne sur le site de l&#8217;acad&#233;mie pour en choisir un nouveau, en toute s&#233;curit&#233;.</p>
+      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 22px;border-radius:999px;background:#D00828;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none">Choisir mon nouveau mot de passe</a>
+      <p style="margin:26px 0 0;padding-top:16px;border-top:1px solid #eee5e7;color:#8a7f83;font-size:12.5px;line-height:1.6">Vous n&#8217;avez rien demand&#233;&#8239;? Ignorez simplement ce message&nbsp;: votre mot de passe reste inchang&#233;.<br>Fleur &amp; Georges Cotrait, Acad&#233;mie de voltige &#233;questre, Auberville.</p>
+    </td></tr>
+    <tr><td style="padding:14px 8px;text-align:center;color:#a89ba0;font-size:11.5px">Acad&#233;mie de voltige &#233;questre &#183; Auberville, Normandie &#183; <a href="https://academiedevoltige.com" style="color:#D00828">academiedevoltige.com</a></td></tr>
+  </table>
+</div>
