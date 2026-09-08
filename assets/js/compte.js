@@ -112,9 +112,52 @@
     liste.appendChild(carteEnfant());
   });
 
+  /* ---------- Les dernières demandes d'inscription ---------- */
+  var familleChargee = null;
+
+  function afficherDemandes(famille) {
+    var conteneur = el('liste-demandes');
+    if (!conteneur) { return; }
+    conteneur.innerHTML = '';
+    var demandes = (famille && famille.demandes) || [];
+    if (!demandes.length) {
+      var vide = document.createElement('p');
+      vide.className = 'aide';
+      vide.textContent = 'Aucune demande envoyée pour l’instant.';
+      conteneur.appendChild(vide);
+      return;
+    }
+    demandes.slice(0, 10).forEach(function (d) {
+      var ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:10px;' +
+        'border:1.4px solid var(--trait);border-radius:12px;padding:12px 16px;font-size:13.5px';
+      var badge = document.createElement('b');
+      badge.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
+      badge.style.cssText = 'padding:3px 12px;border-radius:999px;font-size:12px;' +
+        (d.type === 'stage'
+          ? 'border:1.4px solid #D00828;color:#D00828'
+          : 'background:#D00828;color:#fff');
+      ligne.appendChild(badge);
+      var texte = document.createElement('span');
+      var quand = d.quand ? new Date(d.quand).toLocaleDateString('fr-FR') : '';
+      texte.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.detail || '') +
+        (quand ? ' · envoyée le ' + quand : '');
+      texte.style.cssText = 'color:var(--texte-2)';
+      ligne.appendChild(texte);
+      if (d.tarif) {
+        var tarif = document.createElement('b');
+        tarif.textContent = d.tarif;
+        tarif.style.cssText = 'margin-left:auto;white-space:nowrap';
+        ligne.appendChild(tarif);
+      }
+      conteneur.appendChild(ligne);
+    });
+  }
+
   /* ---------- Afficher la famille du compte ---------- */
   function afficherFamille(famille, session) {
     famille = famille || {};
+    familleChargee = famille;
     var r = famille.responsable || {};
     el('fa-compte').textContent = session.email || 'votre compte';
     met('c-qualite', r.qualite); met('c-nom', r.nom);
@@ -127,6 +170,7 @@
     var enfants = (famille.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
     if (enfants.length) { enfants.forEach(function (e) { liste.appendChild(carteEnfant(e)); }); }
     else { liste.appendChild(carteEnfant()); }
+    afficherDemandes(famille);
     montrer('v-famille');
   }
 
@@ -147,7 +191,9 @@
         email: val('c-courriel'),
         secuCaisse: val('c-secu-caisse'), secuNumero: val('c-secu-numero')
       },
-      enfants: enfants
+      enfants: enfants,
+      /* l'historique des demandes est conservé tel quel */
+      demandes: (familleChargee && familleChargee.demandes) || []
     };
   }
 
@@ -229,6 +275,7 @@
     message('m-famille', 'Enregistrement…', true);
     nuage.enregistrerFamille(famille).then(function (ok) {
       if (!ok) { message('m-famille', 'L’enregistrement n’a pas abouti. Vérifiez votre connexion internet et réessayez.'); return; }
+      familleChargee = famille;
       ecrireFamilleLocale(famille);
       message('m-famille', '✅ Enregistré ! Vos prochaines inscriptions se rempliront toutes seules.', true);
     });

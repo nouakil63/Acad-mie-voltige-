@@ -1126,3 +1126,16 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 @media (max-width:560px){
   .choix-stage .prix-stage{grid-row:auto;grid-column:2;font-size:19px;white-space:normal}
 }
+
+/* ---- Icône « Mon compte » dans la barre de navigation ---- */
+.btn-compte{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  border:1.6px solid color-mix(in srgb, currentColor 45%, transparent);
+  color:inherit;
+  transition:border-color .25s var(--galop),color .25s var(--galop),background .25s var(--galop);
+}
+.btn-compte:hover,.btn-compte:focus-visible{
+  border-color:var(--rouge);color:var(--rouge);
+  background:color-mix(in srgb, var(--rouge) 7%, transparent);
+}

@@ -74,7 +74,12 @@
     }
   }
 
+  /* MODE ESSAI : tous les champs sont facultatifs le temps des tests du
+     parcours. Pour revenir a la normale, passer MODE_ESSAI a false. */
+  var MODE_ESSAI = true;
+
   function champsValides(pas) {
+    if (MODE_ESSAI) { return true; }
     var ok = true;
     pas.querySelectorAll('[required]').forEach(function (c) {
       var champ = c.closest('.champ') || c.closest('.case');
@@ -175,10 +180,11 @@
     var pas = form.querySelector('.pas[data-pas="' + dernierPas + '"]');
     if (!champsValides(pas)) { return; }
     var choisi = form.querySelector('input[name="stage"]:checked');
-    var s = STAGES[Number(choisi.value)];
+    var s = STAGES[choisi ? Number(choisi.value) : 0];
 
     var dossier = donneesDossier(s);
     try { localStorage.setItem('av:dossier-inscription', JSON.stringify(dossier)); } catch (err) { /* navigation privée */ }
+    document.dispatchEvent(new CustomEvent('av:demande-envoyee', { detail: dossier }));
 
     if (URL_SERVICE) {
       fetch(URL_SERVICE, {
