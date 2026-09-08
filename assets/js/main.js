@@ -100,19 +100,23 @@
     cibles.forEach(function (s) { s.classList.add('in'); });
   }
 
-  /* ---- Popup d'inscription aux actualités ---- */
+  /* ---- Popup : créer son compte pour s'inscrire ---- */
+  /* Il ne se montre qu'une fois, et jamais à qui a déjà un compte
+     (session ouverte) ou une famille enregistrée sur cet appareil. */
   var surgi = document.getElementById('surgi');
   if (surgi) {
     var vu = false;
-    try { vu = localStorage.getItem('actus-vu') === '1'; } catch (e) {}
-    var marquer = function () { try { localStorage.setItem('actus-vu', '1'); } catch (e) {} };
+    try {
+      vu = localStorage.getItem('compte-vu') === '1' ||
+        !!localStorage.getItem('av:session') ||
+        !!localStorage.getItem('av:famille');
+    } catch (e) {}
+    var marquer = function () { try { localStorage.setItem('compte-vu', '1'); } catch (e) {} };
     var ouvert = false;
     var ouvrir = function () {
       if (ouvert || vu) { return; }
       ouvert = true;
       surgi.hidden = false;
-      var champ = document.getElementById('surgi-email');
-      if (champ) { champ.focus({ preventScroll: true }); }
     };
     var fermer = function () {
       surgi.hidden = true;
@@ -134,16 +138,9 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !surgi.hidden) { fermer(); }
     });
-    document.getElementById('form-surgi').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var email = document.getElementById('surgi-email').value.trim();
-      if (!/.+@.+\..+/.test(email)) { return; }
-      window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
-        encodeURIComponent('Inscription aux actualités') + '&body=' +
-        encodeURIComponent('Bonjour,\n\nJe souhaite recevoir les actualités de l\'académie (dates de stages, cours, représentations).\n\nMon e-mail : ' + email);
-      surgi.classList.add('envoye');
-      marquer();
-      setTimeout(function () { surgi.hidden = true; }, 3500);
+    /* un clic sur « Créer mon compte » ou « S'inscrire sans compte » suffit */
+    surgi.querySelectorAll('.carte-surgi a.btn').forEach(function (a) {
+      a.addEventListener('click', marquer);
     });
   }
 })();

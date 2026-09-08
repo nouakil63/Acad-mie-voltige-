@@ -45,7 +45,7 @@
     <a href="index.html#infos">Infos pratiques</a>
     <a href="contact.html">Contact</a>
   </nav>
-  <a class="btn btn-plein btn-nav" href="inscription.html"><span>Inscription</span></a>
+  <a class="btn btn-plein btn-nav" href="compte.html"><span>Inscription</span></a>
   <button class="burger" aria-expanded="false" aria-controls="menu-mobile" aria-label="Ouvrir le menu">
     <span></span><span></span><span></span>
   </button>
@@ -60,8 +60,7 @@
   <a href="galerie.html">Galerie</a>
   <a href="index.html#infos">Infos pratiques</a>
   <a href="contact.html">Contact</a>
-  <a href="compte.html">Mon compte</a>
-  <a href="inscription.html">Inscription</a>
+  <a href="compte.html">Inscription</a>
 </nav>
 
 <!-- ============ En-tête de page ============ -->
@@ -102,7 +101,7 @@
     <!-- connexion -->
     <form class="pas" id="f-connexion" novalidate>
       <h2>Se connecter.</h2>
-      <p class="aide">Retrouvez vos informations de famille en un instant. Pas encore de compte ? <a href="#" data-vue="f-creation" style="font-weight:700">Créez-le en une minute</a>.</p>
+      <p class="aide">Retrouvez vos informations de famille en un instant. Pas encore de compte ? <a href="#" data-vue="f-creation" style="font-weight:700">Créez-le en une minute</a>. Pressé(e) ? Vous pouvez aussi <a href="inscription.html" style="font-weight:700">vous inscrire sans compte</a>.</p>
       <div class="champs">
         <div class="champ">
           <label for="cx-email">Votre e-mail <b>*</b></label>
@@ -203,7 +202,11 @@
     <form class="pas" id="v-famille" novalidate>
       <h2>Votre famille.</h2>
       <p class="aide">Connecté(e) en tant que <b id="fa-compte"></b> · <a href="#" id="fa-deconnexion">Se déconnecter</a><br>
-      Ces informations pré-remplissent les inscriptions aux <a href="inscription-cours.html" style="font-weight:700">cours</a> et aux <a href="reservation.html" style="font-weight:700">stages</a> sur tous vos appareils.</p>
+      Ces informations pré-remplissent les inscriptions sur tous vos appareils.</p>
+      <p style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 10px">
+        <a class="btn btn-rouge" href="inscription-cours.html"><span>S'inscrire aux cours</span></a>
+        <a class="btn btn-contour" href="reservation.html"><span>Réserver un stage</span></a>
+      </p>
 
       <h3 style="font-size:19px;margin:26px 0 14px">Le responsable légal</h3>
       <div class="champs">
@@ -298,7 +301,7 @@
   .carte-enfant .retirer{border:0;background:transparent;color:#6d6266;font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit}
 </style>
 
-<script src="assets/js/main.js?v=32"></script>
+<script src="assets/js/main.js?v=33"></script>
 <script src="assets/js/compte-config.js?v=2"></script>
 <script src="assets/js/nuage.js?v=1"></script>
 <script src="assets/js/compte.js?v=1"></script>
