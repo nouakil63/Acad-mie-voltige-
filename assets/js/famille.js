@@ -185,6 +185,23 @@
       if (i >= 0) { f.enfants[i] = enfant; } else { f.enfants.push(enfant); }
     }
     ecrire(f);
-    if (connecte()) { nuage.enregistrerFamille(f); }
   }, true);
+
+  /* ---- demande réellement envoyée : la garder dans le carnet ----
+     (et tout envoyer au compte en une fois quand on est connecté) */
+  document.addEventListener('av:demande-envoyee', function (ev) {
+    var d = ev.detail || {};
+    var f = lire() || {};
+    f.demandes = f.demandes || [];
+    f.demandes.unshift({
+      quand: new Date().toISOString(),
+      type: d.type,
+      enfant: ((d.enfantPrenom || '') + ' ' + (d.enfantNom || '')).trim(),
+      detail: (d.formule || '') + (d.creneau ? ' · ' + d.creneau : ''),
+      tarif: d.tarif || ''
+    });
+    f.demandes = f.demandes.slice(0, 20);
+    ecrire(f);
+    if (connecte()) { nuage.enregistrerFamille(f); }
+  });
 })();
