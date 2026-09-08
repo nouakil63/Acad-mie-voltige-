@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feuille de présence — Académie de voltige équestre</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
+  <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
+  <style>
+    :root{--rouge:#D00828;--encre:#1D1216;--gris:#8a7f83;--trait:#e6dcd6}
+    *{box-sizing:border-box;margin:0}
+    body{font-family:'Instrument Sans',-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--encre);background:#fff;padding:34px clamp(16px,4vw,50px)}
+    .barre{display:flex;justify-content:flex-end;margin-bottom:18px}
+    .barre button{padding:12px 24px;border-radius:999px;border:0;background:var(--rouge);color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+    header{display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--rouge);padding-bottom:16px;margin-bottom:8px}
+    header img{width:52px;height:52px;border-radius:50%}
+    h1{font-size:24px;line-height:1.15}
+    .sous{color:var(--gris);font-size:13.5px;margin-top:3px}
+    .infos{display:flex;gap:28px;flex-wrap:wrap;margin:14px 0 20px;font-size:13px;color:var(--gris)}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);text-align:left;padding:9px 10px;border-bottom:2px solid var(--encre)}
+    td{padding:11px 10px;border-bottom:1px solid var(--trait);vertical-align:middle}
+    td.num{color:var(--gris);width:34px}
+    td.nom{font-weight:700}
+    td.info{color:var(--gris);font-size:12.5px}
+    td.coche{text-align:center;width:70px}
+    td.coche::before{content:"";display:inline-block;width:18px;height:18px;border:1.6px solid var(--encre);border-radius:4px}
+    .pied{margin-top:34px;display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;font-size:13px;color:var(--gris)}
+    .signature{border-top:1.2px solid var(--encre);min-width:230px;padding-top:6px;margin-top:44px}
+    .vide{margin:40px 0;color:var(--gris)}
+    @media print{.barre{display:none}body{padding:10mm}}
+  </style>
+</head>
+<body>
+  <div class="barre"><button onclick="window.print()">🖨️ Imprimer</button></div>
+  <header>
+    <img src="../assets/img/logo.jpeg" alt="">
+    <div>
+      <h1 id="f-titre">Feuille de présence</h1>
+      <div class="sous" id="f-sous"></div>
+    </div>
+  </header>
+  <div class="infos">
+    <span>Académie de voltige équestre · Auberville</span>
+    <span id="f-edition"></span>
+  </div>
+  <table id="f-table" hidden>
+    <thead><tr id="f-entetes"></tr></thead>
+    <tbody id="f-lignes"></tbody>
+  </table>
+  <p class="vide" id="f-vide" hidden>Aucun voltigeur sur cette feuille.</p>
+  <div class="pied">
+    <div class="signature">Signature de l'encadrant</div>
+    <div class="signature">Observations</div>
+  </div>
+<script>
+(function () {
+  'use strict';
+  var f = null;
+  try { f = JSON.parse(localStorage.getItem('av:feuille')); } catch (e) { /* rien */ }
+  if (!f) {
+    document.getElementById('f-vide').hidden = false;
+    document.getElementById('f-vide').textContent = 'Cette page s’ouvre depuis l’espace académie (bouton « Feuille de présence »).';
+    return;
+  }
+  document.getElementById('f-titre').textContent = f.titre || 'Feuille de présence';
+  document.getElementById('f-sous').textContent = f.sousTitre || '';
+  document.getElementById('f-edition').textContent = 'Éditée le ' + new Date().toLocaleDateString('fr-FR');
+  document.title = (f.titre || 'Feuille de présence') + ' — Académie de voltige';
+
+  var colonnes = f.colonnes && f.colonnes.length ? f.colonnes : ['Présent'];
+  var entetes = document.getElementById('f-entetes');
+  ['#', 'Voltigeur', 'Contact'].concat(colonnes).forEach(function (c) {
+    var th = document.createElement('th');
+    th.textContent = c;
+    entetes.appendChild(th);
+  });
+
+  var corps = document.getElementById('f-lignes');
+  var lignes = f.lignes || [];
+  if (!lignes.length) {
+    document.getElementById('f-vide').hidden = false;
+    return;
+  }
+  document.getElementById('f-table').hidden = false;
+  lignes.forEach(function (l, i) {
+    var tr = document.createElement('tr');
+    var num = document.createElement('td'); num.className = 'num'; num.textContent = String(i + 1); tr.appendChild(num);
+    var nom = document.createElement('td'); nom.className = 'nom'; nom.textContent = l.nom || ''; tr.appendChild(nom);
+    var info = document.createElement('td'); info.className = 'info'; info.textContent = l.info || ''; tr.appendChild(info);
+    colonnes.forEach(function () {
+      var c = document.createElement('td'); c.className = 'coche'; tr.appendChild(c);
+    });
+    corps.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>
