@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '13';
+var VERSION_SCRIPT = '14';
 
 /* ============ À EXÉCUTER UNE FOIS DEPUIS L'ÉDITEUR ============
    Le script a besoin de la permission de Google pour aller chercher
@@ -128,7 +128,7 @@ function doPost(e) {
     ['Parent', nettoyer(d.parentNom)],
     ['Téléphone', nettoyer(d.parentTel)],
     ['E-mail', nettoyer(d.parentEmail)]
-  ];
+  ].concat(lignesDossier(d));
 
   var jeton = fabriquerJeton({
     type: d.type,
@@ -240,7 +240,7 @@ function lignesDossier(d) {
     ['Code postal / ville', (nettoyer(d.cp) + ' ' + nettoyer(d.ville)).trim()],
     ['Tél. domicile', d.telDomicile],
     ['Né(e) à', d.enfantLieuNaissance], ['Nationalité', d.nationalite],
-    ['Sexe', d.sexe], ['Poids / taille', d.gabaritDetail],
+    ['Sexe', d.sexe], ['Gabarit', d.gabaritDetail],
     ['Sécurité sociale (caisse)', d.secuCaisse], ['N° couvrant l’enfant', d.secuNumero],
     ['Licence FFE', d.licence],
     ['Recommandations (allergies…)', d.recommandations],
