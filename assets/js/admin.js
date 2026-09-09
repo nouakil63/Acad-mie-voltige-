@@ -106,7 +106,7 @@
     }).then(function (r) { return r.text(); }).then(function (rep) {
       var morceaux = rep.trim().split(';');
       if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-      else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 16 ?'); }
+      else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 17 ?'); }
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
   }
 
@@ -150,6 +150,96 @@
   function retablirDemande(d) {
     if (!confirm('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { annule: false, annule_le: null, rembourse_montant: null });
+  }
+
+  /* Un stage réglé d'un coup (par exemple payé en entier avant la mise
+     en place de l'acompte) : tout est noté en un clic. */
+  function reglerTotalite(d) {
+    if (!confirm('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
+    var jour = isoLocal(new Date());
+    patchDemande(d, {
+      acompte_paye: true, acompte_le: jour,
+      solde_paye: true, solde_le: jour,
+      paye: true, paye_le: jour, paye_montant: d.tarif || ''
+    });
+  }
+
+  /* ---- La vérification des paiements sur Stripe ----
+     Le service Google (qui garde la clé Stripe, secrète) renvoie les
+     règlements reçus ; on les rapproche ici des demandes en attente. */
+  function verifierStripe() {
+    var bouton = el('b-stripe');
+    var etat = el('m-stripe');
+    bouton.disabled = true;
+    etat.textContent = 'Interrogation de Stripe…';
+    nuage.sessionValide().then(function (s) {
+      if (!s) { bouton.disabled = false; etat.textContent = ''; alert('Reconnectez-vous puis réessayez.'); return; }
+      return fetch(SERVICE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ type: 'stripe', jeton: s.jeton })
+      }).then(function (r) { return r.text(); }).then(function (t) {
+        bouton.disabled = false;
+        etat.textContent = '';
+        var rep = null;
+        try { rep = JSON.parse(t); } catch (e) { /* réponse texte : un souci */ }
+        if (!rep || !rep.ok) {
+          var texte = String(t || '').trim();
+          if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
+          else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
+          else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
+          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 17 ?'); }
+          return;
+        }
+        rapprocherStripe(rep.paiements || []);
+      });
+    }).catch(function () {
+      bouton.disabled = false;
+      etat.textContent = '';
+      alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.');
+    });
+  }
+
+  function rapprocherStripe(paiements) {
+    var libres = paiements.filter(function (p) { return p && p.email && p.montant > 0; });
+    var reportes = 0;
+    demandes.filter(function (d) { return resteAEncaisser(d) > 0 && d.parent_email; }).forEach(function (d) {
+      var email = String(d.parent_email).toLowerCase();
+      var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
+      var solde = Math.max(total - ACOMPTE_STAGE, 0);
+      for (var i = 0; i < libres.length; i++) {
+        var p = libres[i];
+        if (String(p.email).toLowerCase() !== email) { continue; }
+        var patch = null, quoi = '';
+        var jour = /^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? p.quand : isoLocal(new Date());
+        if (d.type === 'stage') {
+          if (p.montant >= total && total > 0) {
+            patch = { acompte_paye: true, acompte_le: jour, solde_paye: true, solde_le: jour, paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
+            quoi = 'la totalité du stage';
+          } else if (p.montant === ACOMPTE_STAGE && !d.acompte_paye) {
+            patch = { acompte_paye: true, acompte_le: jour };
+            quoi = 'l’acompte (300 €)';
+          } else if (p.montant === solde && d.acompte_paye && !d.solde_paye) {
+            patch = { solde_paye: true, solde_le: jour };
+            quoi = 'le solde (' + solde + ' €)';
+          }
+        } else if (!d.paye && total > 0 && p.montant >= total) {
+          patch = { paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
+          quoi = 'le paiement (' + p.montant + ' €)';
+        }
+        if (!patch) { continue; }
+        libres.splice(i, 1);
+        if (confirm('Stripe : ' + p.montant + ' € reçus de ' + d.parent_email + ' le ' +
+          new Date(jour + 'T12:00:00').toLocaleDateString('fr-FR') + '.\nNoter ' + quoi + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) {
+          patchDemande(d, patch);
+          reportes++;
+        }
+        break;
+      }
+    });
+    alert(reportes
+      ? 'C’est noté : ' + reportes + (reportes > 1 ? ' paiements reportés' : ' paiement reporté') + ' depuis Stripe.'
+      : 'Aucun nouveau paiement Stripe ne correspond aux demandes en attente de règlement.');
   }
 
   /* ================= Les paiements =================
@@ -256,33 +346,39 @@
         var bAcompte = document.createElement('button');
         bAcompte.type = 'button';
         bAcompte.className = 'btn btn-rouge';
-        bAcompte.innerHTML = '<span>💶 Acompte reçu</span>';
+        bAcompte.innerHTML = '<span>Acompte reçu</span>';
         bAcompte.addEventListener('click', function () { marquerAcompte(d); });
         actions.appendChild(bAcompte);
         var rAcompte = document.createElement('button');
         rAcompte.type = 'button';
         rAcompte.className = 'lien-doux';
-        rAcompte.textContent = '✉️ Relancer l’acompte';
+        rAcompte.textContent = 'Relancer l’acompte';
         rAcompte.addEventListener('click', function () { relancer(d, 'acompte'); });
         actions.appendChild(rAcompte);
       } else if (!d.solde_paye) {
         var bSolde = document.createElement('button');
         bSolde.type = 'button';
         bSolde.className = 'btn btn-rouge';
-        bSolde.innerHTML = '<span>💶 Solde reçu</span>';
+        bSolde.innerHTML = '<span>Solde reçu</span>';
         bSolde.addEventListener('click', function () { marquerSolde(d); });
         actions.appendChild(bSolde);
         var rSolde = document.createElement('button');
         rSolde.type = 'button';
         rSolde.className = 'lien-doux';
-        rSolde.textContent = '✉️ Relancer le solde';
+        rSolde.textContent = 'Relancer le solde';
         rSolde.addEventListener('click', function () { relancer(d, 'solde'); });
         actions.appendChild(rSolde);
       }
+      var totalite = document.createElement('button');
+      totalite.type = 'button';
+      totalite.className = 'lien-doux';
+      totalite.textContent = 'Réglé en totalité';
+      totalite.addEventListener('click', function () { reglerTotalite(d); });
+      actions.appendChild(totalite);
       var annuler = document.createElement('button');
       annuler.type = 'button';
       annuler.className = 'lien-doux';
-      annuler.textContent = '↩︎ Annuler / rembourser';
+      annuler.textContent = 'Annuler / rembourser';
       annuler.addEventListener('click', function () { annulerDemande(d); });
       actions.appendChild(annuler);
     } else if (groupe === 'regle') {
@@ -296,13 +392,13 @@
       var payer = document.createElement('button');
       payer.type = 'button';
       payer.className = 'btn btn-rouge';
-      payer.innerHTML = '<span>💶 Marquer payé</span>';
+      payer.innerHTML = '<span>Marquer payé</span>';
       payer.addEventListener('click', function () { marquerPaye(d); });
       actions.appendChild(payer);
       var rPaiement = document.createElement('button');
       rPaiement.type = 'button';
       rPaiement.className = 'lien-doux';
-      rPaiement.textContent = '✉️ Relancer le paiement';
+      rPaiement.textContent = 'Relancer le paiement';
       rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
       actions.appendChild(rPaiement);
     }
@@ -460,7 +556,7 @@
       var valider = document.createElement('button');
       valider.type = 'button';
       valider.className = 'btn btn-rouge';
-      valider.innerHTML = '<span>✅ Valider</span>';
+      valider.innerHTML = '<span>Valider</span>';
       valider.addEventListener('click', function () { decider(d, 'valider', null, c); });
       actions.appendChild(valider);
 
@@ -477,7 +573,7 @@
       var refuser = document.createElement('button');
       refuser.type = 'button';
       refuser.className = 'btn btn-contour';
-      refuser.innerHTML = '<span>❌ Refuser</span>';
+      refuser.innerHTML = '<span>Refuser</span>';
       refuser.addEventListener('click', function () { decider(d, 'refuser', motif.value, c); });
       actions.appendChild(refuser);
 
@@ -506,13 +602,13 @@
     } else if (d.paye) {
       var payee = document.createElement('span');
       payee.className = 'pastille validee';
-      payee.textContent = '💶 payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
+      payee.textContent = 'payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
       entete.insertBefore(payee, quand);
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
       var payer = document.createElement('button');
       payer.type = 'button';
       payer.className = 'lien-doux';
-      payer.textContent = '💶 Marquer payé';
+      payer.textContent = 'Marquer payé';
       payer.addEventListener('click', function () { marquerPaye(d); });
       actions.appendChild(payer);
     }
@@ -520,7 +616,7 @@
     var dossier = document.createElement('button');
     dossier.type = 'button';
     dossier.className = 'lien-doux';
-    dossier.textContent = '📄 Dossier d’inscription rempli (imprimer / PDF)';
+    dossier.textContent = 'Dossier d’inscription rempli (imprimer / PDF)';
     dossier.addEventListener('click', function () { ouvrirDossier(d); });
     actions.appendChild(dossier);
 
@@ -633,7 +729,7 @@
       var liste = document.createElement('ul');
       parJour[date].forEach(function (r) {
         var li = document.createElement('li');
-        li.textContent = '🧒 ' + (r.enfant || 'Voltigeur') + (r.email ? ' · ' + r.email : '');
+        li.textContent = (r.enfant || 'Voltigeur') + (r.email ? ' · ' + r.email : '');
         liste.appendChild(li);
       });
       carte.appendChild(liste);
@@ -642,7 +738,7 @@
       var imprimer = document.createElement('button');
       imprimer.type = 'button';
       imprimer.className = 'lien-doux';
-      imprimer.textContent = '🖨 Feuille de présence';
+      imprimer.textContent = 'Feuille de présence';
       imprimer.addEventListener('click', function () {
         ouvrirFeuille({
           titre: 'Cours du ' + jourLisible(date),
@@ -685,7 +781,7 @@
       var liste = document.createElement('ul');
       parStage[stage].forEach(function (d) {
         var li = document.createElement('li');
-        li.textContent = '🧒 ' + (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
+        li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
         liste.appendChild(li);
       });
       carte.appendChild(liste);
@@ -694,7 +790,7 @@
       var imprimer = document.createElement('button');
       imprimer.type = 'button';
       imprimer.className = 'lien-doux';
-      imprimer.textContent = '🖨 Feuille de présence de la semaine';
+      imprimer.textContent = 'Feuille de présence de la semaine';
       imprimer.addEventListener('click', function () {
         ouvrirFeuille({
           titre: 'Feuille de présence · ' + stage,
@@ -807,7 +903,7 @@
       enfants.forEach(function (e) {
         var puce = document.createElement('span');
         puce.className = 'enfant-ligne';
-        var morceaux = ['🧒 ' + ((e.prenom + ' ' + (e.nom || '')).trim())];
+        var morceaux = [(e.prenom + ' ' + (e.nom || '')).trim()];
         if (e.naissance) { morceaux.push('né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR')); }
         if (e.gabarit) { morceaux.push(e.gabarit); }
         puce.textContent = morceaux.join(' · ');
@@ -831,7 +927,7 @@
       var activer = document.createElement('button');
       activer.type = 'button';
       activer.className = 'btn btn-contour';
-      activer.innerHTML = '<span>🗓 Activer un trimestre</span>';
+      activer.innerHTML = '<span>Activer un trimestre</span>';
       activer.addEventListener('click', function () { activerTrimestre(f); });
       actions.appendChild(activer);
       c.appendChild(actions);
@@ -941,6 +1037,7 @@
   });
 
   el('a-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerDemandes(); });
+  el('b-stripe').addEventListener('click', verifierStripe);
   el('f-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerFamilles(); });
   el('r-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerReservations(); });
   el('f-recherche').addEventListener('input', afficherFamilles);
