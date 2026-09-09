@@ -94,19 +94,31 @@
 
   /* ---- relances par e-mail (via le service Google, jeton signé) ---- */
   function relancer(d, sous, montant, silencieux) {
-    if (!d.jeton_d || !d.jeton_s) { alert('Cette demande n’a pas de jeton : relance impossible.'); return; }
     var etiquettes = { acompte: 'l’acompte (300 €)', solde: 'le solde', paiement: 'le paiement', annulation: 'l’annulation' };
     if (!silencieux && !confirm('Envoyer au parent le mail concernant ' + (etiquettes[sous] || sous) + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    var corps = { type: 'relance', relance: sous, d: d.jeton_d, s: d.jeton_s };
-    if (montant) { corps.montant = montant; }
-    fetch(SERVICE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(corps)
-    }).then(function (r) { return r.text(); }).then(function (rep) {
-      var morceaux = rep.trim().split(';');
-      if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-      else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 17 ?'); }
+    nuage.sessionValide().then(function (session) {
+      /* Le jeton signé de la demande prouve le lien ; pour les demandes
+         reçues par un ancien déploiement (jeton plus reconnu), la session
+         admin et les informations de la demande prennent le relais. */
+      var corps = {
+        type: 'relance', relance: sous,
+        d: d.jeton_d || '', s: d.jeton_s || '',
+        jeton: session ? session.jeton : '',
+        dtype: d.type || '', enfant: d.enfant || '',
+        parentEmail: d.parent_email || '', detail: d.detail || '',
+        paiement: /Règlement choisi : Au trimestre/.test(d.lignes || '') ? 'trimestre'
+          : /Règlement choisi : Au cours/.test(d.lignes || '') ? 'unite' : ''
+      };
+      if (montant) { corps.montant = montant; }
+      return fetch(SERVICE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(corps)
+      }).then(function (r) { return r.text(); }).then(function (rep) {
+        var morceaux = rep.trim().split(';');
+        if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
+        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 18 ?'); }
+      });
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
   }
 
@@ -188,7 +200,7 @@
           if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
           else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
           else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
-          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 17 ?'); }
+          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 18 ?'); }
           return;
         }
         rapprocherStripe(rep.paiements || []);
@@ -571,6 +583,16 @@
   }
 
   /* ================= Les demandes ================= */
+  /* Pour un stage, la colonne Demande ne garde que les dates (le nom
+     complet du stage reste dans « Tout le dossier »). */
+  function detailCourt(d) {
+    if (d.type === 'stage') {
+      var m = String(d.detail || '').match(/\(([^()]*)\)\s*$/);
+      if (m && m[1]) { return m[1]; }
+    }
+    return d.detail || '';
+  }
+
   function carteDemande(d) {
     var c = document.createElement('tr');
     c.className = 'carte-demande st-' + classeStatut(d.statut);
@@ -592,7 +614,7 @@
     c.appendChild(qui);
 
     var demande = document.createElement('td');
-    demande.appendChild(document.createTextNode(d.detail || ''));
+    demande.appendChild(document.createTextNode(detailCourt(d)));
     if (d.tarif) {
       var tarif = document.createElement('div');
       tarif.className = 'corps';
