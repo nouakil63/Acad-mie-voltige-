@@ -61,20 +61,36 @@
     .message.souci{color:var(--rouge);background:color-mix(in srgb, var(--rouge) 6%, var(--fond))}
     .message.bonne{color:#1d7a3d;background:color-mix(in srgb, #1d7a3d 8%, var(--fond))}
 
-    /* ---- Les cartes, légères ---- */
-    .carte-demande,.carte-famille,.carte-jour{
-      background:var(--blanc);border:1px solid var(--trait);border-radius:10px;
-      padding:12px 14px;border-left-width:3px;
+    /* ---- Le tableau, type CRM ---- */
+    .cadre-tableau{background:var(--blanc);border:1px solid var(--trait);border-radius:10px;overflow-x:auto}
+    table.tableau{width:100%;border-collapse:collapse;font-size:12.5px}
+    .tableau th{
+      text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--texte-2);padding:8px 12px;border-bottom:1px solid var(--trait);background:var(--fond-2);white-space:nowrap;
     }
-    .carte-demande.st-attente{border-left-color:#e0a800}
-    .carte-demande.st-validee{border-left-color:#1d7a3d}
-    .carte-demande.st-refusee{border-left-color:var(--rouge)}
-    .carte-famille{border-left-color:var(--encre)}
-    .carte-jour{border-left-color:var(--rouge)}
-    .carte-demande .entete,.carte-famille .entete{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-    .entete .nom{
+    .tableau td{padding:10px 12px;border-bottom:1px solid var(--trait);vertical-align:top;color:var(--texte-2);line-height:1.5}
+    .tableau tr:last-child td{border-bottom:0}
+    .tableau td:first-child{border-left:3px solid transparent}
+    tr.st-attente td:first-child{border-left-color:#e0a800}
+    tr.st-validee td:first-child{border-left-color:#1d7a3d}
+    tr.st-refusee td:first-child{border-left-color:var(--rouge)}
+    tr.carte-famille td:first-child{border-left-color:var(--encre)}
+    .nom{
       font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
-      font-size:15px;color:var(--encre);
+      font-size:14px;color:var(--encre);
+    }
+    .tableau .nom{display:block}
+    .tableau .quand{margin-left:0;display:block}
+    .tableau .actions{margin-top:0;flex-direction:column;align-items:flex-start;gap:6px}
+    .tableau .pastille{display:inline-block;margin:1px 3px 1px 0}
+    .tableau .btn{padding:6px 12px;font-size:11.5px;white-space:nowrap}
+    .tableau select{max-width:200px}
+    .identite{display:flex;align-items:center;gap:8px}
+
+    /* ---- Les cartes du planning ---- */
+    .carte-jour{
+      background:var(--blanc);border:1px solid var(--trait);border-radius:10px;
+      padding:12px 14px;border-left-width:3px;border-left-color:var(--rouge);
     }
     .pastille{padding:2px 9px;border-radius:999px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
     .pastille.attente{background:#fdf3d7;color:#8a6d00}
@@ -83,10 +99,10 @@
     .pastille.type-cours{background:var(--rouge);color:#fff}
     .pastille.type-stage{border:1px solid var(--rouge);color:var(--rouge)}
     .quand{margin-left:auto;font-size:11.5px;color:#8a7f83;white-space:nowrap}
-    .corps{margin-top:6px;font-size:12.5px;color:var(--texte-2);line-height:1.6}
-    .carte-demande details{margin-top:6px;font-size:12px;color:var(--texte-2)}
-    .carte-demande details summary{cursor:pointer;font-weight:600}
-    .carte-demande details pre{white-space:pre-wrap;background:var(--fond-2);border-radius:8px;padding:10px 12px;margin-top:6px;font-family:inherit}
+    .corps{margin-top:2px;font-size:12px;color:var(--texte-2);line-height:1.55}
+    .tableau details{margin-top:4px;font-size:12px;color:var(--texte-2)}
+    .tableau details summary{cursor:pointer;font-weight:600}
+    .tableau details pre{white-space:pre-wrap;background:var(--fond-2);border-radius:8px;padding:8px 10px;margin-top:6px;font-family:inherit;max-width:460px}
 
     /* ---- Les actions, discrètes ---- */
     .actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:10px;align-items:center}
@@ -235,6 +251,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=10"></script>
+<script src="../assets/js/admin.js?v=11"></script>
 </body>
 </html>
