@@ -167,3 +167,34 @@ create policy "les admins retirent une reservation" on public.reservations
   for delete using (
     exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
   );
+
+-- ============================================================
+-- v7 : la gestion manuelle depuis l'espace académie
+-- ------------------------------------------------------------
+-- L'académie peut désormais ajouter, modifier et supprimer des
+-- demandes à la main, et inscrire ou retirer un voltigeur d'un
+-- cours du mercredi directement depuis le planning (sans passer
+-- par un abonnement au trimestre).
+-- ============================================================
+
+drop policy if exists "les admins ajoutent des demandes" on public.demandes;
+create policy "les admins ajoutent des demandes" on public.demandes
+  for insert with check (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+drop policy if exists "les admins retirent des demandes" on public.demandes;
+create policy "les admins retirent des demandes" on public.demandes
+  for delete using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+-- Une réservation ajoutée à la main par l'académie n'est pas liée
+-- à un abonnement au trimestre.
+alter table public.reservations alter column abonnement_id drop not null;
+
+drop policy if exists "les admins ajoutent une reservation" on public.reservations;
+create policy "les admins ajoutent une reservation" on public.reservations
+  for insert with check (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );

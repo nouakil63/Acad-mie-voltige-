@@ -90,11 +90,25 @@
     .tableau td:nth-child(3){min-width:150px}
     .identite{display:flex;align-items:center;gap:8px}
 
-    /* ---- Les cartes du planning ---- */
-    .carte-jour{
-      background:var(--blanc);border:1px solid var(--trait);border-radius:10px;
-      padding:12px 14px;border-left-width:3px;border-left-color:var(--rouge);
+    /* ---- Le planning en cases ---- */
+    .grille-planning{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:6px}
+    .case-planning{
+      background:var(--blanc);border:1px solid var(--trait);border-radius:12px;
+      padding:16px;border-left:3px solid var(--rouge);cursor:pointer;text-align:left;
+      font-family:inherit;transition:border-color .2s;
     }
+    .case-planning:hover{border-color:var(--rouge)}
+    .case-planning.actif{border-color:var(--rouge);box-shadow:0 0 0 1px var(--rouge) inset}
+    .case-planning b{
+      display:block;font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:15px;color:var(--encre);margin-bottom:4px;
+    }
+    .case-planning span{font-size:12px;color:var(--texte-2)}
+    .case-planning.case-stage{border-left-color:var(--encre)}
+    #p-inscrits{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:18px;margin-top:18px}
+    #p-inscrits h3{font-size:15px;margin:0 0 10px}
+    #p-inscrits ul{list-style:none;margin:0 0 12px;padding:0;font-size:13px;line-height:2.1;color:var(--texte-2)}
+    #p-inscrits ul .lien-doux{margin-left:8px}
     .pastille{padding:2px 9px;border-radius:999px;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
     .pastille.attente{background:#fdf3d7;color:#8a6d00}
     .pastille.validee{background:#e3f2e8;color:#1d7a3d}
@@ -204,6 +218,9 @@
     <!-- Onglet demandes -->
     <section id="o-demandes">
       <p class="aide" style="margin-bottom:12px">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
+      <div class="actions" style="margin:0 0 14px">
+        <button type="button" class="btn btn-contour" id="b-ajout-demande"><span>Ajouter une demande</span></button>
+      </div>
       <div class="filtres" id="a-filtres">
         <button type="button" class="actif-filtre" data-filtre="toutes">Toutes</button>
         <button type="button" data-filtre="en attente">En attente</button>
@@ -214,14 +231,15 @@
       <div id="a-demandes" style="display:flex;flex-direction:column;gap:10px"></div>
     </section>
 
-    <!-- Onglet planning : cours réservés et stages -->
+    <!-- Onglet planning : les cases des cours et des stages -->
     <section id="o-reservations" hidden>
-      <p class="aide" style="margin-bottom:12px">Les cours réservés par les abonnés au trimestre, jour par jour, puis les stages avec leurs inscrits. Chaque carte a sa feuille de présence à imprimer. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
+      <p class="aide" style="margin-bottom:12px">Une case par cours du mercredi et par stage. Cliquez sur une case pour voir les inscrits, en ajouter, en retirer, et imprimer la feuille de présence. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
       <p class="message" id="m-resa" role="alert" hidden></p>
       <h3 style="font-size:15px">Les cours du mercredi</h3>
-      <div id="a-reservations" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="g-cours" class="grille-planning"></div>
       <h3 style="font-size:15px;margin-top:22px">Les stages</h3>
-      <div id="a-stages" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="g-stages" class="grille-planning"></div>
+      <div id="p-inscrits" hidden></div>
     </section>
 
     <!-- Onglet paiements -->
@@ -254,6 +272,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=13"></script>
+<script src="../assets/js/admin.js?v=14"></script>
 </body>
 </html>
