@@ -179,7 +179,7 @@
 
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
-  var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbzoWHf8XSVPDJs-fCa0IVxdQDKTHcs40M51QOw__hn4K0uyFYJQ9YRMSOBa6InP8X2fDA/exec';
+  var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbwOXOkUQ0-ls0l8nSCUoG9wkKVNUgiKc4DtO8PsNEmn-yCq4eJu4UbmsJaGYpvqkYpw9w/exec';
 
   /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
   function donneesDossier() {
