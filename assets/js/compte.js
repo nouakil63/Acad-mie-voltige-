@@ -245,6 +245,10 @@
     return depuisIso(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
+  var CAPACITE_COURS = 8; /* places par cours, meme valeur que dans l'espace academie */
+  var SERVICE_ACADEMIE = window.AV_SERVICE_URL ||
+    'https://script.google.com/macros/s/AKfycbwOXOkUQ0-ls0l8nSCUoG9wkKVNUgiKc4DtO8PsNEmn-yCq4eJu4UbmsJaGYpvqkYpw9w/exec';
+
   function chargerTrimestre() {
     if (!nuage.requeteAuth) { return; }
     nuage.requeteAuth('/rest/v1/abonnements?select=*&order=fin.desc')
@@ -256,14 +260,24 @@
           if (a.fin >= aujourdHui && (!abonnement || a.fin < abonnement.fin)) { abonnement = a; }
         });
         if (!abonnement) { el('bloc-trimestre').hidden = true; return; }
+        var chargeFreq = nuage.requeteAuth('/rest/v1/frequentation?select=*')
+          .then(function (r) { return r && r.ok ? r.json() : []; })
+          .catch(function () { return []; });
+        var chargeAttentes = nuage.requeteAuth('/rest/v1/attentes?select=*&order=cree')
+          .then(function (r) { return r && r.ok ? r.json() : []; })
+          .catch(function () { return []; });
         nuage.requeteAuth('/rest/v1/reservations?select=*&abonnement_id=eq.' + encodeURIComponent(abonnement.id) + '&order=date')
           .then(function (r) { return r && r.ok ? r.json() : []; })
-          .then(function (resas) { afficherTrimestre(resas || []); });
+          .then(function (resas) {
+            return Promise.all([chargeFreq, chargeAttentes]).then(function (autres) {
+              afficherTrimestre(resas || [], autres[0] || [], autres[1] || []);
+            });
+          });
       })
       .catch(function () { /* la section reste cachée */ });
   }
 
-  function afficherTrimestre(resas) {
+  function afficherTrimestre(resas, frequentation, mesAttentes) {
     var bloc = el('bloc-trimestre');
     bloc.hidden = false;
     el('m-trimestre').hidden = true;
@@ -272,6 +286,10 @@
       resas.length + (resas.length > 1 ? ' cours réservés.' : ' cours réservé.');
 
     var aujourdHui = isoLocal(new Date());
+    var placesPrises = {};
+    (frequentation || []).forEach(function (f) { placesPrises[f.date] = f.nombre || 0; });
+    var attenteDe = {};
+    (mesAttentes || []).forEach(function (a) { attenteDe[a.date] = a; });
     var semainesReservees = {};
     var listeEl = el('tr-reservations');
     listeEl.innerHTML = '';
@@ -331,10 +349,41 @@
           var iso = isoLocal(d);
           if (iso < abonnement.debut || iso > abonnement.fin || iso < aujourdHui) { return; }
           propose++;
+          if ((placesPrises[iso] || 0) >= CAPACITE_COURS) {
+            var complet = document.createElement('span');
+            complet.style.cssText = 'font-size:12.5px;color:var(--texte-2)';
+            complet.textContent = joliJour(iso) + ' : complet';
+            rang.appendChild(complet);
+            var attente = attenteDe[iso];
+            var lienAttente = document.createElement('button');
+            lienAttente.type = 'button';
+            lienAttente.style.cssText = 'border:0;background:transparent;color:#6d6266;font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit';
+            lienAttente.textContent = attente ? 'en liste d’attente · se retirer' : 'liste d’attente';
+            lienAttente.addEventListener('click', function () {
+              if (attente) {
+                nuage.requeteAuth('/rest/v1/attentes?id=eq.' + encodeURIComponent(attente.id), { method: 'DELETE' })
+                  .then(function () { chargerTrimestre(); });
+                return;
+              }
+              if (!confirm('Ce cours est complet. Vous inscrire en liste d’attente pour le ' + joliJour(iso) +
+                ' ? L’académie vous préviendra par e-mail si une place se libère.')) { return; }
+              nuage.requeteAuth('/rest/v1/attentes', {
+                method: 'POST',
+                headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({ date: iso, email: (sessionCourante && sessionCourante.email) || '', enfant: abonnement.enfant || '' })
+              }).then(function (r) {
+                if (r && r.ok) { chargerTrimestre(); return; }
+                message('m-trimestre', 'L’inscription en liste d’attente n’a pas abouti. Réessayez dans un instant.');
+              });
+            });
+            rang.appendChild(lienAttente);
+            return;
+          }
           var puce = document.createElement('button');
           puce.type = 'button';
           puce.className = 'date-chip';
-          puce.textContent = joliJour(iso);
+          puce.textContent = joliJour(iso) + ((placesPrises[iso] || 0) >= CAPACITE_COURS - 2
+            ? ' · ' + (CAPACITE_COURS - (placesPrises[iso] || 0)) + ' places restantes' : '');
           puce.addEventListener('click', function () { reserver(iso, j.jour); });
           rang.appendChild(puce);
         });
@@ -367,7 +416,23 @@
         semaine: lundiDe(iso)
       })
     }).then(function (r) {
-      if (r && r.ok) { chargerTrimestre(); return; }
+      if (r && r.ok) {
+        chargerTrimestre();
+        /* la confirmation part par mail, sans bloquer la page */
+        try {
+          fetch(SERVICE_ACADEMIE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              type: 'confirmation-resa',
+              jeton: (sessionCourante && sessionCourante.jeton) || '',
+              enfant: abonnement.enfant || '',
+              quand: joliLong(iso)
+            })
+          });
+        } catch (e) { /* rien */ }
+        return;
+      }
       message('m-trimestre', r && r.status === 409
         ? 'Un cours est déjà réservé cette semaine-là (un seul par semaine).'
         : 'La réservation n’a pas abouti. Rechargez la page et réessayez.');

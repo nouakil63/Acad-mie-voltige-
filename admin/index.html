@@ -90,6 +90,19 @@
     .tableau td:nth-child(3){min-width:150px}
     .identite{display:flex;align-items:center;gap:8px}
 
+    /* ---- Le tableau de bord ---- */
+    .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:22px}
+    .tuile{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:16px 18px;border-left:3px solid var(--rouge)}
+    .tuile b{
+      display:block;font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(20px,2.4vw,26px);line-height:1.1;color:var(--encre);margin-bottom:4px;
+    }
+    .tuile span{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--texte-2)}
+    .tuile.douce{border-left-color:var(--encre)}
+    .bloc-accueil{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+    .bloc-accueil h3{font-size:14.5px;margin:0 0 8px}
+    .bloc-accueil ul{list-style:none;margin:0;padding:0;font-size:13px;line-height:1.9;color:var(--texte-2)}
+
     /* ---- Le planning en cases ---- */
     .grille-planning{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:6px}
     .case-planning{
@@ -209,17 +222,40 @@
     </div>
 
     <nav class="onglets" aria-label="Sections">
-      <button type="button" class="actif-onglet" data-onglet="demandes">Les demandes</button>
+      <button type="button" class="actif-onglet" data-onglet="accueil">Accueil</button>
+      <button type="button" data-onglet="demandes">Les demandes</button>
       <button type="button" data-onglet="reservations">Le planning</button>
       <button type="button" data-onglet="paiements">Les paiements</button>
       <button type="button" data-onglet="familles">La base clients</button>
     </nav>
 
+    <!-- Onglet accueil : le tableau de bord -->
+    <section id="o-accueil">
+      <div class="tuiles" id="t-tuiles"></div>
+      <div class="bloc-accueil" id="b-relances" hidden>
+        <h3>Relances à faire</h3>
+        <ul id="l-relances"></ul>
+      </div>
+      <div class="bloc-accueil" id="b-prochains">
+        <h3>Les prochains rendez-vous</h3>
+        <ul id="l-prochains"></ul>
+      </div>
+      <div class="bloc-accueil" id="b-stats">
+        <h3>En chiffres</h3>
+        <ul id="l-stats"></ul>
+      </div>
+    </section>
+
     <!-- Onglet demandes -->
-    <section id="o-demandes">
+    <section id="o-demandes" hidden>
       <p class="aide" style="margin-bottom:12px">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
       <div class="actions" style="margin:0 0 14px">
         <button type="button" class="btn btn-contour" id="b-ajout-demande"><span>Ajouter une demande</span></button>
+        <button type="button" class="lien-doux" id="b-export-demandes">Exporter (Excel)</button>
+      </div>
+      <div class="champ" style="max-width:360px;margin-bottom:14px">
+        <label for="d-recherche">Rechercher</label>
+        <input id="d-recherche" type="search" placeholder="Nom, e-mail, stage…">
       </div>
       <div class="filtres" id="a-filtres">
         <button type="button" class="actif-filtre" data-filtre="toutes">Toutes</button>
@@ -247,6 +283,7 @@
       <p class="aide" style="margin-bottom:12px">Qui a réglé quoi, et ce qui reste à encaisser sur les demandes validées. Les stages se règlent en deux temps : l'acompte de 300&nbsp;€ à l'inscription, le solde au plus tard 30 jours avant le début du stage. Et rappel maison : le trimestre est dû, que le voltigeur vienne ou non.</p>
       <div class="actions" style="margin:0 0 16px">
         <button type="button" class="btn btn-contour" id="b-stripe"><span>Vérifier les paiements Stripe</span></button>
+        <button type="button" class="lien-doux" id="b-export-paiements">Exporter (Excel)</button>
         <span class="quand" id="m-stripe" style="margin-left:0"></span>
       </div>
       <h3 style="font-size:15px">À encaisser <span class="quand" id="t-encaisser" style="margin-left:8px"></span></h3>
@@ -272,6 +309,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=14"></script>
+<script src="../assets/js/admin.js?v=15"></script>
 </body>
 </html>

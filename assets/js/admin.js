@@ -18,6 +18,7 @@
   var VUES = ['p-attente', 'p-connexion', 'p-refuse', 'p-tableau'];
   var DUREE_TRIMESTRE = 90; /* jours : 13 semaines de cours */
   var ACOMPTE_STAGE = 300;   /* euros, dus a l'inscription ; solde 30 jours avant le stage */
+  var CAPACITE_COURS = 8;    /* places par cours du mercredi (dites-le a Claude pour changer) */
 
   function el(id) { return document.getElementById(id); }
   function montrer(vue) {
@@ -38,7 +39,9 @@
   var familles = [];
   var reservations = [];
   var abonnements = [];
+  var attentes = [];
   var filtre = 'toutes';
+  var filtreTexte = '';
 
   function classeStatut(statut) {
     if (statut === 'validée') { return 'validee'; }
@@ -69,6 +72,118 @@
     var aujourdHui = isoLocal(new Date());
     el('c-resa').textContent = String(reservations.filter(function (r) { return r.date >= aujourdHui; }).length);
     el('c-encaisser').textContent = String(demandes.filter(function (d) { return resteAEncaisser(d) > 0; }).length);
+    afficherAccueil();
+  }
+
+  /* ================= Le tableau de bord d'accueil ================= */
+  function debutStageDetail(detail) {
+    var MOIS = { janvier: 0, fevrier: 1, 'février': 1, mars: 2, avril: 3, mai: 4, juin: 5, juillet: 6, aout: 7, 'août': 7, septembre: 8, octobre: 9, novembre: 10, decembre: 11, 'décembre': 11 };
+    var t = String(detail || '').toLowerCase();
+    var m = t.match(/du\s+(\d{1,2})\s+au\s+\d{1,2}\s+([a-zà-ÿ]+)\s+(\d{4})/) || t.match(/(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/);
+    if (!m || MOIS[m[2]] == null) { return null; }
+    return new Date(Number(m[3]), MOIS[m[2]], Number(m[1]), 12);
+  }
+
+  function afficherAccueil() {
+    var tuiles = el('t-tuiles');
+    if (!tuiles) { return; }
+    var maintenant = new Date();
+    var moisCourant = maintenant.getFullYear() + '-' + String(maintenant.getMonth() + 1).padStart(2, '0');
+    var aujourdHui = isoLocal(maintenant);
+
+    var encaisseMois = 0, encaisseTotal = 0, resteTotal = 0, revenusCours = 0, revenusStages = 0;
+    var validees = 0, reglees = 0;
+    demandes.forEach(function (d) {
+      if (d.annule) { return; }
+      var recu = dejaEncaisse(d);
+      encaisseTotal += recu;
+      resteTotal += resteAEncaisser(d);
+      if (d.type === 'stage') { revenusStages += recu; } else { revenusCours += recu; }
+      var quand = String(d.solde_le || d.paye_le || d.acompte_le || '');
+      if (recu > 0 && quand.indexOf(moisCourant) === 0) { encaisseMois += recu; }
+      if (classeStatut(d.statut) === 'validee') { validees++; if (recu > 0) { reglees++; } }
+    });
+
+    tuiles.innerHTML = '';
+    function tuile(valeur, etiquette, douce) {
+      var t = document.createElement('div');
+      t.className = 'tuile' + (douce ? ' douce' : '');
+      var b = document.createElement('b');
+      b.textContent = valeur;
+      t.appendChild(b);
+      var sp = document.createElement('span');
+      sp.textContent = etiquette;
+      t.appendChild(sp);
+      tuiles.appendChild(t);
+    }
+    tuile(encaisseMois + ' €', 'encaissés ce mois-ci');
+    tuile(resteTotal + ' €', 'restent à encaisser');
+    tuile(String(demandes.filter(function (d) { return classeStatut(d.statut) === 'attente'; }).length), 'demandes en attente');
+    tuile(String(familles.length), 'familles', true);
+
+    var aRelancer = demandes.filter(function (d) {
+      if (d.type !== 'stage' || classeStatut(d.statut) !== 'validee' || d.annule) { return false; }
+      if (!d.acompte_paye && d.cree && (maintenant - new Date(d.cree)) > 7 * 24 * 3600 * 1000) { return true; }
+      var debut = debutStageDetail(d.detail);
+      return !!(d.acompte_paye && !d.solde_paye && debut && debut > maintenant && (debut - maintenant) < 45 * 24 * 3600 * 1000);
+    });
+    el('b-relances').hidden = !aRelancer.length;
+    var lRelances = el('l-relances');
+    lRelances.innerHTML = '';
+    aRelancer.forEach(function (d) {
+      var li = document.createElement('li');
+      li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (!d.acompte_paye ? 'acompte de 300 € en attente' : 'solde à réclamer (stage dans moins de 45 jours)');
+      li.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
+      lRelances.appendChild(li);
+    });
+
+    var lProchains = el('l-prochains');
+    lProchains.innerHTML = '';
+    var mercredi = prochainsMercredis(1)[0];
+    var nMercredi = reservations.filter(function (r) { return r.date === mercredi; }).length;
+    var liM = document.createElement('li');
+    liM.textContent = 'Cours du ' + jourLisible(mercredi) + ' : ' + nMercredi + '/' + CAPACITE_COURS + ' inscrits';
+    lProchains.appendChild(liM);
+    var parStage = {};
+    demandes.forEach(function (d) {
+      if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule) {
+        var cle = d.detail || 'Stage';
+        parStage[cle] = (parStage[cle] || 0) + 1;
+      }
+    });
+    Object.keys(parStage).sort().forEach(function (cle) {
+      var li = document.createElement('li');
+      li.textContent = cle + ' : ' + parStage[cle] + (parStage[cle] > 1 ? ' inscrits' : ' inscrit');
+      lProchains.appendChild(li);
+    });
+
+    var lStats = el('l-stats');
+    lStats.innerHTML = '';
+    [
+      'Encaissé en tout : ' + encaisseTotal + ' € (cours et trimestres : ' + revenusCours + ' € · stages : ' + revenusStages + ' €)',
+      'Cours à venir réservés : ' + reservations.filter(function (r) { return r.date >= aujourdHui; }).length,
+      validees ? 'Demandes validées réglées, au moins en partie : ' + reglees + ' sur ' + validees : 'Aucune demande validée pour l’instant.'
+    ].forEach(function (texte) {
+      var li = document.createElement('li');
+      li.textContent = texte;
+      lStats.appendChild(li);
+    });
+  }
+
+  /* ================= L'export Excel (CSV) ================= */
+  function exporterCSV(nom, entetes, lignes) {
+    var contenu = '\ufeff' + [entetes].concat(lignes).map(function (l) {
+      return l.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';');
+    }).join('\r\n');
+    window.__dernierCSV = contenu; /* relu par les tests automatiques */
+    var url = URL.createObjectURL(new Blob([contenu], { type: 'text/csv;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nom;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
   }
 
   /* Ce qui reste dû sur une demande validée (0 si soldée ou annulée). */
@@ -117,7 +232,7 @@
       }).then(function (r) { return r.text(); }).then(function (rep) {
         var morceaux = rep.trim().split(';');
         if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 18 ?'); }
+        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 19 ?'); }
       });
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
   }
@@ -212,7 +327,7 @@
           if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
           else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
           else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
-          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 18 ?'); }
+          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 19 ?'); }
           return;
         }
         rapprocherStripe(rep.paiements || []);
@@ -822,6 +937,7 @@
     var conteneur = el('a-demandes');
     conteneur.innerHTML = '';
     var visibles = demandes.filter(function (d) {
+      if (filtreTexte && JSON.stringify(d).toLowerCase().indexOf(filtreTexte) === -1) { return false; }
       if (filtre === 'toutes') { return true; }
       if (filtre === 'en attente') { return classeStatut(d.statut) === 'attente'; }
       if (filtre === 'validée') { return classeStatut(d.statut) === 'validee'; }
@@ -927,7 +1043,7 @@
     return b;
   }
 
-  function casePlanning(titre, nombre, stage, actif, surClic) {
+  function casePlanning(titre, sousTitre, stage, actif, surClic) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'case-planning' + (stage ? ' case-stage' : '') + (actif ? ' actif' : '');
@@ -935,7 +1051,7 @@
     t.textContent = titre;
     b.appendChild(t);
     var sous = document.createElement('span');
-    sous.textContent = nombre ? nombre + (nombre > 1 ? ' inscrits' : ' inscrit') : 'aucun inscrit';
+    sous.textContent = sousTitre;
     b.appendChild(sous);
     b.addEventListener('click', surClic);
     return b;
@@ -957,7 +1073,11 @@
     prochainsMercredis(8).forEach(function (d) { dates[d] = true; });
     Object.keys(parDate).forEach(function (d) { dates[d] = true; });
     Object.keys(dates).sort().forEach(function (date) {
-      gCours.appendChild(casePlanning(jourLisible(date), (parDate[date] || []).length, false,
+      var n = (parDate[date] || []).length;
+      var sousTitre = n
+        ? n + '/' + CAPACITE_COURS + (n > 1 ? ' inscrits' : ' inscrit') + (n >= CAPACITE_COURS ? ' · complet' : '')
+        : 'aucun inscrit · ' + CAPACITE_COURS + ' places';
+      gCours.appendChild(casePlanning(jourLisible(date), sousTitre, false,
         !!(caseChoisie && caseChoisie.genre === 'cours' && caseChoisie.date === date),
         function () { caseChoisie = { genre: 'cours', date: date }; afficherPlanning(); }));
     });
@@ -976,7 +1096,8 @@
       gStages.appendChild(vide);
     }
     cles.forEach(function (cle) {
-      gStages.appendChild(casePlanning(cle, parStage[cle].length, true,
+      var nS = parStage[cle].length;
+      gStages.appendChild(casePlanning(cle, nS + (nS > 1 ? ' inscrits' : ' inscrit'), true,
         !!(caseChoisie && caseChoisie.genre === 'stage' && caseChoisie.cle === cle),
         function () { caseChoisie = { genre: 'stage', cle: cle }; afficherPlanning(); }));
     });
@@ -1021,6 +1142,20 @@
         aucun.textContent = 'Personne pour l’instant.';
         liste.appendChild(aucun);
       }
+      var enAttente = attentes.filter(function (a) { return a.date === date; });
+      if (enAttente.length) {
+        var titreAttente = document.createElement('li');
+        titreAttente.style.fontWeight = '700';
+        titreAttente.textContent = 'Liste d’attente :';
+        liste.appendChild(titreAttente);
+        enAttente.forEach(function (a) {
+          var li = document.createElement('li');
+          li.textContent = (a.enfant || 'Voltigeur') + (a.email ? ' · ' + a.email : '');
+          li.appendChild(lienAction('Prévenir (place libre)', function () { prevenirAttente(a); }));
+          li.appendChild(lienAction('Retirer de la liste', function () { retirerAttente(a); }));
+          liste.appendChild(li);
+        });
+      }
       actions.appendChild(boutonAjout(function () { ajouterInscritCours(date); }));
       actions.appendChild(lienAction('Feuille de présence', function () {
         ouvrirFeuille({
@@ -1058,6 +1193,8 @@
 
   /* ---- inscrire ou retirer un voltigeur a la main ---- */
   function ajouterInscritCours(date) {
+    var nActuel = reservations.filter(function (r) { return r.date === date; }).length;
+    if (nActuel >= CAPACITE_COURS && !confirm('Ce cours est complet (' + nActuel + '/' + CAPACITE_COURS + '). Ajouter quand même ?')) { return; }
     var enfant = prompt('Nom du voltigeur à inscrire au cours du ' + jourLisible(date) + ' :', '');
     if (enfant === null || !enfant.trim()) { return; }
     var email = prompt('E-mail du parent (facultatif) :', '');
@@ -1080,7 +1217,46 @@
     }).then(function (rep) {
       if (!rep || !rep.ok) { alert('Le retrait n’a pas abouti. Réessayez dans un instant.'); return; }
       chargerReservations();
+      var premier = attentes.filter(function (a) { return a.date === r.date; })[0];
+      if (premier && confirm('Une place se libère le ' + jourLisible(r.date) + ' et ' + (premier.enfant || 'quelqu’un') +
+        ' est en tête de la liste d’attente. Le prévenir par e-mail ?')) {
+        prevenirAttente(premier, true);
+      }
     });
+  }
+
+  /* ---- la liste d'attente d'un cours complet ---- */
+  function prevenirAttente(a, silencieux) {
+    if (!silencieux && !confirm('Prévenir ' + (a.enfant || 'ce voltigeur') + ' (' + (a.email || 'sans e-mail') + ') qu’une place est libre le ' + jourLisible(a.date) + ' ?')) { return; }
+    if (!a.email) { alert('Cette attente n’a pas d’adresse e-mail : contactez la famille autrement.'); return; }
+    nuage.sessionValide().then(function (session) {
+      return fetch(SERVICE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ type: 'place-libre', jeton: session ? session.jeton : '', email: a.email, enfant: a.enfant || '', quand: jourLisible(a.date) })
+      }).then(function (r) { return r.text(); }).then(function (t) {
+        if (t.trim().indexOf('ok place') === 0) {
+          if (confirm('Le mail est parti. Retirer ' + (a.enfant || 'ce voltigeur') + ' de la liste d’attente ?')) { retirerAttente(a, true); }
+        } else {
+          alert('Le service a répondu : « ' + t.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 19 ?');
+        }
+      });
+    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
+  }
+
+  function retirerAttente(a, silencieux) {
+    if (!silencieux && !confirm('Retirer ' + (a.enfant || 'ce voltigeur') + ' de la liste d’attente ?')) { return; }
+    nuage.requeteAuth('/rest/v1/attentes?id=eq.' + encodeURIComponent(a.id), {
+      method: 'DELETE',
+      headers: { Prefer: 'return=minimal' }
+    }).then(function () { chargerAttentes(); });
+  }
+
+  function chargerAttentes() {
+    return nuage.requeteAuth('/rest/v1/attentes?select=*&order=cree&limit=200')
+      .then(function (r) { return r && r.ok ? r.json() : []; })
+      .then(function (l) { attentes = l || []; afficherPlanning(); })
+      .catch(function () { attentes = []; });
   }
 
   function ajouterInscritStage(cle) {
@@ -1233,6 +1409,13 @@
       maj.textContent = 'mise à jour le ' + new Date(f.maj).toLocaleDateString('fr-FR');
       suivi.appendChild(maj);
     }
+    if (f.note_admin) {
+      var note = document.createElement('div');
+      note.className = 'corps';
+      note.style.fontStyle = 'italic';
+      note.textContent = 'Note : ' + f.note_admin;
+      suivi.appendChild(note);
+    }
     c.appendChild(suivi);
 
     var actions = document.createElement('div');
@@ -1244,6 +1427,19 @@
       activer.innerHTML = '<span>Activer un trimestre</span>';
       activer.addEventListener('click', function () { activerTrimestre(f); });
       actions.appendChild(activer);
+      actions.appendChild(lienAction(f.note_admin ? 'Modifier la note' : 'Ajouter une note', function () {
+        var note = prompt('Note sur cette famille (visible de l’académie seulement) :', f.note_admin || '');
+        if (note === null) { return; }
+        nuage.requeteAuth('/rest/v1/familles?user_id=eq.' + encodeURIComponent(f.user_id), {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ note_admin: note.trim() || null })
+        }).then(function (r) {
+          if (!r || !r.ok) { alert('La note n’a pas pu être enregistrée (le SQL le plus récent, v8, a-t-il été joué dans Supabase ?).'); return; }
+          f.note_admin = note.trim();
+          afficherFamilles();
+        });
+      }));
     }
     cellule(c, actions);
     return c;
@@ -1277,7 +1473,7 @@
       .then(function (l) { abonnements = l || []; })
       .catch(function () { abonnements = []; })
       .then(function () {
-        return nuage.requeteAuth('/rest/v1/familles?select=user_id,email,donnees,maj&order=maj.desc&limit=500');
+        return nuage.requeteAuth('/rest/v1/familles?select=user_id,email,donnees,maj,note_admin&order=maj.desc&limit=500');
       })
       .then(function (r) { return r && r.ok ? r.json() : null; })
       .then(function (l) {
@@ -1314,6 +1510,7 @@
           chargerDemandes();
           chargerFamilles();
           chargerReservations();
+          chargerAttentes();
         })
         .catch(function () { montrer('p-refuse'); });
     });
@@ -1345,6 +1542,7 @@
     document.querySelectorAll('.onglets [data-onglet]').forEach(function (b) {
       b.classList.toggle('actif-onglet', b === bouton);
     });
+    el('o-accueil').hidden = onglet !== 'accueil';
     el('o-demandes').hidden = onglet !== 'demandes';
     el('o-familles').hidden = onglet !== 'familles';
     el('o-reservations').hidden = onglet !== 'reservations';
@@ -1354,6 +1552,30 @@
   el('a-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerDemandes(); });
   el('b-stripe').addEventListener('click', verifierStripe);
   el('b-ajout-demande').addEventListener('click', ajouterDemande);
+  el('d-recherche').addEventListener('input', function () {
+    filtreTexte = this.value.trim().toLowerCase();
+    afficherDemandes();
+  });
+  el('b-export-demandes').addEventListener('click', function () {
+    exporterCSV('demandes-academie.csv',
+      ['Type', 'Voltigeur', 'Parent', 'E-mail', 'Demande', 'Tarif', 'Statut', 'Reçue le', 'Paiement'],
+      demandes.map(function (d) {
+        return [d.type, d.enfant, d.parent_nom, d.parent_email, d.detail, d.tarif, d.statut, quandLisible(d.cree),
+          d.annule ? 'annulé' : d.type === 'stage'
+            ? (d.acompte_paye ? 'acompte reçu' : 'acompte dû') + ' / ' + (d.solde_paye ? 'solde reçu' : 'solde dû')
+            : d.paye ? 'payé ' + (d.paye_montant || '') : 'non payé'];
+      }));
+  });
+  el('b-export-paiements').addEventListener('click', function () {
+    exporterCSV('paiements-academie.csv',
+      ['Type', 'Voltigeur', 'Parent', 'E-mail', 'Tarif', 'Encaissé (€)', 'Reste dû (€)', 'État', 'Réglé le'],
+      demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' || d.annule; }).map(function (d) {
+        return [d.type, d.enfant, d.parent_nom, d.parent_email, d.tarif, dejaEncaisse(d), resteAEncaisser(d),
+          d.annule ? 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : '')
+            : resteAEncaisser(d) > 0 ? 'en attente' : 'réglé',
+          d.solde_le || d.paye_le || d.acompte_le || ''];
+      }));
+  });
   el('f-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerFamilles(); });
   el('r-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerReservations(); });
   el('f-recherche').addEventListener('input', afficherFamilles);
