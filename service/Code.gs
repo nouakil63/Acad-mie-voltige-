@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '17';
+var VERSION_SCRIPT = '18';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -474,7 +474,21 @@ function executerDecision(action, motifCle, dTok, sTok) {
    le lien est prouvé par le même jeton signé que les décisions. */
 function traiterRelance(d) {
   var donnees = verifierJeton(String(d.d || ''), String(d.s || ''));
-  if (!donnees) { return reponseTexte('lien invalide'); }
+  if (!donnees) {
+    /* Demande enregistree par un ancien deploiement : son jeton signe
+       n'est plus reconnu. On accepte quand meme la relance si elle
+       vient d'un admin connecte (jeton de session Supabase), avec les
+       informations de la demande envoyees par la plateforme. */
+    var courriel = nettoyer(d.parentEmail);
+    if (!adminDepuisJeton(String(d.jeton || '')) || !/.+@.+\..+/.test(courriel)) { return reponseTexte('lien invalide'); }
+    donnees = {
+      type: d.dtype === 'stage' ? 'stage' : 'cours',
+      enfant: nettoyer(d.enfant) || 'votre voltigeur',
+      parentEmail: courriel,
+      detail: nettoyer(d.detail) || 'votre inscription',
+      paiement: d.paiement === 'trimestre' ? 'trimestre' : d.paiement === 'unite' ? 'unite' : ''
+    };
+  }
   var sous = String(d.relance || '');
   var titre, intro, boutons = [], pied =
     'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
@@ -531,22 +545,31 @@ function traiterRelance(d) {
    Supabase de l'admin connecté ; on vérifie qui il est (et qu'il est
    bien dans la liste des admins) avant d'interroger Stripe. La clé
    Stripe, elle, ne quitte jamais ce script. */
-function traiterStripe(d) {
-  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return reponseTexte('stripe non configuree'); }
-  if (!supabasePret()) { return reponseTexte('supabase non configuree'); }
+/* Qui est derriere ce jeton de session Supabase ? Renvoie son adresse
+   si (et seulement si) c'est un compte de la liste des admins. */
+function adminDepuisJeton(jeton) {
+  if (!supabasePret() || !jeton) { return null; }
   try {
     var qui = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
-      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + String(d.jeton || '') },
+      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + jeton },
       muteHttpExceptions: true
     });
-    if (qui.getResponseCode() !== 200) { return reponseTexte('acces refuse'); }
+    if (qui.getResponseCode() !== 200) { return null; }
     var email = String((JSON.parse(qui.getContentText()) || {}).email || '').toLowerCase();
+    if (!email) { return null; }
     var admin = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/admins?select=email&email=eq.' + encodeURIComponent(email), {
       headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE },
       muteHttpExceptions: true
     });
-    if (admin.getResponseCode() !== 200 || !JSON.parse(admin.getContentText()).length) { return reponseTexte('acces refuse'); }
-  } catch (e) { return reponseTexte('acces refuse'); }
+    if (admin.getResponseCode() !== 200 || !JSON.parse(admin.getContentText()).length) { return null; }
+    return email;
+  } catch (e) { return null; }
+}
+
+function traiterStripe(d) {
+  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return reponseTexte('stripe non configuree'); }
+  if (!supabasePret()) { return reponseTexte('supabase non configuree'); }
+  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
 
   var depuis = Math.floor(Date.now() / 1000) - 120 * 24 * 3600; /* les 4 derniers mois */
   var paiements = [];
