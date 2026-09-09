@@ -237,9 +237,18 @@
         break;
       }
     });
-    alert(reportes
+    var bilan = reportes
       ? 'C’est noté : ' + reportes + (reportes > 1 ? ' paiements reportés' : ' paiement reporté') + ' depuis Stripe.'
-      : 'Aucun nouveau paiement Stripe ne correspond aux demandes en attente de règlement.');
+      : 'Aucun nouveau paiement Stripe ne correspond aux demandes en attente de règlement.';
+    if (libres.length) {
+      bilan += '\n\nReçus sur Stripe, sans correspondance avec une demande en attente (déjà réglée, e-mail ou montant différent) :\n· ' +
+        libres.slice(0, 8).map(function (p) {
+          return p.montant + ' € · ' + p.email +
+            (/^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? ' · ' + new Date(p.quand + 'T12:00:00').toLocaleDateString('fr-FR') : '');
+        }).join('\n· ') +
+        '\n\nSi vous reconnaissez un règlement, notez-le à la main sur la bonne ligne (Réglé en totalité, Acompte reçu, Solde reçu ou Marquer payé).';
+    }
+    alert(bilan);
   }
 
   /* ================= Les paiements =================
@@ -288,31 +297,83 @@
     return p;
   }
 
+  /* Un tableau type CRM : en-tetes de colonnes + corps, dans un cadre
+     qui defile horizontalement sur petit ecran. */
+  function fabriquerTableau(conteneur, colonnes) {
+    var cadre = document.createElement('div');
+    cadre.className = 'cadre-tableau';
+    var table = document.createElement('table');
+    table.className = 'tableau';
+    var thead = document.createElement('thead');
+    var tr = document.createElement('tr');
+    colonnes.forEach(function (c) {
+      var th = document.createElement('th');
+      th.textContent = c;
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+    cadre.appendChild(table);
+    conteneur.appendChild(cadre);
+    return tbody;
+  }
+
+  function cellule(tr, contenu) {
+    var td = document.createElement('td');
+    if (contenu != null) {
+      if (typeof contenu === 'string') { td.textContent = contenu; }
+      else { td.appendChild(contenu); }
+    }
+    tr.appendChild(td);
+    return td;
+  }
+
   function lignePaiement(d, groupe) {
-    var ligne = document.createElement('div');
+    var ligne = document.createElement('tr');
     ligne.className = 'carte-demande st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente');
-    var entete = document.createElement('div');
-    entete.className = 'entete';
+
     var type = document.createElement('span');
     type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
     type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    entete.appendChild(type);
+    cellule(ligne, type);
+
+    var qui = document.createElement('td');
     var nom = document.createElement('span');
     nom.className = 'nom';
     nom.textContent = d.enfant || 'Voltigeur';
-    entete.appendChild(nom);
+    qui.appendChild(nom);
+    var parent = document.createElement('div');
+    parent.className = 'corps';
+    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
+    qui.appendChild(parent);
+    ligne.appendChild(qui);
 
+    var montant = document.createElement('td');
+    montant.appendChild(document.createTextNode(d.tarif || ''));
+    var reste = resteAEncaisser(d);
+    if (groupe === 'du' && d.type === 'stage') {
+      var du = document.createElement('div');
+      du.className = 'corps';
+      du.textContent = 'reste dû : ' + reste + ' €';
+      montant.appendChild(du);
+    }
+    ligne.appendChild(montant);
+
+    var etat = document.createElement('td');
     if (groupe === 'annule') {
       var pAnnule = document.createElement('span');
       pAnnule.className = 'pastille refusee';
       pAnnule.textContent = 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : ' · sans remboursement');
-      entete.appendChild(pAnnule);
+      etat.appendChild(pAnnule);
     } else if (d.type === 'stage') {
-      entete.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
-      entete.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
+      etat.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
+      etat.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      entete.appendChild(pastilleEtat('payé' + (d.paye_montant ? ' · ' + d.paye_montant : ''), true));
+      etat.appendChild(pastilleEtat('payé' + (d.paye_montant ? ' · ' + d.paye_montant : ''), true));
     }
+    ligne.appendChild(etat);
 
     var quand = document.createElement('span');
     quand.className = 'quand';
@@ -321,15 +382,7 @@
       : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
         ? 'réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
         : quandLisible(d.cree);
-    entete.appendChild(quand);
-    ligne.appendChild(entete);
-
-    var corps = document.createElement('div');
-    corps.className = 'corps';
-    var reste = resteAEncaisser(d);
-    corps.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '') + ' · ' + (d.tarif || '') +
-      (groupe === 'du' && d.type === 'stage' ? ' · reste dû : ' + reste + ' €' : '');
-    ligne.appendChild(corps);
+    cellule(ligne, quand);
 
     var actions = document.createElement('div');
     actions.className = 'actions';
@@ -402,7 +455,7 @@
       rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
       actions.appendChild(rPaiement);
     }
-    ligne.appendChild(actions);
+    cellule(ligne, actions);
     return ligne;
   }
 
@@ -419,10 +472,20 @@
     var regles = demandes.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
     var lesAnnules = demandes.filter(function (d) { return d.annule; });
 
+    var COLONNES_PAIEMENTS = ['Type', 'Voltigeur', 'Montant', 'État', 'Date', 'Actions'];
     var totalDu = 0, totalRegle = 0, totalRembourse = 0;
-    dus.forEach(function (d) { totalDu += resteAEncaisser(d); encaisser.appendChild(lignePaiement(d, 'du')); });
-    regles.forEach(function (d) { totalRegle += dejaEncaisse(d); payes.appendChild(lignePaiement(d, 'regle')); });
-    lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); annules.appendChild(lignePaiement(d, 'annule')); });
+    if (dus.length) {
+      var corpsDus = fabriquerTableau(encaisser, COLONNES_PAIEMENTS);
+      dus.forEach(function (d) { totalDu += resteAEncaisser(d); corpsDus.appendChild(lignePaiement(d, 'du')); });
+    }
+    if (regles.length) {
+      var corpsRegles = fabriquerTableau(payes, COLONNES_PAIEMENTS);
+      regles.forEach(function (d) { totalRegle += dejaEncaisse(d); corpsRegles.appendChild(lignePaiement(d, 'regle')); });
+    }
+    if (lesAnnules.length) {
+      var corpsAnnules = fabriquerTableau(annules, COLONNES_PAIEMENTS);
+      lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); corpsAnnules.appendChild(lignePaiement(d, 'annule')); });
+    }
 
     el('t-encaisser').textContent = dus.length ? 'environ ' + totalDu + ' €' : '';
     el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
@@ -509,35 +572,33 @@
 
   /* ================= Les demandes ================= */
   function carteDemande(d) {
-    var c = document.createElement('div');
+    var c = document.createElement('tr');
     c.className = 'carte-demande st-' + classeStatut(d.statut);
 
-    var entete = document.createElement('div');
-    entete.className = 'entete';
     var type = document.createElement('span');
     type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
     type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    entete.appendChild(type);
+    cellule(c, type);
+
+    var qui = document.createElement('td');
     var nom = document.createElement('span');
     nom.className = 'nom';
     nom.textContent = d.enfant || 'Voltigeur';
-    entete.appendChild(nom);
-    var statut = document.createElement('span');
-    statut.className = 'pastille ' + classeStatut(d.statut);
-    statut.textContent = d.statut || 'en attente';
-    entete.appendChild(statut);
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = quandLisible(d.cree);
-    entete.appendChild(quand);
-    c.appendChild(entete);
+    qui.appendChild(nom);
+    var parent = document.createElement('div');
+    parent.className = 'corps';
+    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
+    qui.appendChild(parent);
+    c.appendChild(qui);
 
-    var corps = document.createElement('div');
-    corps.className = 'corps';
-    corps.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '') +
-      (d.detail ? ' · ' + d.detail : '') + (d.tarif ? ' · ' + d.tarif : '');
-    c.appendChild(corps);
-
+    var demande = document.createElement('td');
+    demande.appendChild(document.createTextNode(d.detail || ''));
+    if (d.tarif) {
+      var tarif = document.createElement('div');
+      tarif.className = 'corps';
+      tarif.textContent = d.tarif;
+      demande.appendChild(tarif);
+    }
     if (d.lignes) {
       var plus = document.createElement('details');
       var resume = document.createElement('summary');
@@ -546,8 +607,21 @@
       var pre = document.createElement('pre');
       pre.textContent = d.lignes;
       plus.appendChild(pre);
-      c.appendChild(plus);
+      demande.appendChild(plus);
     }
+    c.appendChild(demande);
+
+    var etatTd = document.createElement('td');
+    var statut = document.createElement('span');
+    statut.className = 'pastille ' + classeStatut(d.statut);
+    statut.textContent = d.statut || 'en attente';
+    etatTd.appendChild(statut);
+    c.appendChild(etatTd);
+
+    var quand = document.createElement('span');
+    quand.className = 'quand';
+    quand.textContent = quandLisible(d.cree);
+    cellule(c, quand);
 
     var actions = document.createElement('div');
     actions.className = 'actions';
@@ -589,21 +663,21 @@
       var pAnnulee = document.createElement('span');
       pAnnulee.className = 'pastille refusee';
       pAnnulee.textContent = 'annulé';
-      entete.insertBefore(pAnnulee, quand);
+      etatTd.appendChild(pAnnulee);
     } else if (d.type === 'stage' && classeStatut(d.statut) === 'validee') {
       var pA = document.createElement('span');
       pA.className = 'pastille ' + (d.acompte_paye ? 'validee' : 'attente');
       pA.textContent = d.acompte_paye ? 'acompte ✓' : 'acompte dû';
-      entete.insertBefore(pA, quand);
+      etatTd.appendChild(pA);
       var pS = document.createElement('span');
       pS.className = 'pastille ' + (d.solde_paye ? 'validee' : 'attente');
       pS.textContent = d.solde_paye ? 'solde ✓' : 'solde dû';
-      entete.insertBefore(pS, quand);
+      etatTd.appendChild(pS);
     } else if (d.paye) {
       var payee = document.createElement('span');
       payee.className = 'pastille validee';
       payee.textContent = 'payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
-      entete.insertBefore(payee, quand);
+      etatTd.appendChild(payee);
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
       var payer = document.createElement('button');
       payer.type = 'button';
@@ -620,7 +694,7 @@
     dossier.addEventListener('click', function () { ouvrirDossier(d); });
     actions.appendChild(dossier);
 
-    c.appendChild(actions);
+    cellule(c, actions);
     return c;
   }
 
@@ -642,7 +716,8 @@
       conteneur.appendChild(vide);
       return;
     }
-    visibles.forEach(function (d) { conteneur.appendChild(carteDemande(d)); });
+    var corpsTableau = fabriquerTableau(conteneur, ['Type', 'Voltigeur', 'Demande', 'Statut', 'Reçue le', 'Actions']);
+    visibles.forEach(function (d) { corpsTableau.appendChild(carteDemande(d)); });
     majCompteurs();
   }
 
@@ -858,80 +933,95 @@
   function carteFamille(f) {
     var d = f.donnees || {};
     var r = d.responsable || {};
-    var c = document.createElement('div');
+    var c = document.createElement('tr');
     c.className = 'carte-famille';
 
-    var entete = document.createElement('div');
-    entete.className = 'entete';
+    var qui = document.createElement('td');
+    var ident = document.createElement('div');
+    ident.className = 'identite';
     var nomComplet = r.nom || f.email || 'Famille';
     var initiales = document.createElement('span');
     initiales.className = 'initiales';
     initiales.textContent = nomComplet.trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
-    entete.appendChild(initiales);
+    ident.appendChild(initiales);
+    var bloc = document.createElement('div');
     var nom = document.createElement('span');
     nom.className = 'nom';
     nom.textContent = nomComplet;
-    entete.appendChild(nom);
+    bloc.appendChild(nom);
     if (r.qualite) {
-      var q = document.createElement('span');
-      q.className = 'pastille type-stage';
+      var q = document.createElement('div');
+      q.className = 'corps';
       q.textContent = r.qualite;
-      entete.appendChild(q);
+      bloc.appendChild(q);
     }
+    ident.appendChild(bloc);
+    qui.appendChild(ident);
+    c.appendChild(qui);
+
+    var contact = document.createElement('td');
+    var contacts = [f.email, r.tel, [r.cp, r.ville].filter(Boolean).join(' ')].filter(Boolean);
+    if (contacts.length) {
+      contacts.forEach(function (ligne) {
+        var l = document.createElement('div');
+        l.textContent = ligne;
+        contact.appendChild(l);
+      });
+    } else {
+      contact.textContent = 'Aucune coordonnée renseignée.';
+    }
+    c.appendChild(contact);
+
+    var voltigeurs = document.createElement('td');
+    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
+    enfants.forEach(function (e) {
+      var puce = document.createElement('div');
+      var morceaux = [(e.prenom + ' ' + (e.nom || '')).trim()];
+      if (e.naissance) { morceaux.push('né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR')); }
+      puce.textContent = morceaux.join(' · ');
+      voltigeurs.appendChild(puce);
+    });
+    if (!enfants.length) { voltigeurs.textContent = '—'; }
+    c.appendChild(voltigeurs);
+
+    var suivi = document.createElement('td');
     var abo = f.user_id ? abonnementDe(f.user_id) : null;
     if (abo) {
       var pAbo = document.createElement('span');
       pAbo.className = 'pastille validee';
       pAbo.textContent = 'Trimestre en cours';
-      entete.appendChild(pAbo);
+      suivi.appendChild(pAbo);
+      var finAbo = document.createElement('div');
+      finAbo.className = 'corps';
+      finAbo.textContent = (abo.enfant ? abo.enfant + ' · ' : '') + 'jusqu’au ' + new Date(abo.fin + 'T12:00:00').toLocaleDateString('fr-FR');
+      suivi.appendChild(finAbo);
     }
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = f.maj ? 'mise à jour le ' + new Date(f.maj).toLocaleDateString('fr-FR') : '';
-    entete.appendChild(quand);
-    c.appendChild(entete);
-
-    var corps = document.createElement('div');
-    corps.className = 'corps';
-    var contacts = [f.email, r.tel, [r.cp, r.ville].filter(Boolean).join(' ')].filter(Boolean);
-    corps.textContent = contacts.join(' · ') || 'Aucune coordonnée renseignée.';
-    c.appendChild(corps);
-
-    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
-    if (enfants.length) {
-      var ligne = document.createElement('div');
-      enfants.forEach(function (e) {
-        var puce = document.createElement('span');
-        puce.className = 'enfant-ligne';
-        var morceaux = [(e.prenom + ' ' + (e.nom || '')).trim()];
-        if (e.naissance) { morceaux.push('né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR')); }
-        if (e.gabarit) { morceaux.push(e.gabarit); }
-        puce.textContent = morceaux.join(' · ');
-        ligne.appendChild(puce);
-      });
-      c.appendChild(ligne);
-    }
-
-    var pied = document.createElement('div');
-    pied.className = 'corps';
-    var morceauxPied = [];
     var nbDemandes = (d.demandes || []).length;
-    if (nbDemandes) { morceauxPied.push(nbDemandes + (nbDemandes > 1 ? ' demandes envoyées' : ' demande envoyée')); }
-    if (abo) { morceauxPied.push('trimestre' + (abo.enfant ? ' de ' + abo.enfant : '') + ' jusqu’au ' + new Date(abo.fin + 'T12:00:00').toLocaleDateString('fr-FR')); }
-    pied.textContent = morceauxPied.join(' · ');
-    if (morceauxPied.length) { c.appendChild(pied); }
+    if (nbDemandes) {
+      var lDemandes = document.createElement('div');
+      lDemandes.className = 'corps';
+      lDemandes.textContent = nbDemandes + (nbDemandes > 1 ? ' demandes envoyées' : ' demande envoyée');
+      suivi.appendChild(lDemandes);
+    }
+    if (f.maj) {
+      var maj = document.createElement('div');
+      maj.className = 'corps';
+      maj.textContent = 'mise à jour le ' + new Date(f.maj).toLocaleDateString('fr-FR');
+      suivi.appendChild(maj);
+    }
+    c.appendChild(suivi);
 
+    var actions = document.createElement('div');
+    actions.className = 'actions';
     if (f.user_id) {
-      var actions = document.createElement('div');
-      actions.className = 'actions';
       var activer = document.createElement('button');
       activer.type = 'button';
       activer.className = 'btn btn-contour';
       activer.innerHTML = '<span>Activer un trimestre</span>';
       activer.addEventListener('click', function () { activerTrimestre(f); });
       actions.appendChild(activer);
-      c.appendChild(actions);
     }
+    cellule(c, actions);
     return c;
   }
 
@@ -952,7 +1042,8 @@
       conteneur.appendChild(vide);
       return;
     }
-    visibles.forEach(function (f) { conteneur.appendChild(carteFamille(f)); });
+    var corpsTableau = fabriquerTableau(conteneur, ['Famille', 'Contact', 'Voltigeurs', 'Suivi', 'Actions']);
+    visibles.forEach(function (f) { corpsTableau.appendChild(carteFamille(f)); });
   }
 
   function chargerFamilles() {
