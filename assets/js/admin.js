@@ -26,6 +26,7 @@
       var e = el(id);
       if (e) { e.classList.toggle('actif', id === vue); }
     });
+    document.body.classList.toggle('connecte', vue === 'p-tableau');
   }
   function message(id, texte, bonne) {
     var m = el(id);
@@ -118,8 +119,7 @@
     }
     tuile(encaisseMois + ' €', 'encaissés ce mois-ci');
     tuile(resteTotal + ' €', 'restent à encaisser');
-    tuile(String(demandes.filter(function (d) { return classeStatut(d.statut) === 'attente'; }).length), 'demandes en attente');
-    tuile(String(familles.length), 'familles', true);
+    tuile(encaisseTotal + ' €', 'encaissés en tout', true);
 
     var aRelancer = demandes.filter(function (d) {
       if (d.type !== 'stage' || classeStatut(d.statut) !== 'validee' || d.annule) { return false; }
@@ -235,6 +235,13 @@
         else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 19 ?'); }
       });
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
+  }
+
+  /* Le bon mail de paiement selon la demande : acompte (300 €) puis
+     solde pour un stage, paiement direct pour un cours. */
+  function envoyerLienPaiement(d, silencieux) {
+    var sous = d.type === 'stage' ? (d.acompte_paye ? 'solde' : 'acompte') : 'paiement';
+    relancer(d, sous, null, silencieux);
   }
 
   function patchDemande(d, patch, apres) {
@@ -746,6 +753,11 @@
       body: JSON.stringify(ligne)
     }).then(function (r) {
       if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v7, a-t-il été joué dans Supabase ?).'); return; }
+      if (validee && /.+@.+\..+/.test(ligne.parent_email) &&
+          confirm('Envoyer tout de suite le lien de paiement à ' + ligne.parent_email +
+            (type === 'stage' ? ' (acompte de 300 €) ?' : ' (cours) ?'))) {
+        envoyerLienPaiement(ligne, true);
+      }
       chargerDemandes();
     });
   }
@@ -918,6 +930,10 @@
         if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'refusée (à la main)', decide: new Date().toISOString() });
       }));
+    }
+
+    if (classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
+      actions.appendChild(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
     }
 
     var dossier = document.createElement('button');
@@ -1276,6 +1292,10 @@
       })
     }).then(function (r) {
       if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v7, a-t-il été joué dans Supabase ?).'); return; }
+      if (/.+@.+\..+/.test(email.trim()) &&
+          confirm('Envoyer tout de suite le lien de paiement de l’acompte (300 €) à ' + email.trim() + ' ?')) {
+        envoyerLienPaiement({ type: 'stage', enfant: enfant.trim(), parent_email: email.trim(), detail: cle, tarif: '840 € / semaine' }, true);
+      }
       chargerDemandes();
     });
   }
