@@ -198,3 +198,70 @@ create policy "les admins ajoutent une reservation" on public.reservations
   for insert with check (
     exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
   );
+
+-- ============================================================
+-- v8 : notes clients, liste d'attente, places et relances auto
+-- ============================================================
+
+-- Une note libre de l'academie sur chaque famille.
+alter table public.familles add column if not exists note_admin text;
+
+drop policy if exists "les admins annotent les familles" on public.familles;
+create policy "les admins annotent les familles" on public.familles
+  for update using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  ) with check (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+-- Le nombre d'inscrits par date de cours, visible de tous : le site
+-- s'en sert pour afficher les jours complets. Seuls les totaux sont
+-- exposes, jamais les noms.
+create or replace view public.frequentation as
+  select date, count(*)::int as nombre
+  from public.reservations
+  group by date;
+grant select on public.frequentation to anon, authenticated;
+
+-- La liste d'attente d'un cours complet : le parent connecte s'y
+-- inscrit depuis Mon compte ; l'academie la voit dans le planning et
+-- previent quand une place se libere.
+create table if not exists public.attentes (
+  id      uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  email   text,
+  enfant  text,
+  date    date not null,
+  cree    timestamptz not null default now()
+);
+
+alter table public.attentes enable row level security;
+
+drop policy if exists "attendre une place" on public.attentes;
+create policy "attendre une place" on public.attentes
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "voir mes attentes" on public.attentes;
+create policy "voir mes attentes" on public.attentes
+  for select using (user_id = auth.uid());
+
+drop policy if exists "quitter la liste d'attente" on public.attentes;
+create policy "quitter la liste d'attente" on public.attentes
+  for delete using (user_id = auth.uid());
+
+drop policy if exists "les admins voient les attentes" on public.attentes;
+create policy "les admins voient les attentes" on public.attentes
+  for select using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+drop policy if exists "les admins retirent une attente" on public.attentes;
+create policy "les admins retirent une attente" on public.attentes
+  for delete using (
+    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
+  );
+
+-- Les relances automatiques (une seule par demande et par sujet) :
+-- le script Google note ici la date de chaque relance envoyee.
+alter table public.demandes add column if not exists relance_acompte_le date;
+alter table public.demandes add column if not exists relance_solde_le date;

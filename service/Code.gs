@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '18';
+var VERSION_SCRIPT = '19';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -189,6 +189,8 @@ function doPost(e) {
   if (d && d.type === 'decision') { return traiterDecisionPost(d); }
   if (d && d.type === 'relance') { return traiterRelance(d); }
   if (d && d.type === 'stripe') { return traiterStripe(d); }
+  if (d && d.type === 'confirmation-resa') { return traiterConfirmationResa(d); }
+  if (d && d.type === 'place-libre') { return traiterPlaceLibre(d); }
   if (!d || (d.type !== 'cours' && d.type !== 'stage')) { return reponseTexte('type inconnu'); }
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
@@ -489,10 +491,23 @@ function traiterRelance(d) {
       paiement: d.paiement === 'trimestre' ? 'trimestre' : d.paiement === 'unite' ? 'unite' : ''
     };
   }
-  var sous = String(d.relance || '');
-  var titre, intro, boutons = [], pied =
-    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
+  var c = contenusRelance(donnees, String(d.relance || ''), nettoyer(d.montant));
+  if (!c) { return reponseTexte('relance inconnue'); }
+  GmailApp.sendEmail(donnees.parentEmail, c.titre.replace(/<[^>]+>/g, ''),
+    c.intro.replace(/<[^>]+>/g, ''), {
+    htmlBody: gabaritMail(c.titre, c.intro, [], c.boutons, c.pied),
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return reponseTexte('ok relance;' + donnees.parentEmail);
+}
+
+/* Le contenu d'un mail de relance (partage entre la relance manuelle
+   de l'espace academie et la routine quotidienne). */
+function contenusRelance(donnees, sous, montant) {
+  var pied = 'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
     'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
+  var titre, intro, boutons = [];
 
   if (sous === 'acompte') {
     titre = 'Un petit rappel pour ' + donnees.enfant;
@@ -518,7 +533,6 @@ function traiterRelance(d) {
       boutons.push({ texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true });
     }
   } else if (sous === 'annulation') {
-    var montant = nettoyer(d.montant);
     titre = 'Au sujet du stage de ' + donnees.enfant;
     intro = 'L’inscription de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est annulée. ' +
       (montant && montant !== '0' && montant !== '0 €'
@@ -527,27 +541,13 @@ function traiterRelance(d) {
     pied = 'Nous espérons accueillir ' + donnees.enfant + ' à une prochaine occasion. N’hésitez pas à répondre à ce message.<br>' +
       'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
   } else {
-    return reponseTexte('relance inconnue');
+    return null;
   }
-
-  var html = gabaritMail(titre, intro, [], boutons, pied);
-  GmailApp.sendEmail(donnees.parentEmail, titre.replace(/<[^>]+>/g, ''),
-    intro.replace(/<[^>]+>/g, ''), {
-    htmlBody: html,
-    replyTo: ADRESSE_ACADEMIE,
-    name: 'Académie de voltige équestre'
-  });
-  return reponseTexte('ok relance;' + donnees.parentEmail);
+  return { titre: titre, intro: intro, boutons: boutons, pied: pied };
 }
 
-/* ============ Les paiements reçus sur Stripe (espace académie) ======
-   Réservé aux admins : la demande arrive avec le jeton de session
-   Supabase de l'admin connecté ; on vérifie qui il est (et qu'il est
-   bien dans la liste des admins) avant d'interroger Stripe. La clé
-   Stripe, elle, ne quitte jamais ce script. */
-/* Qui est derriere ce jeton de session Supabase ? Renvoie son adresse
-   si (et seulement si) c'est un compte de la liste des admins. */
-function adminDepuisJeton(jeton) {
+/* ============ Qui est derriere un jeton de session Supabase ============ */
+function emailDepuisJeton(jeton) {
   if (!supabasePret() || !jeton) { return null; }
   try {
     var qui = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
@@ -555,8 +555,15 @@ function adminDepuisJeton(jeton) {
       muteHttpExceptions: true
     });
     if (qui.getResponseCode() !== 200) { return null; }
-    var email = String((JSON.parse(qui.getContentText()) || {}).email || '').toLowerCase();
-    if (!email) { return null; }
+    return String((JSON.parse(qui.getContentText()) || {}).email || '').toLowerCase() || null;
+  } catch (e) { return null; }
+}
+
+/* Renvoie l'adresse si (et seulement si) c'est un compte admin. */
+function adminDepuisJeton(jeton) {
+  var email = emailDepuisJeton(jeton);
+  if (!email) { return null; }
+  try {
     var admin = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/admins?select=email&email=eq.' + encodeURIComponent(email), {
       headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE },
       muteHttpExceptions: true
@@ -566,29 +573,251 @@ function adminDepuisJeton(jeton) {
   } catch (e) { return null; }
 }
 
-function traiterStripe(d) {
-  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return reponseTexte('stripe non configuree'); }
-  if (!supabasePret()) { return reponseTexte('supabase non configuree'); }
-  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
-
-  var depuis = Math.floor(Date.now() / 1000) - 120 * 24 * 3600; /* les 4 derniers mois */
-  var paiements = [];
+/* ============ Lire et ecrire dans la base (cle service) ============ */
+function supabaseLire(chemin) {
   try {
+    var r = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/' + chemin, {
+      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE },
+      muteHttpExceptions: true
+    });
+    if (r.getResponseCode() !== 200) { return null; }
+    return JSON.parse(r.getContentText());
+  } catch (e) { return null; }
+}
+
+function supabaseEcrire(chemin, corps) {
+  try {
+    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/' + chemin, {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE, Prefer: 'return=minimal' },
+      payload: JSON.stringify(corps),
+      muteHttpExceptions: true
+    });
+  } catch (e) { /* rien */ }
+}
+
+/* ============ Les paiements recus sur Stripe ============ */
+function paiementsStripe() {
+  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return null; }
+  try {
+    var depuis = Math.floor(Date.now() / 1000) - 120 * 24 * 3600; /* les 4 derniers mois */
     var rep = UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions?limit=100&created%5Bgte%5D=' + depuis, {
       headers: { Authorization: 'Bearer ' + STRIPE_CLE },
       muteHttpExceptions: true
     });
-    if (rep.getResponseCode() !== 200) { return reponseTexte('cle stripe refusee'); }
-    (JSON.parse(rep.getContentText()).data || []).forEach(function (s) {
-      if (s.payment_status !== 'paid') { return; }
+    if (rep.getResponseCode() !== 200) { return null; }
+    var paiements = [];
+    (JSON.parse(rep.getContentText()).data || []).forEach(function (sess) {
+      if (sess.payment_status !== 'paid') { return; }
       paiements.push({
-        email: String((s.customer_details && s.customer_details.email) || s.customer_email || '').toLowerCase(),
-        montant: Math.round((s.amount_total || 0) / 100),
-        quand: new Date(s.created * 1000).toISOString().slice(0, 10)
+        email: String((sess.customer_details && sess.customer_details.email) || sess.customer_email || '').toLowerCase(),
+        montant: Math.round((sess.amount_total || 0) / 100),
+        quand: new Date(sess.created * 1000).toISOString().slice(0, 10)
       });
     });
-  } catch (e) { return reponseTexte('stripe injoignable'); }
+    return paiements;
+  } catch (e) { return null; }
+}
+
+/* Le bouton « Verifier les paiements Stripe » de l'espace academie. */
+function traiterStripe(d) {
+  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return reponseTexte('stripe non configuree'); }
+  if (!supabasePret()) { return reponseTexte('supabase non configuree'); }
+  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
+  var paiements = paiementsStripe();
+  if (!paiements) { return reponseTexte('cle stripe refusee'); }
   return reponseTexte(JSON.stringify({ ok: true, paiements: paiements }));
+}
+
+/* ============ La confirmation d'une reservation de cours ============
+   Envoyee au parent connecte juste apres sa reservation depuis
+   « Mon compte » (son jeton de session prouve qui il est). */
+function traiterConfirmationResa(d) {
+  var email = emailDepuisJeton(String(d.jeton || ''));
+  if (!email) { return reponseTexte('acces refuse'); }
+  var enfant = nettoyer(d.enfant) || 'votre voltigeur';
+  var quand = nettoyer(d.quand) || 'mercredi choisi';
+  var titre = 'Réservation confirmée !';
+  var intro = 'C’est noté : <b>' + enfant + '</b> est attendu(e) au cours de voltige du <b>' + quand + '</b>, de 14h00 à 16h00, à l’académie (Auberville).' +
+    '<br><br>Un empêchement ? Vous pouvez annuler jusqu’à la veille depuis votre espace « Mon compte » sur le site.';
+  GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
+    htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return reponseTexte('ok confirmation');
+}
+
+/* ============ Une place s'est liberee (liste d'attente) ============ */
+function traiterPlaceLibre(d) {
+  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
+  var email = nettoyer(d.email);
+  if (!/.+@.+\..+/.test(email)) { return reponseTexte('e-mail manquant'); }
+  var enfant = nettoyer(d.enfant) || 'votre voltigeur';
+  var quand = nettoyer(d.quand) || 'mercredi';
+  var titre = 'Une place s’est libérée !';
+  var intro = 'Bonne nouvelle : une place vient de se libérer pour le cours de voltige du <b>' + quand + '</b> (14h00 à 16h00), et <b>' + enfant + '</b> est en tête de la liste d’attente.' +
+    '<br><br>Réservez vite depuis votre espace « Mon compte » sur le site, ou répondez simplement à ce message.';
+  GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
+    htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return reponseTexte('ok place;' + email);
+}
+
+/* ============ La routine quotidienne (les automatismes) ============
+   À INSTALLER UNE FOIS : dans la barre d'outils de l'éditeur,
+   choisissez la fonction « installerRoutine » dans le menu déroulant,
+   cliquez « Exécuter », et acceptez l'autorisation demandée.
+   Ensuite, chaque matin vers 7h, le script tout seul :
+   1. lit les paiements reçus sur Stripe et les note dans la base ;
+   2. relance l'acompte des stages impayés depuis plus de 7 jours ;
+   3. relance le solde des stages à moins de 45 jours du début ;
+      (une seule relance automatique par sujet et par demande)
+   4. envoie un rappel aux inscrits du cours du lendemain. */
+function installerRoutine() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'routineQuotidienne') { ScriptApp.deleteTrigger(t); }
+  });
+  ScriptApp.newTrigger('routineQuotidienne').timeBased().everyDays(1).atHour(7).create();
+  Logger.log('Routine installée : elle tournera chaque matin entre 7h et 8h.');
+}
+
+function routineQuotidienne() {
+  if (!supabasePret()) { return; }
+  try { rapprocherStripeAuto(); } catch (e) { /* silencieux */ }
+  try { relancesAuto(); } catch (e) { /* silencieux */ }
+  try { rappelsVeille(); } catch (e) { /* silencieux */ }
+}
+
+function montantDe(texte) {
+  var m = String(texte || '').replace(',', '.').match(/\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : 0;
+}
+
+function isoDe(d) {
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+
+/* 1. Noter tout seul les paiements Stripe (memes regles que le bouton
+   de la plateforme : e-mail + montant : totalite, acompte 300, solde). */
+function rapprocherStripeAuto() {
+  var paiements = paiementsStripe();
+  if (!paiements) { return; }
+  var lignes = supabaseLire('demandes?select=*&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&limit=500');
+  if (!lignes) { return; }
+  var jour = isoDe(new Date());
+  lignes.forEach(function (d) {
+    if (!d.parent_email) { return; }
+    var total = montantDe(d.tarif) || (d.type === 'stage' ? 840 : 0);
+    var solde = Math.max(total - 300, 0);
+    var reste = d.type === 'stage'
+      ? (d.acompte_paye ? 0 : 300) + (d.solde_paye ? 0 : solde)
+      : (d.paye ? 0 : total);
+    if (reste <= 0) { return; }
+    var email = String(d.parent_email).toLowerCase();
+    for (var i = 0; i < paiements.length; i++) {
+      var p = paiements[i];
+      if (p.email !== email) { continue; }
+      var patch = null;
+      if (d.type === 'stage') {
+        if (total > 0 && p.montant >= total) { patch = { acompte_paye: true, acompte_le: jour, solde_paye: true, solde_le: jour, paye: true, paye_le: jour, paye_montant: p.montant + ' €' }; }
+        else if (p.montant === 300 && !d.acompte_paye) { patch = { acompte_paye: true, acompte_le: jour }; }
+        else if (p.montant === solde && d.acompte_paye && !d.solde_paye) { patch = { solde_paye: true, solde_le: jour }; }
+      } else if (total > 0 && p.montant >= total) {
+        patch = { paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
+      }
+      if (!patch) { continue; }
+      paiements.splice(i, 1);
+      supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), patch);
+      break;
+    }
+  });
+}
+
+/* La date de debut d'un stage, lue dans son intitule
+   (« ... (Du 19 au 24 octobre 2026) »). */
+var MOIS_FRANCAIS = {
+  janvier: 0, fevrier: 1, 'février': 1, mars: 2, avril: 3, mai: 4, juin: 5,
+  juillet: 6, aout: 7, 'août': 7, septembre: 8, octobre: 9, novembre: 10, decembre: 11, 'décembre': 11
+};
+function debutStage(detail) {
+  var t = String(detail || '').toLowerCase();
+  var m = t.match(/du\s+(\d{1,2})\s+au\s+\d{1,2}\s+([a-zà-ÿ]+)\s+(\d{4})/);
+  if (!m) { m = t.match(/(\d{1,2})\s+([a-zà-ÿ]+)\s+(\d{4})/); }
+  if (!m || MOIS_FRANCAIS[m[2]] == null) { return null; }
+  return new Date(Number(m[3]), MOIS_FRANCAIS[m[2]], Number(m[1]), 12);
+}
+
+/* 2 et 3. Les relances automatiques des stages. */
+function relancesAuto() {
+  var lignes = supabaseLire('demandes?select=*&type=eq.stage&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&limit=500');
+  if (!lignes) { return; }
+  var jour = isoDe(new Date());
+  var maintenant = new Date();
+  lignes.forEach(function (d) {
+    if (!d.parent_email || !/.+@.+\..+/.test(d.parent_email)) { return; }
+    var donnees = {
+      type: 'stage',
+      enfant: d.enfant || 'votre voltigeur',
+      parentEmail: d.parent_email,
+      detail: d.detail || 'votre stage',
+      paiement: ''
+    };
+    if (!d.acompte_paye && !d.relance_acompte_le && d.cree &&
+        (maintenant - new Date(d.cree)) > 7 * 24 * 3600 * 1000) {
+      if (envoyerRelanceAuto(donnees, 'acompte')) {
+        supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), { relance_acompte_le: jour });
+      }
+      return;
+    }
+    var debut = debutStage(d.detail);
+    if (d.acompte_paye && !d.solde_paye && !d.relance_solde_le && debut &&
+        debut > maintenant && (debut - maintenant) < 45 * 24 * 3600 * 1000) {
+      if (envoyerRelanceAuto(donnees, 'solde')) {
+        supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), { relance_solde_le: jour });
+      }
+    }
+  });
+}
+
+function envoyerRelanceAuto(donnees, sous) {
+  var c = contenusRelance(donnees, sous, '');
+  if (!c) { return false; }
+  GmailApp.sendEmail(donnees.parentEmail, c.titre.replace(/<[^>]+>/g, ''), c.intro.replace(/<[^>]+>/g, ''), {
+    htmlBody: gabaritMail(c.titre, c.intro, [], c.boutons, c.pied),
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return true;
+}
+
+/* 4. Le rappel de la veille aux inscrits du cours du lendemain. */
+function rappelsVeille() {
+  var demain = new Date();
+  demain.setDate(demain.getDate() + 1);
+  var resas = supabaseLire('reservations?select=email,enfant,date&date=eq.' + isoDe(demain));
+  if (!resas || !resas.length) { return; }
+  var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  var joli = JOURS[demain.getDay()] + ' ' + demain.getDate() + ' ' + MOIS[demain.getMonth()];
+  var parEmail = {};
+  resas.forEach(function (r) {
+    if (r.email && /.+@.+\..+/.test(r.email)) { (parEmail[r.email] = parEmail[r.email] || []).push(r.enfant || 'votre voltigeur'); }
+  });
+  Object.keys(parEmail).forEach(function (email) {
+    var noms = parEmail[email].join(' et ');
+    var titre = 'À demain à l’académie !';
+    var intro = 'Petit rappel : <b>' + noms + '</b> est attendu(e) demain, <b>' + joli + '</b>, pour le cours de voltige de 14h00 à 16h00.' +
+      '<br><br>Un empêchement ? Répondez simplement à ce message.';
+    GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
+      htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
+      replyTo: ADRESSE_ACADEMIE,
+      name: 'Académie de voltige équestre'
+    });
+  });
 }
 
 /* Clic direct sur un lien /exec (anciens mails) : mêmes actions, en page web. */
