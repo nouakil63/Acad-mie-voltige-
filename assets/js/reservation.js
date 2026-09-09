@@ -76,7 +76,7 @@
 
   /* MODE ESSAI : tous les champs sont facultatifs le temps des tests du
      parcours. Pour revenir a la normale, passer MODE_ESSAI a false. */
-  var MODE_ESSAI = true;
+  var MODE_ESSAI = false;
 
   function champsValides(pas) {
     if (MODE_ESSAI) { return true; }
