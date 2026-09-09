@@ -170,16 +170,47 @@
     });
   }
 
-  /* ================= L'export Excel (CSV) ================= */
-  function exporterCSV(nom, entetes, lignes) {
-    var contenu = '\ufeff' + [entetes].concat(lignes).map(function (l) {
-      return l.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';');
-    }).join('\r\n');
-    window.__dernierCSV = contenu; /* relu par les tests automatiques */
-    var url = URL.createObjectURL(new Blob([contenu], { type: 'text/csv;charset=utf-8' }));
+  /* ================= L'export Excel (.xls, aux couleurs de l'academie) =================
+     Un vrai classeur mis en forme : titre rouge, ligne d'export, en-tetes
+     sur fond sombre, colonnes dimensionnees. Format SpreadsheetML, lu par
+     Excel, LibreOffice et Numbers sans aucune dependance. */
+  function exporterExcel(nomFichier, titreFeuille, colonnes, lignes) {
+    function x(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function celluleXml(v, style) {
+      var type = typeof v === 'number' && isFinite(v) ? 'Number' : 'String';
+      return '<Cell ss:StyleID="' + style + '"><Data ss:Type="' + type + '">' + x(v) + '</Data></Cell>';
+    }
+    var n = colonnes.length;
+    var xml = '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n' +
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+      '<Styles>' +
+      '<Style ss:ID="t"><Font ss:Bold="1" ss:Size="15" ss:Color="#D00828"/></Style>' +
+      '<Style ss:ID="s"><Font ss:Size="10" ss:Color="#6D6266"/></Style>' +
+      '<Style ss:ID="e"><Font ss:Bold="1" ss:Size="10" ss:Color="#FFFFFF"/><Interior ss:Color="#1D1216" ss:Pattern="Solid"/><Alignment ss:Vertical="Center"/></Style>' +
+      '<Style ss:ID="c"><Font ss:Size="10"/><Alignment ss:Vertical="Top" ss:WrapText="1"/>' +
+      '<Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E8E0DC"/></Borders></Style>' +
+      '</Styles>' +
+      '<Worksheet ss:Name="' + x(titreFeuille) + '"><Table>';
+    colonnes.forEach(function (col) {
+      xml += '<Column ss:AutoFitWidth="0" ss:Width="' + (col.largeur || 110) + '"/>';
+    });
+    xml += '<Row ss:Height="22"><Cell ss:StyleID="t" ss:MergeAcross="' + (n - 1) + '"><Data ss:Type="String">Académie de voltige équestre</Data></Cell></Row>';
+    xml += '<Row><Cell ss:StyleID="s" ss:MergeAcross="' + (n - 1) + '"><Data ss:Type="String">' +
+      x(titreFeuille + ' · exporté le ' + new Date().toLocaleDateString('fr-FR')) + '</Data></Cell></Row>';
+    xml += '<Row/>';
+    xml += '<Row ss:Height="20">' + colonnes.map(function (col) { return celluleXml(col.titre, 'e'); }).join('') + '</Row>';
+    lignes.forEach(function (l) {
+      xml += '<Row>' + l.map(function (v) { return celluleXml(v, 'c'); }).join('') + '</Row>';
+    });
+    xml += '</Table></Worksheet></Workbook>';
+    window.__dernierExport = xml; /* relu par les tests automatiques */
+    var url = URL.createObjectURL(new Blob([xml], { type: 'application/vnd.ms-excel' }));
     var a = document.createElement('a');
     a.href = url;
-    a.download = nom;
+    a.download = nomFichier;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -1577,8 +1608,10 @@
     afficherDemandes();
   });
   el('b-export-demandes').addEventListener('click', function () {
-    exporterCSV('demandes-academie.csv',
-      ['Type', 'Voltigeur', 'Parent', 'E-mail', 'Demande', 'Tarif', 'Statut', 'Reçue le', 'Paiement'],
+    exporterExcel('demandes-academie.xls', 'Les demandes',
+      [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
+       { titre: 'E-mail', largeur: 165 }, { titre: 'Demande', largeur: 210 }, { titre: 'Tarif', largeur: 95 },
+       { titre: 'Statut', largeur: 85 }, { titre: 'Reçue le', largeur: 105 }, { titre: 'Paiement', largeur: 150 }],
       demandes.map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.detail, d.tarif, d.statut, quandLisible(d.cree),
           d.annule ? 'annulé' : d.type === 'stage'
@@ -1587,8 +1620,10 @@
       }));
   });
   el('b-export-paiements').addEventListener('click', function () {
-    exporterCSV('paiements-academie.csv',
-      ['Type', 'Voltigeur', 'Parent', 'E-mail', 'Tarif', 'Encaissé (€)', 'Reste dû (€)', 'État', 'Réglé le'],
+    exporterExcel('paiements-academie.xls', 'Les paiements',
+      [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
+       { titre: 'E-mail', largeur: 165 }, { titre: 'Tarif', largeur: 95 }, { titre: 'Encaissé (€)', largeur: 75 },
+       { titre: 'Reste dû (€)', largeur: 75 }, { titre: 'État', largeur: 150 }, { titre: 'Réglé le', largeur: 80 }],
       demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' || d.annule; }).map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.tarif, dejaEncaisse(d), resteAEncaisser(d),
           d.annule ? 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : '')

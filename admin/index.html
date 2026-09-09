@@ -10,16 +10,16 @@
   <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="../assets/css/style.css?v=33">
   <style>
-    body{background:var(--fond);font-size:13.5px;display:flex;min-height:100vh}
+    body{background:var(--fond);font-size:14px;display:flex;min-height:100vh}
 
     /* ================= La barre latérale ================= */
     .lateral{
-      display:none;flex-direction:column;width:225px;flex-shrink:0;
+      display:none;flex-direction:column;width:245px;flex-shrink:0;
       background:var(--encre);color:#d8ccd0;
       position:sticky;top:0;height:100vh;
     }
     body.connecte .lateral{display:flex}
-    .marque{display:flex;align-items:center;gap:10px;padding:20px 18px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+    .marque{display:flex;align-items:center;gap:12px;padding:26px 22px 22px;border-bottom:1px solid rgba(255,255,255,.08)}
     .marque img{width:34px;height:34px;border-radius:50%;background:#fff}
     .marque b{
       display:block;font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
@@ -27,42 +27,42 @@
     }
     .marque small{font-size:8.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#b9aeb2}
 
-    .onglets{display:flex;flex-direction:column;padding:14px 0;gap:2px;flex:1}
+    .onglets{display:flex;flex-direction:column;padding:18px 0;gap:4px;flex:1}
     .onglets button{
       border:0;background:transparent;font-family:inherit;cursor:pointer;text-align:left;
-      font-size:13px;font-weight:600;color:#c5b8bd;
-      padding:10px 18px;border-left:3px solid transparent;
+      font-size:13.5px;font-weight:600;color:#c5b8bd;
+      padding:13px 22px;border-left:3px solid transparent;
       transition:color .2s,background .2s,border-color .2s;
     }
     .onglets button:hover{color:#fff;background:rgba(255,255,255,.05)}
     .onglets button.actif-onglet{color:#fff;border-left-color:var(--rouge);background:rgba(255,255,255,.06)}
 
     .lateral .bas{
-      padding:16px 18px;border-top:1px solid rgba(255,255,255,.08);
+      padding:20px 22px;border-top:1px solid rgba(255,255,255,.08);
       display:flex;flex-direction:column;gap:8px;font-size:12px;
     }
     .lateral .bas #p-compte{color:#b9aeb2;overflow-wrap:anywhere}
     .lateral .bas a{color:#fff;font-weight:600;text-decoration:none;border-bottom:1px solid var(--rouge);padding-bottom:1px;align-self:flex-start}
 
     /* ================= La zone de travail ================= */
-    main{flex:1;min-width:0;padding:30px clamp(18px,3.4vw,44px) 80px}
-    main > .pas{max-width:1060px;margin:0 auto}
+    main{flex:1;min-width:0;padding:44px clamp(24px,4.5vw,70px) 110px}
+    main > .pas{max-width:1160px;margin:0 auto}
     body:not(.connecte) main > .pas{max-width:520px;margin:8vh auto 0}
 
     .titre-page{
       font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
-      font-size:clamp(20px,2.4vw,25px);color:var(--encre);margin:0 0 4px;
+      font-size:clamp(23px,2.8vw,30px);color:var(--encre);margin:0 0 6px;
     }
-    .sous-titre{font-size:12.5px;color:var(--texte-2);line-height:1.6;margin:0 0 20px;max-width:760px}
+    .sous-titre{font-size:13.5px;color:var(--texte-2);line-height:1.65;margin:0 0 30px;max-width:780px}
     .sous-titre a{font-weight:600}
 
     /* ---- La ligne des chiffres (tableau de bord) ---- */
-    .chiffres{display:flex;flex-wrap:wrap;gap:0;margin:0 0 22px;border-block:1px solid var(--trait)}
-    .chiffre{padding:12px clamp(14px,2.6vw,26px) 10px;border-right:1px solid var(--trait)}
+    .chiffres{display:flex;flex-wrap:wrap;gap:0;margin:0 0 32px;border-block:1px solid var(--trait)}
+    .chiffre{padding:18px clamp(18px,3vw,36px) 15px;border-right:1px solid var(--trait)}
     .chiffre:first-child{padding-left:2px}
     .chiffre b{
       font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
-      font-size:clamp(20px,2.4vw,25px);display:block;line-height:1;color:var(--encre);
+      font-size:clamp(24px,2.8vw,31px);display:block;line-height:1;color:var(--encre);
     }
     .chiffre b.alerte{color:var(--rouge)}
     .chiffre span{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--texte-2)}
@@ -75,12 +75,12 @@
 
     /* ---- Le tableau, type CRM ---- */
     .cadre-tableau{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;overflow-x:auto}
-    table.tableau{width:100%;border-collapse:collapse;font-size:13px}
+    table.tableau{width:100%;border-collapse:collapse;font-size:13.5px}
     .tableau th{
       text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-      color:var(--texte-2);padding:12px 18px;border-bottom:1px solid var(--trait);background:var(--fond-2);white-space:nowrap;
+      color:var(--texte-2);padding:15px 22px;border-bottom:1px solid var(--trait);background:var(--fond-2);white-space:nowrap;
     }
-    .tableau td{padding:18px;border-bottom:1px solid var(--trait);vertical-align:top;color:var(--texte-2);line-height:1.6}
+    .tableau td{padding:22px;border-bottom:1px solid var(--trait);vertical-align:top;color:var(--texte-2);line-height:1.7}
     .tableau tr:last-child td{border-bottom:0}
     .tableau td:first-child{border-left:3px solid transparent}
     tr.st-attente td:first-child{border-left-color:#e0a800}
@@ -91,10 +91,10 @@
       font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
       font-size:14px;color:var(--encre);
     }
-    .tableau .nom{display:block;font-size:15px}
-    .tableau .corps{margin-top:4px}
+    .tableau .nom{display:block;font-size:16px}
+    .tableau .corps{margin-top:6px;font-size:12.5px}
     .tableau .quand{margin-left:0;display:block}
-    .tableau .actions{margin-top:0;flex-direction:column;align-items:flex-start;gap:10px}
+    .tableau .actions{margin-top:0;flex-direction:column;align-items:flex-start;gap:12px}
     .tableau .pastille{display:inline-block;margin:2px 4px 2px 0}
     .tableau .btn{padding:6px 12px;font-size:11.5px;white-space:nowrap}
     .tableau select{max-width:200px}
@@ -103,49 +103,49 @@
     .identite{display:flex;align-items:center;gap:8px}
 
     /* ---- Le tableau de bord ---- */
-    .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:22px}
-    .tuile{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:16px 18px;border-left:3px solid var(--rouge)}
+    .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-bottom:32px}
+    .tuile{background:var(--blanc);border:1px solid var(--trait);border-radius:14px;padding:24px 26px;border-left:3px solid var(--rouge)}
     .tuile b{
       display:block;font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
-      font-size:clamp(20px,2.4vw,26px);line-height:1.1;color:var(--encre);margin-bottom:4px;
+      font-size:clamp(24px,2.8vw,31px);line-height:1.1;color:var(--encre);margin-bottom:7px;
     }
     .tuile span{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--texte-2)}
     .tuile.douce{border-left-color:var(--encre)}
-    .bloc-accueil{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:16px 18px;margin-bottom:14px}
-    .bloc-accueil h3{font-size:14.5px;margin:0 0 8px}
-    .bloc-accueil ul{list-style:none;margin:0;padding:0;font-size:13px;line-height:1.9;color:var(--texte-2)}
+    .bloc-accueil{background:var(--blanc);border:1px solid var(--trait);border-radius:14px;padding:24px 28px;margin-bottom:18px}
+    .bloc-accueil h3{font-size:15.5px;margin:0 0 12px}
+    .bloc-accueil ul{list-style:none;margin:0;padding:0;font-size:13.5px;line-height:2.1;color:var(--texte-2)}
 
     /* ---- Le planning en cases ---- */
-    .grille-planning{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:6px}
+    .grille-planning{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-bottom:8px}
     .case-planning{
       background:var(--blanc);border:1px solid var(--trait);border-radius:12px;
-      padding:16px;border-left:3px solid var(--rouge);cursor:pointer;text-align:left;
+      padding:22px 22px 20px;border-left:3px solid var(--rouge);cursor:pointer;text-align:left;
       font-family:inherit;transition:border-color .2s;
     }
     .case-planning:hover{border-color:var(--rouge)}
     .case-planning.actif{border-color:var(--rouge);box-shadow:0 0 0 1px var(--rouge) inset}
     .case-planning b{
       display:block;font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
-      font-size:15px;color:var(--encre);margin-bottom:4px;
+      font-size:16px;color:var(--encre);margin-bottom:6px;
     }
     .case-planning span{font-size:12px;color:var(--texte-2)}
     .case-planning.case-stage{border-left-color:var(--encre)}
-    #p-inscrits{background:var(--blanc);border:1px solid var(--trait);border-radius:12px;padding:18px;margin-top:18px}
+    #p-inscrits{background:var(--blanc);border:1px solid var(--trait);border-radius:14px;padding:26px 28px;margin-top:26px}
     #p-inscrits h3{font-size:15px;margin:0 0 10px}
-    #p-inscrits ul{list-style:none;margin:0 0 12px;padding:0;font-size:13px;line-height:2.1;color:var(--texte-2)}
+    #p-inscrits ul{list-style:none;margin:0 0 16px;padding:0;font-size:13.5px;line-height:2.3;color:var(--texte-2)}
     #p-inscrits ul .lien-doux{margin-left:8px}
 
     /* ---- Les actions, discrètes ---- */
-    .actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:10px;align-items:center}
-    .actions .btn,main .btn{padding:7px 15px;font-size:12px}
+    .actions{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;align-items:center}
+    .actions .btn,main .btn{padding:9px 18px;font-size:12.5px}
     .actions select{padding:6px 10px;border-radius:8px;border:1px solid var(--trait);font-family:inherit;font-size:12px;background:var(--blanc)}
-    .lien-doux{border:0;background:transparent;color:var(--texte-2);font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:inherit;padding:0}
+    .lien-doux{border:0;background:transparent;color:var(--texte-2);font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:inherit;padding:0}
     .lien-doux:hover{color:var(--rouge)}
 
-    .filtres{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+    .filtres{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
     .filtres button{
-      padding:5px 12px;border-radius:999px;border:1px solid var(--trait);
-      background:var(--blanc);font-family:inherit;font-size:11.5px;font-weight:700;color:var(--texte-2);cursor:pointer;
+      padding:7px 15px;border-radius:999px;border:1px solid var(--trait);
+      background:var(--blanc);font-family:inherit;font-size:12px;font-weight:700;color:var(--texte-2);cursor:pointer;
       transition:border-color .2s,color .2s,background .2s;
     }
     .filtres button:hover{border-color:var(--rouge);color:var(--rouge)}
@@ -272,11 +272,11 @@
     <section id="o-demandes" hidden>
       <h2 class="titre-page">Les demandes</h2>
       <p class="sous-titre">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
-      <div class="actions" style="margin:0 0 14px">
+      <div class="actions" style="margin:0 0 18px">
         <button type="button" class="btn btn-contour" id="b-ajout-demande"><span>Ajouter une demande</span></button>
         <button type="button" class="lien-doux" id="b-export-demandes">Exporter (Excel)</button>
       </div>
-      <div class="champ" style="max-width:360px;margin-bottom:14px">
+      <div class="champ" style="max-width:380px;margin-bottom:20px">
         <label for="d-recherche">Rechercher</label>
         <input id="d-recherche" type="search" placeholder="Nom, e-mail, stage…">
       </div>
@@ -287,7 +287,7 @@
         <button type="button" data-filtre="refusée">Refusées</button>
       </div>
       <p class="message" id="m-liste" role="alert" hidden></p>
-      <div id="a-demandes" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="a-demandes" style="display:flex;flex-direction:column;gap:14px"></div>
     </section>
 
     <!-- Le planning -->
@@ -295,9 +295,9 @@
       <h2 class="titre-page">Le planning</h2>
       <p class="sous-titre">Une case par cours du mercredi et par stage. Cliquez sur une case pour voir les inscrits, en ajouter, en retirer, et imprimer la feuille de présence. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
       <p class="message" id="m-resa" role="alert" hidden></p>
-      <h3 style="font-size:15px">Les cours du mercredi</h3>
+      <h3 style="font-size:16.5px;margin-bottom:14px">Les cours du mercredi</h3>
       <div id="g-cours" class="grille-planning"></div>
-      <h3 style="font-size:15px;margin-top:22px">Les stages</h3>
+      <h3 style="font-size:16.5px;margin:38px 0 14px">Les stages</h3>
       <div id="g-stages" class="grille-planning"></div>
       <div id="p-inscrits" hidden></div>
     </section>
@@ -306,35 +306,35 @@
     <section id="o-paiements" hidden>
       <h2 class="titre-page">Les paiements</h2>
       <p class="sous-titre">Qui a réglé quoi, et ce qui reste à encaisser sur les demandes validées. Les stages se règlent en deux temps : l'acompte de 300&nbsp;€ à l'inscription, le solde au plus tard 30 jours avant le début du stage. Et rappel maison : le trimestre est dû, que le voltigeur vienne ou non.</p>
-      <div class="actions" style="margin:0 0 16px">
+      <div class="actions" style="margin:0 0 20px">
         <button type="button" class="btn btn-contour" id="b-stripe"><span>Vérifier les paiements Stripe</span></button>
         <button type="button" class="lien-doux" id="b-export-paiements">Exporter (Excel)</button>
         <span class="quand" id="m-stripe" style="margin-left:0"></span>
       </div>
-      <h3 style="font-size:15px">À encaisser <span class="quand" id="t-encaisser" style="margin-left:8px"></span></h3>
-      <div id="a-encaisser" style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px"></div>
-      <h3 style="font-size:15px">Encaissés <span class="quand" id="t-payes" style="margin-left:8px"></span></h3>
-      <div id="a-payes" style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px"></div>
-      <h3 style="font-size:15px">Annulés et remboursés <span class="quand" id="t-annules" style="margin-left:8px"></span></h3>
-      <div id="a-annules" style="display:flex;flex-direction:column;gap:10px"></div>
+      <h3 style="font-size:16.5px;margin-bottom:14px">À encaisser <span class="quand" id="t-encaisser" style="margin-left:8px"></span></h3>
+      <div id="a-encaisser" style="display:flex;flex-direction:column;gap:14px;margin-bottom:40px"></div>
+      <h3 style="font-size:16.5px;margin-bottom:14px">Encaissés <span class="quand" id="t-payes" style="margin-left:8px"></span></h3>
+      <div id="a-payes" style="display:flex;flex-direction:column;gap:14px;margin-bottom:40px"></div>
+      <h3 style="font-size:16.5px;margin-bottom:14px">Annulés et remboursés <span class="quand" id="t-annules" style="margin-left:8px"></span></h3>
+      <div id="a-annules" style="display:flex;flex-direction:column;gap:14px"></div>
     </section>
 
     <!-- La base clients -->
     <section id="o-familles" hidden>
       <h2 class="titre-page">La base clients</h2>
       <p class="sous-titre">Tous les comptes familles créés sur le site. « Activer un trimestre » ouvre les réservations de cours du parent qui a réglé son trimestre. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
-      <div class="champ" style="max-width:420px;margin-bottom:14px">
+      <div class="champ" style="max-width:420px;margin-bottom:20px">
         <label for="f-recherche">Rechercher</label>
         <input id="f-recherche" type="search" placeholder="Nom, e-mail, ville, voltigeur…">
       </div>
       <p class="message" id="m-familles" role="alert" hidden></p>
-      <div id="a-familles" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="a-familles" style="display:flex;flex-direction:column;gap:14px"></div>
     </section>
   </div>
 </main>
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=16"></script>
+<script src="../assets/js/admin.js?v=17"></script>
 </body>
 </html>
