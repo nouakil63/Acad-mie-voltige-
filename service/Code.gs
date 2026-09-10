@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '20';
+var VERSION_SCRIPT = '21';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -191,6 +191,7 @@ function doPost(e) {
   if (d && d.type === 'stripe') { return traiterStripe(d); }
   if (d && d.type === 'confirmation-resa') { return traiterConfirmationResa(d); }
   if (d && d.type === 'place-libre') { return traiterPlaceLibre(d); }
+  if (d && d.type === 'infos-cours') { return traiterInfosCours(d); }
   if (!d || (d.type !== 'cours' && d.type !== 'stage')) { return reponseTexte('type inconnu'); }
   if (!d.parentEmail || !/.+@.+\..+/.test(String(d.parentEmail))) { return reponseTexte('e-mail manquant'); }
 
@@ -252,9 +253,11 @@ function doPost(e) {
 
   var html = gabaritMail(
     d.type === 'cours' ? 'Nouvelle demande d’inscription aux cours' : 'Nouvelle réservation de stage',
-    'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le lien de paiement.',
+    d.type === 'cours'
+      ? 'Reçue à l’instant depuis le site. Un clic sur « Valider » prévient le parent que Fleur va l’appeler pour convenir du créneau ; après l’appel, la date, l’heure et le lien de paiement partent en un clic depuis l’espace académie.'
+      : 'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le lien de paiement.',
     lignes,
-    [{ texte: '✅ Valider : envoyer le lien de paiement', url: urlValider, plein: true }],
+    [{ texte: d.type === 'cours' ? '✅ Valider : Fleur appellera la famille' : '✅ Valider : envoyer le lien de paiement', url: urlValider, plein: true }],
     'Vous pouvez aussi simplement répondre à ce message : votre réponse partira vers ' + nettoyer(d.parentEmail) + '.',
     boutonsRefus,
     'Ou refuser en un clic : le parent reçoit automatiquement un message courtois avec le motif choisi.'
@@ -272,7 +275,7 @@ function doPost(e) {
     parent_nom: brut(d.parentNom),
     parent_email: brut(d.parentEmail),
     detail: d.type === 'cours'
-      ? (brut(d.formule) + (d.creneau ? ' · ' + brut(d.creneau) : ''))
+      ? brut(d.formule)
       : (brut(d.stage) + (d.dates ? ' (' + brut(d.dates) + ')' : '')),
     tarif: brut(d.tarif),
     lignes: versTexte(lignes).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'),
@@ -403,25 +406,13 @@ function executerDecision(action, motifCle, dTok, sTok) {
 
   var boutons, intro;
   if (donnees.type === 'cours') {
-    /* Le parent a choisi son règlement pendant l'inscription : on ne
-       propose que le lien correspondant (les anciennes demandes sans
-       choix gardent les deux liens). */
-    if (donnees.paiement === 'unite') {
-      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
-        'Pour finaliser l’inscription, réglez votre cours en ligne, en toute sécurité :';
-      boutons = [{ texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true }];
-    } else if (donnees.paiement === 'trimestre') {
-      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
-        'Pour finaliser l’inscription, réglez votre trimestre en ligne, en toute sécurité :';
-      boutons = [{ texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }];
-    } else {
-      intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
-        'Pour finaliser l’inscription, choisissez votre formule et réglez en ligne, en toute sécurité :';
-      boutons = [
-        { texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true },
-        { texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }
-      ];
-    }
+    /* Pas de lien de paiement a cette etape : Fleur appelle la famille
+       pour convenir de la date et de l'heure du cours du samedi, puis le
+       CRM envoie le recapitulatif et le lien de paiement. */
+    intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
+      'Fleur vous appelle très vite pour convenir ensemble de la date et de l’heure du cours, le samedi. ' +
+      'Vous recevrez ensuite un e-mail avec le récapitulatif et le lien de paiement sécurisé.';
+    boutons = [];
   } else if (lienPret(PAIEMENTS.stage_acompte)) {
     intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
       'Pour la garantir, réglez l’acompte de 300 € en ligne, en toute sécurité. ' +
@@ -441,8 +432,8 @@ function executerDecision(action, motifCle, dTok, sTok) {
   }
 
   var boutonsEssai = null, libelleEssai = null;
-  if (ESSAIS_ACTIFS) {
-    var essai = PAIEMENTS_TEST[donnees.type === 'cours' ? 'cours' : 'stage'];
+  if (ESSAIS_ACTIFS && donnees.type !== 'cours') {
+    var essai = PAIEMENTS_TEST.stage;
     boutonsEssai = [{ texte: essai.libelle, url: essai.url, plein: false }];
     libelleEssai = 'Lien d’essai pendant nos tests : il ne débite rien.';
   }
@@ -458,7 +449,9 @@ function executerDecision(action, motifCle, dTok, sTok) {
   );
 
   GmailApp.sendEmail(donnees.parentEmail, 'Votre inscription est validée !',
-    'Bonne nouvelle : la demande pour ' + donnees.enfant + ' est validée. Lien de paiement : ' + boutons[0].url, {
+    'Bonne nouvelle : la demande pour ' + donnees.enfant + ' est validée. ' +
+    (boutons.length ? 'Lien de paiement : ' + boutons[0].url
+      : 'Fleur vous appelle très vite pour convenir de la date et de l’heure du cours ; le lien de paiement suivra par e-mail.'), {
     htmlBody: html,
     replyTo: ADRESSE_ACADEMIE,
     name: 'Académie de voltige équestre'
@@ -466,7 +459,10 @@ function executerDecision(action, motifCle, dTok, sTok) {
 
   majStatutDemande(String(dTok || ''), 'validée');
   return { code: 'ok valide', titre: 'C’est validé ✅',
-    texte: 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
+    texte: (donnees.type === 'cours'
+      ? 'Le mail de validation vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>. ' +
+        'Appelez la famille pour convenir du créneau, puis envoyez la date, l’heure et le lien de paiement depuis l’espace académie.'
+      : 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.') +
       '<br><br>Vous pouvez fermer cette page.',
     parentEmail: donnees.parentEmail, enfant: donnees.enfant };
 }
@@ -667,6 +663,35 @@ function traiterPlaceLibre(d) {
   return reponseTexte('ok place;' + email);
 }
 
+/* ============ Les infos du cours + le lien de paiement ============
+   Fleur a appelé la famille et noté la date et l'heure sur le CRM :
+   la plateforme envoie ici le récapitulatif aux parents, avec le lien
+   de paiement de la formule choisie (à l'unité ou au trimestre). */
+function traiterInfosCours(d) {
+  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
+  var email = nettoyer(d.email);
+  if (!/.+@.+\..+/.test(email)) { return reponseTexte('e-mail manquant'); }
+  var enfant = nettoyer(d.enfant) || 'votre voltigeur';
+  var quand = nettoyer(d.quand) || 'samedi';
+  var heure = nettoyer(d.heure);
+  var bouton = d.paiement === 'trimestre' ? PAIEMENTS.cours_trimestre : PAIEMENTS.cours_unite;
+  var titre = 'Votre cours de voltige est fixé !';
+  var intro = 'Comme convenu au téléphone, <b>' + enfant + '</b> est attendu(e) au cours de voltige le <b>' + quand + '</b>' +
+    (heure ? ', <b>' + heure + '</b>' : '') + ', à l’académie (Auberville).' +
+    '<br><br>Pour finaliser l’inscription, réglez en ligne, en toute sécurité :';
+  var boutons = [{ texte: bouton.libelle, url: bouton.url, plein: true }];
+  GmailApp.sendEmail(email, titre,
+    enfant + ' est attendu(e) au cours de voltige le ' + quand + (heure ? ', ' + heure : '') +
+    ', à l’académie (Auberville). Lien de paiement : ' + bouton.url, {
+    htmlBody: gabaritMail(titre, intro, [], boutons,
+      'Un empêchement ou une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
+      'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
+    replyTo: ADRESSE_ACADEMIE,
+    name: 'Académie de voltige équestre'
+  });
+  return reponseTexte('ok infos;' + email);
+}
+
 /* ============ La routine quotidienne (les automatismes) ============
    À INSTALLER UNE FOIS : dans la barre d'outils de l'éditeur,
    choisissez la fonction « installerRoutine » dans le menu déroulant,
@@ -794,23 +819,29 @@ function envoyerRelanceAuto(donnees, sous) {
   return true;
 }
 
-/* 4. Le rappel de la veille aux inscrits du cours du lendemain. */
+/* 4. Le rappel de la veille aux familles dont le cours est demain
+   (les cours planifiés par Fleur, notés sur les demandes du CRM). */
 function rappelsVeille() {
   var demain = new Date();
   demain.setDate(demain.getDate() + 1);
-  var resas = supabaseLire('reservations?select=email,enfant,date&date=eq.' + isoDe(demain));
-  if (!resas || !resas.length) { return; }
+  var lignes = supabaseLire('demandes?select=parent_email,enfant,cours_heure&type=eq.cours&statut=eq.' +
+    encodeURIComponent('validée') + '&annule=eq.false&cours_date=eq.' + isoDe(demain));
+  if (!lignes || !lignes.length) { return; }
   var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   var joli = JOURS[demain.getDay()] + ' ' + demain.getDate() + ' ' + MOIS[demain.getMonth()];
-  var parEmail = {};
-  resas.forEach(function (r) {
-    if (r.email && /.+@.+\..+/.test(r.email)) { (parEmail[r.email] = parEmail[r.email] || []).push(r.enfant || 'votre voltigeur'); }
+  var parEmail = {}, heures = {};
+  lignes.forEach(function (r) {
+    if (r.parent_email && /.+@.+\..+/.test(r.parent_email)) {
+      (parEmail[r.parent_email] = parEmail[r.parent_email] || []).push(r.enfant || 'votre voltigeur');
+      if (r.cours_heure && !heures[r.parent_email]) { heures[r.parent_email] = r.cours_heure; }
+    }
   });
   Object.keys(parEmail).forEach(function (email) {
     var noms = parEmail[email].join(' et ');
     var titre = 'À demain à l’académie !';
-    var intro = 'Petit rappel : <b>' + noms + '</b> est attendu(e) demain, <b>' + joli + '</b>, pour son cours de voltige à l’académie.' +
+    var intro = 'Petit rappel : <b>' + noms + '</b> est attendu(e) demain, <b>' + joli + '</b>' +
+      (heures[email] ? ' (<b>' + heures[email] + '</b>)' : '') + ', pour son cours de voltige à l’académie.' +
       '<br><br>Un empêchement ? Répondez simplement à ce message.';
     GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
       htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),

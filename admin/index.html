@@ -254,6 +254,10 @@
         <div class="chiffre"><b id="c-encaisser" class="alerte">—</b><span>à encaisser</span></div>
       </div>
       <div class="tuiles" id="t-tuiles"></div>
+      <div class="bloc-accueil" id="b-traiter" hidden>
+        <h3>À traiter</h3>
+        <ul id="l-traiter"></ul>
+      </div>
       <div class="bloc-accueil" id="b-relances" hidden>
         <h3>Relances à faire</h3>
         <ul id="l-relances"></ul>
@@ -271,7 +275,7 @@
     <!-- Les demandes -->
     <section id="o-demandes" hidden>
       <h2 class="titre-page">Les demandes</h2>
-      <p class="sous-titre">« Valider » envoie au parent le mail avec le lien de paiement ; « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
+      <p class="sous-titre">Stage : « Valider » envoie au parent le mail avec le lien de paiement de l'acompte. Cours : « Valider » prévient la famille que Fleur va l'appeler ; après l'appel, « Appelé : envoyer date, heure et paiement » envoie tout en un clic. « Refuser » envoie un message courtois avec le motif choisi. <a href="#" id="a-rafraichir">Rafraîchir</a></p>
       <div class="actions" style="margin:0 0 18px">
         <button type="button" class="btn btn-contour" id="b-ajout-demande"><span>Ajouter une demande</span></button>
         <button type="button" class="lien-doux" id="b-export-demandes">Exporter (Excel)</button>
@@ -293,7 +297,7 @@
     <!-- Le planning -->
     <section id="o-reservations" hidden>
       <h2 class="titre-page">Le planning</h2>
-      <p class="sous-titre">Une case par cours du samedi et par stage. Cliquez sur une case pour voir les inscrits, en ajouter, en retirer, et imprimer la feuille de présence. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
+      <p class="sous-titre">Une case par samedi planifié et par stage : les cours apparaissent ici dès que Fleur a noté la date et l'heure sur une demande. Cliquez sur une case pour voir les inscrits, en ajouter, en retirer, et imprimer la feuille de présence. <a href="#" id="r-rafraichir">Rafraîchir</a></p>
       <p class="message" id="m-resa" role="alert" hidden></p>
       <h3 style="font-size:16.5px;margin-bottom:14px">Les cours du samedi</h3>
       <div id="g-cours" class="grille-planning"></div>
@@ -322,7 +326,7 @@
     <!-- La base clients -->
     <section id="o-familles" hidden>
       <h2 class="titre-page">La base clients</h2>
-      <p class="sous-titre">Tous les comptes familles créés sur le site. « Activer un trimestre » ouvre les réservations de cours du parent qui a réglé son trimestre. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
+      <p class="sous-titre">Tous les comptes familles créés sur le site, avec leurs coordonnées, leurs voltigeurs et vos notes. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
       <div class="champ" style="max-width:420px;margin-bottom:20px">
         <label for="f-recherche">Rechercher</label>
         <input id="f-recherche" type="search" placeholder="Nom, e-mail, ville, voltigeur…">
@@ -335,6 +339,6 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=2"></script>
-<script src="../assets/js/admin.js?v=18"></script>
+<script src="../assets/js/admin.js?v=19"></script>
 </body>
 </html>

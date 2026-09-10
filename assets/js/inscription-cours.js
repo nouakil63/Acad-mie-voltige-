@@ -1,21 +1,10 @@
 /* Demande d'inscription aux cours — trois étapes, récapitulatif en direct :
-   le voltigeur, la famille, puis les dates cochées sur le planning des
-   mercredis et des samedis (à l'unité ou au trimestre). La demande part
-   vers l'académie ; Georges Cotrait la valide sous 24 h maximum, puis le
-   client reçoit le lien de paiement correspondant. */
+   le voltigeur, la famille, puis la formule (à l'unité ou au trimestre).
+   Pas de date à choisir : la demande part vers l'académie, Fleur appelle
+   la famille pour convenir du créneau du samedi, puis envoie depuis le CRM
+   les infos du cours et le lien de paiement. */
 (function () {
   'use strict';
-
-  var HORAIRES = {
-    mercredi: 'Mercredi 14h00 — 16h00',
-    samedi: 'Samedi 10h00 — 13h00 · 14h00 — 16h00'
-  };
-  var SEMAINES = 10; /* nombre de semaines proposées sur le planning */
-
-  /* MERCREDI EN PAUSE : les cours ont lieu le samedi pour l'instant.
-     Pour rouvrir le mercredi, remettez JOURS_COURS = ['mercredi', 'samedi']
-     (tout le reste suit). */
-  var JOURS_COURS = ['samedi'];
 
   /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
   var PAIEMENTS = {
@@ -42,69 +31,6 @@
     form.closest('.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  /* ---- le planning : les prochains mercredis et samedis à cocher ---- */
-  function fabriquerPlanning() {
-    var conteneurs = { mercredi: document.getElementById('dates-mercredi'), samedi: document.getElementById('dates-samedi') };
-    if (!conteneurs.mercredi || !conteneurs.samedi) { return; }
-    [{ jour: 'mercredi', cible: 3 }, { jour: 'samedi', cible: 6 }].forEach(function (regle) {
-      if (JOURS_COURS.indexOf(regle.jour) === -1) {
-        var groupe = conteneurs[regle.jour].closest('.jour-groupe');
-        if (groupe) { groupe.hidden = true; }
-        return;
-      }
-      var d = new Date();
-      d.setHours(12, 0, 0, 0);
-      d.setDate(d.getDate() + 1); /* on commence demain au plus tôt */
-      while (d.getDay() !== regle.cible) { d.setDate(d.getDate() + 1); }
-      for (var i = 0; i < SEMAINES; i++) {
-        var puce = document.createElement('button');
-        puce.type = 'button';
-        puce.className = 'date-chip';
-        puce.dataset.jour = regle.jour;
-        puce.dataset.iso = d.toISOString().slice(0, 10);
-        puce.textContent = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-        conteneurs[regle.jour].appendChild(puce);
-        d.setDate(d.getDate() + 7);
-      }
-    });
-  }
-  fabriquerPlanning();
-
-  var planning = document.getElementById('planning-cours');
-  if (planning) {
-    planning.addEventListener('click', function (e) {
-      var puce = e.target.closest('.date-chip');
-      if (!puce) { return; }
-      puce.classList.toggle('choisi');
-      planning.classList.remove('erreur');
-      majRecap();
-    });
-  }
-
-  function datesChoisies() {
-    var liste = [];
-    form.querySelectorAll('.date-chip.choisi').forEach(function (puce) {
-      liste.push({ jour: puce.dataset.jour, iso: puce.dataset.iso, label: puce.textContent });
-    });
-    liste.sort(function (a, b) { return a.iso < b.iso ? -1 : 1; });
-    return liste;
-  }
-
-  function resumeCours() {
-    var dates = datesChoisies();
-    if (!dates.length) { return ''; }
-    var mercredis = dates.filter(function (d) { return d.jour === 'mercredi'; }).length;
-    var samedis = dates.length - mercredis;
-    var morceaux = [];
-    if (mercredis) { morceaux.push(mercredis + (mercredis > 1 ? ' mercredis' : ' mercredi')); }
-    if (samedis) { morceaux.push(samedis + (samedis > 1 ? ' samedis' : ' samedi')); }
-    return dates.length + (dates.length > 1 ? ' cours (' : ' cours (') + morceaux.join(', ') + ')';
-  }
-
-  function listeDates() {
-    return datesChoisies().map(function (d) { return d.label; }).join(', ');
-  }
-
   /* ---- signature : plus demandée pour les cours (elle reste sur les stages) ---- */
   var toile = document.getElementById('signature');
   var signatureFaite = false;
@@ -125,10 +51,6 @@
       if (champ) { champ.classList.toggle('erreur', invalide); }
       if (invalide) { ok = false; }
     });
-    if (planning && pas.contains(planning) && !datesChoisies().length) {
-      planning.classList.add('erreur');
-      ok = false;
-    }
     return ok;
   }
 
@@ -146,20 +68,21 @@
     var p = form.querySelector('input[name="paiement"]:checked');
     return p ? p.value : '';
   }
+  function resumeCours() {
+    var p = paiementChoisi();
+    if (p === 'trimestre') { return 'Cours au trimestre'; }
+    if (p === 'unite') { return 'Cours à l’unité'; }
+    return '';
+  }
   function tarifChoisi() {
     var p = paiementChoisi();
-    var n = datesChoisies().length;
     if (p === 'trimestre') { return '325 € / trimestre'; }
-    if (p === 'unite') { return n ? (n * 25) + ' € (' + n + ' × 25 €)' : '25 € / cours'; }
-    return n ? n + ' × 25 € ou 325 € / trimestre' : '';
+    if (p === 'unite') { return '25 € / cours'; }
+    return '';
   }
   function majRecap() {
-    var dates = datesChoisies();
     document.getElementById('r-formule').textContent = resumeCours() || '—';
-    var courts = dates.slice(0, 4).map(function (d) { return d.label; }).join(', ');
-    document.getElementById('r-creneau').textContent = dates.length
-      ? courts + (dates.length > 4 ? '…' : '')
-      : '—';
+    document.getElementById('r-creneau').textContent = 'Le samedi, créneau à convenir avec Fleur';
     document.getElementById('r-total').textContent = tarifChoisi() || '—';
     var enfant = (texte('enfant-prenom') + ' ' + texte('enfant-nom')).trim();
     document.getElementById('r-enfant').textContent = enfant || '—';
@@ -167,12 +90,6 @@
     var niveau = document.getElementById('enfant-niveau');
     document.getElementById('r-niveau').textContent = niveau ? niveau.value : '—';
     document.getElementById('r-contact').textContent = texte('parent-email') || texte('parent-tel') || '—';
-    var resume = document.getElementById('planning-resume');
-    if (resume) {
-      resume.textContent = dates.length
-        ? 'Vos dates : ' + listeDates() + '.'
-        : 'Aucune date choisie pour l’instant.';
-    }
   }
   form.addEventListener('input', majRecap);
   form.addEventListener('change', majRecap);
@@ -185,16 +102,11 @@
   /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
   function donneesDossier() {
     var maintenant = new Date();
-    var dates = datesChoisies();
-    var horaires = [];
-    JOURS_COURS.forEach(function (j) {
-      if (dates.some(function (d) { return d.jour === j; })) { horaires.push(HORAIRES[j]); }
-    });
     return {
       type: 'cours',
       annee: '2026/2027',
       formule: resumeCours() || 'Cours à l’unité',
-      creneau: (listeDates() || '—') + (horaires.length ? ' · ' + horaires.join(' · ') : ''),
+      creneau: 'Le samedi, créneau à convenir par téléphone',
       tarif: tarifChoisi() || '25 € / cours ou 325 € / trimestre',
       paiement: paiementChoisi(),
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
@@ -219,8 +131,9 @@
     var h = c.querySelector('h3'); var p = c.querySelector('p');
     if (h) { h.textContent = 'Votre demande est envoyée !'; }
     if (p) {
-      p.innerHTML = 'L’académie vient de la recevoir. Georges Cotrait valide chaque demande sous 24 h maximum ; ' +
-        'vous recevrez alors un e-mail avec le lien de paiement sécurisé. ' +
+      p.innerHTML = 'L’académie vient de la recevoir et la valide sous 24 h maximum. ' +
+        'Fleur vous appelle ensuite pour convenir de la date et de l’heure de votre cours du samedi, ' +
+        'puis vous recevrez un e-mail avec le récapitulatif et le lien de paiement sécurisé. ' +
         'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
     }
     c.classList.add('visible');
@@ -280,8 +193,8 @@
       '',
       'DEMANDE D’INSCRIPTION aux cours :',
       '',
-      'Cours choisis : ' + dossier.formule,
-      'Dates : ' + dossier.creneau,
+      'Formule : ' + dossier.formule,
+      'Créneau : ' + dossier.creneau,
       'Tarif : ' + dossier.tarif,
       '',
       'Voltigeur : ' + dossier.enfantPrenom + ' ' + dossier.enfantNom,
@@ -306,7 +219,7 @@
       PAIEMENTS.trimestre,
       '--------------------------------------------------',
     ].filter(function (l) { return l !== ''; }).join('\n');
-    var sujet = 'Demande d’inscription cours — ' + (dossier.formule || 'planning');
+    var sujet = 'Demande d’inscription cours · ' + (dossier.formule || 'le samedi');
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
       encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
     document.getElementById('confirmation').classList.add('visible');
