@@ -15,7 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  checks:
+    uses: ./.github/workflows/crm-checks.yml
+    permissions:
+      contents: read
   deploy:
+    needs: checks
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -8,6 +8,7 @@
 
   var CFG = window.AV_NUAGE || { url: '', cle: '' };
   var CLE_SESSION = 'av:session';
+  var CLE_FAMILLE = 'av:famille';
   var PAGE_COMPTE = 'https://academiedevoltige.com/compte.html';
 
   function configure() { return !!(CFG.url && CFG.cle); }
@@ -20,6 +21,37 @@
       if (s) { localStorage.setItem(CLE_SESSION, JSON.stringify(s)); }
       else { localStorage.removeItem(CLE_SESSION); }
     } catch (e) { /* navigation privée */ }
+  }
+
+  /* Le carnet appartient à un compte précis, ou à un invité qui a choisi de
+     le retenir. Un ancien carnet sans propriétaire n'est jamais adopté. */
+  function proprietaire(session) { return session ? session.user_id || null : 'invite'; }
+  function lireFamilleLocale(session) {
+    try {
+      var cache = JSON.parse(localStorage.getItem(CLE_FAMILLE));
+      return cache && cache.version === 2 && proprietaire(session) &&
+        cache.proprietaire === proprietaire(session) ? cache.donnees || null : null;
+    } catch (e) { return null; }
+  }
+  function ecrireFamilleLocale(famille, session) {
+    var qui = proprietaire(session);
+    if (!qui) { return false; }
+    try {
+      localStorage.setItem(CLE_FAMILLE, JSON.stringify({ version: 2, proprietaire: qui, donnees: famille }));
+      return true;
+    } catch (e) { return false; }
+  }
+  function oublierFamilleLocale() {
+    try { localStorage.removeItem(CLE_FAMILLE); } catch (e) { /* rien */ }
+  }
+  function effacerDossiersLocaux() {
+    ['av:dossier-inscription', 'av:dossier-cours', 'av:dossier-admin', 'av:feuille'].forEach(function (cle) {
+      try { localStorage.removeItem(cle); } catch (e) { /* rien */ }
+    });
+  }
+  function memeSession(s) {
+    var actuelle = lireSession();
+    return !!(s && actuelle && s.user_id && actuelle.user_id === s.user_id);
   }
 
   function appel(chemin, options) {
@@ -50,8 +82,10 @@
       jeton: rep.access_token,
       rafraichir: rep.refresh_token || '',
       expire: Date.now() + (Number(rep.expires_in || 3600) - 60) * 1000,
+      user_id: (rep.user && rep.user.id) || '',
       email: (rep.user && rep.user.email) || ''
     };
+    if (!memeSession(s)) { effacerDossiersLocaux(); }
     ecrireSession(s);
     return s;
   }
@@ -66,6 +100,8 @@
       method: 'POST', body: JSON.stringify({ refresh_token: s.rafraichir })
     }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (x) {
+        var actuelle = lireSession();
+        if (!actuelle || actuelle.jeton !== s.jeton) { return null; }
         if (!x.ok) { ecrireSession(null); return null; }
         return garderSession(x.j);
       })
@@ -118,9 +154,11 @@
     }).catch(function () { return { erreur: 'Connexion au service impossible. Réessayez dans un instant.' }; });
   }
 
-  function deconnexion() {
+  function deconnexion(options) {
     var s = lireSession();
     ecrireSession(null);
+    if (!options || !options.conserverFamille) { oublierFamilleLocale(); }
+    effacerDossiersLocaux();
     if (s && configure()) {
       appel('/auth/v1/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + s.jeton } })
         .catch(function () { /* la session locale est déjà effacée */ });
@@ -154,36 +192,50 @@
   function retrouverEmail() {
     return sessionValide().then(function (s) {
       if (!s) { return null; }
-      if (s.email) { return s; }
+      if (s.email && s.user_id) { return s; }
       return appel('/auth/v1/user', { headers: { Authorization: 'Bearer ' + s.jeton } })
         .then(versJson).then(function (x) {
-          if (x.ok && x.j && x.j.email) { s.email = x.j.email; ecrireSession(s); }
+          if (!x.ok || !x.j || !x.j.id) { throw new Error('Impossible de vérifier le compte. Réessayez.'); }
+          var actuelle = lireSession();
+          if (!actuelle || actuelle.jeton !== s.jeton) { throw new Error('Le compte a changé. Rechargez la page.'); }
+          s.email = x.j.email || '';
+          s.user_id = x.j.id;
+          ecrireSession(s);
           return s;
-        }).catch(function () { return s; });
+        });
     });
   }
 
   /* ---- Les informations de la famille, gardées dans le compte ---- */
   function chargerFamille() {
-    return sessionValide().then(function (s) {
-      if (!s) { return null; }
-      return appel('/rest/v1/familles?select=donnees&limit=1', {
+    return retrouverEmail().then(function (s) {
+      if (!s || !s.user_id) { throw new Error('Reconnectez-vous pour charger votre famille.'); }
+      return appel('/rest/v1/familles?select=user_id,donnees&user_id=eq.' + encodeURIComponent(s.user_id) + '&limit=1', {
         headers: { Authorization: 'Bearer ' + s.jeton }
-      }).then(function (r) { return r.ok ? r.json() : []; })
-        .then(function (liste) { return (liste && liste[0] && liste[0].donnees) || null; })
-        .catch(function () { return null; });
+      }).then(function (r) {
+        if (!r.ok) { throw new Error('Le carnet n’a pas pu être chargé. Réessayez.'); }
+        return r.json();
+      }).then(function (liste) {
+        if (!memeSession(s)) { throw new Error('Le compte a changé. Rechargez la page.'); }
+        if (!Array.isArray(liste)) { throw new Error('Réponse du carnet non reconnue.'); }
+        if (!liste.length) { return null; }
+        if (liste[0].user_id !== s.user_id || !liste[0].donnees || typeof liste[0].donnees !== 'object' || Array.isArray(liste[0].donnees)) {
+          throw new Error('Le carnet reçu ne correspond pas au compte.');
+        }
+        return liste[0].donnees;
+      });
     });
   }
 
-  function enregistrerFamille(famille) {
-    return sessionValide().then(function (s) {
-      if (!s) { return false; }
+  function enregistrerFamille(famille, compteAttendu) {
+    return retrouverEmail().then(function (s) {
+      if (!s || !s.user_id || (compteAttendu && s.user_id !== compteAttendu)) { return false; }
       return appel('/rest/v1/familles?on_conflict=user_id', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + s.jeton, Prefer: 'resolution=merge-duplicates' },
-        body: JSON.stringify({ email: s.email || null, donnees: famille })
-      }).then(function (r) { return r.ok; }).catch(function () { return false; });
-    });
+        body: JSON.stringify({ user_id: s.user_id, email: s.email || null, donnees: famille })
+      }).then(function (r) { return r.ok && memeSession(s); });
+    }).catch(function () { return false; });
   }
 
   /* Appel authentifié générique (utilisé par l'espace académie). */
@@ -210,6 +262,9 @@
     deconnexion: deconnexion,
     sessionDepuisAdresse: sessionDepuisAdresse,
     retrouverEmail: retrouverEmail,
+    lireFamilleLocale: lireFamilleLocale,
+    ecrireFamilleLocale: ecrireFamilleLocale,
+    oublierFamilleLocale: oublierFamilleLocale,
     chargerFamille: chargerFamille,
     enregistrerFamille: enregistrerFamille
   };

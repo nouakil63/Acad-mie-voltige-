@@ -43,6 +43,97 @@
 
   var demandes = [];
   var familles = [];
+  var core = window.AVCrmCore;
+  var ui = window.AVCrmUI;
+  var notesDisponibles = false;
+  var operations = new Set();
+  var chargements = 0;
+  var versionDemandes = 0, versionFamilles = 0;
+  var erreurDemandes = false, erreurFamilles = false;
+
+  function notifier(texte, erreur) { ui.toast(texte, { error: !!erreur }); }
+  function confirmer(texte, danger) {
+    return ui.confirm({ title: danger ? 'Confirmer cette action' : 'Vérifier avant de continuer',
+      description: texte, submitLabel: 'Confirmer', danger: !!danger });
+  }
+  function rafraichirAffichage() {
+    afficherDemandes(); afficherPaiements(); afficherPlanning(); majCompteurs();
+  }
+  function statutSynchro() {
+    var statut = el('crm-sync-status'), bouton = el('crm-refresh');
+    if (bouton) { bouton.disabled = chargements > 0; }
+    if (!statut) { return; }
+    statut.dataset.state = chargements ? 'loading' : erreurDemandes || erreurFamilles ? 'error' : 'ready';
+    statut.textContent = chargements ? 'Actualisation en cours…' : erreurDemandes || erreurFamilles
+      ? 'Actualisation incomplète — réessayez' : 'À jour à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    statut.classList.toggle('est-erreur', !chargements && (erreurDemandes || erreurFamilles));
+  }
+  async function operation(cle, action) {
+    if (operations.has(cle)) { return null; }
+    operations.add(cle);
+    try { return await action(); }
+    catch (erreur) { notifier(erreur.message || 'L’action n’a pas abouti. Réessayez.', true); return null; }
+    finally { operations.delete(cle); }
+  }
+  async function reponseJson(r, messageErreur) {
+    if (!r || !r.ok) {
+      var detail = '';
+      if (r) { try { detail = (await r.json()).message || ''; } catch (_) {} }
+      var erreurs = {
+        cours_date_invalide:'La date du cours est invalide.',
+        cours_date_passee:'Choisissez une date de cours à venir.',
+        cours_samedi_uniquement:'Les cours ont lieu le samedi.',
+        cours_heure_invalide:'Indiquez une heure de cours valide.',
+        cours_complet:'Ce créneau est complet. Actualisez puis choisissez un autre horaire.'
+      };
+      throw new Error(erreurs[detail] || messageErreur || 'L’enregistrement a échoué. Vérifiez votre connexion et vos droits.');
+    }
+    return r.json();
+  }
+  async function appelService(corps, json) {
+    var session = await nuage.sessionValide();
+    if (!session) { throw new Error('Votre session a expiré. Reconnectez-vous.'); }
+    var controle = new AbortController();
+    var delai = setTimeout(function () { controle.abort(); }, 45000);
+    try {
+      var r = await fetch(SERVICE, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify(Object.assign({}, corps, {jeton:session.jeton})), signal:controle.signal });
+      if (!r.ok) { throw new Error('Le service est indisponible. Réessayez dans un instant.'); }
+      var texte = await r.text();
+      if (!json) { return texte.trim(); }
+      var donnees;
+      try { donnees = JSON.parse(texte); } catch (_) { throw new Error('Cette fonction nécessite la mise à jour du service CRM. Contactez la personne qui gère le site.'); }
+      if (!donnees.ok) { throw new Error(donnees.message || 'Le service n’a pas pu terminer cette action.'); }
+      return donnees;
+    } catch (erreur) {
+      if (erreur.name === 'AbortError') { throw new Error('Le service met trop de temps à répondre. Actualisez les données avant de réessayer.'); }
+      throw erreur;
+    } finally { clearTimeout(delai); }
+  }
+  async function creerDemande(ligne) {
+    var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes', {
+      method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(ligne)
+    }));
+    if (!lignes || !lignes[0]) { throw new Error('La demande n’a pas été enregistrée. Actualisez puis réessayez.'); }
+    demandes.unshift(lignes[0]); rafraichirAffichage();
+    notifier('Demande enregistrée.');
+    return lignes[0];
+  }
+  function demandesVisibles() {
+    return core.filterRequests(demandes, {query:filtreTexte,status:filtre,
+      type:el('f-type') ? el('f-type').value : 'tous',
+      followup:el('f-suivi') ? el('f-suivi').value : 'tous',
+      sort:el('f-tri') ? el('f-tri').value : 'recent'});
+  }
+  function allerDemande(d) {
+    ouvrirOnglet('demandes'); filtre = 'toutes'; filtreTexte = d.enfant || d.parent_email || '';
+    el('d-recherche').value = filtreTexte;
+    ['f-type','f-suivi'].forEach(function (id) { if (el(id)) { el(id).value = 'tous'; } });
+    el('a-filtres').querySelectorAll('[data-filtre]').forEach(function (b) {
+      b.classList.toggle('actif-filtre', b.dataset.filtre === 'toutes'); b.setAttribute('aria-pressed', String(b.dataset.filtre === 'toutes'));
+    });
+    afficherDemandes(); el('d-recherche').focus();
+  }
   var filtre = 'toutes';
   var filtreTexte = '';
 
@@ -106,17 +197,16 @@
     var moisCourant = maintenant.getFullYear() + '-' + String(maintenant.getMonth() + 1).padStart(2, '0');
     var aujourdHui = isoLocal(maintenant);
 
-    var encaisseMois = 0, encaisseTotal = 0, resteTotal = 0, revenusCours = 0, revenusStages = 0;
+    var encaisseMois = 0, encaisseTotal = 0, resteTotal = 0, revenusCours = 0, revenusStages = 0, rembourseTotal = 0;
     var validees = 0, reglees = 0;
     demandes.forEach(function (d) {
-      if (d.annule) { return; }
       var recu = dejaEncaisse(d);
+      rembourseTotal += core.money(d.rembourse_montant);
       encaisseTotal += recu;
       resteTotal += resteAEncaisser(d);
       if (d.type === 'stage') { revenusStages += recu; } else { revenusCours += recu; }
-      var quand = String(d.solde_le || d.paye_le || d.acompte_le || '');
-      if (recu > 0 && quand.indexOf(moisCourant) === 0) { encaisseMois += recu; }
-      if (classeStatut(d.statut) === 'validee') { validees++; if (recu > 0) { reglees++; } }
+      encaisseMois += core.receivedInMonth(d, moisCourant);
+      if (!d.annule && classeStatut(d.statut) === 'validee') { validees++; if (recu > 0) { reglees++; } }
     });
 
     tuiles.innerHTML = '';
@@ -131,9 +221,10 @@
       t.appendChild(sp);
       tuiles.appendChild(t);
     }
-    tuile(encaisseMois + ' €', 'encaissés ce mois-ci');
+    tuile(encaisseMois.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts ce mois-ci');
     tuile(resteTotal + ' €', 'restent à encaisser');
-    tuile(encaisseTotal + ' €', 'encaissés en tout', true);
+    tuile(encaisseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts en tout', true);
+    tuile(rembourseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'remboursements déclarés', true);
 
     /* « À traiter » : tout ce qui attend un clic, avec les actions directes. */
     var lTraiter = el('l-traiter');
@@ -146,12 +237,12 @@
         if (d.jeton_d && d.jeton_s) {
           li.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
         } else {
-          li.appendChild(lienAction('Marquer validée', function () {
-            if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
+          li.appendChild(lienAction('Marquer validée', async function () {
+            if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
             patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
           }));
         }
-        li.appendChild(lienAction('Ouvrir', function () { ouvrirOnglet('demandes'); }));
+        li.appendChild(lienAction('Ouvrir', function () { allerDemande(d); }));
         lTraiter.appendChild(li);
       });
       coursAPlanifier().forEach(function (d) {
@@ -211,7 +302,8 @@
     var lStats = el('l-stats');
     lStats.innerHTML = '';
     [
-      'Encaissé en tout : ' + encaisseTotal + ' € (cours et trimestres : ' + revenusCours + ' € · stages : ' + revenusStages + ' €)',
+      'Encaissé brut en tout : ' + encaisseTotal + ' € (cours et trimestres : ' + revenusCours + ' € · stages : ' + revenusStages + ' €)',
+      'Remboursements déclarés : ' + rembourseTotal + ' €',
       'Cours à venir planifiés : ' + coursAVenir().length,
       validees ? 'Demandes validées réglées, au moins en partie : ' + reglees + ' sur ' + validees : 'Aucune demande validée pour l’instant.'
     ].forEach(function (texte) {
@@ -269,54 +361,22 @@
   }
 
   /* Ce qui reste dû sur une demande validée (0 si soldée ou annulée). */
-  function resteAEncaisser(d) {
-    if (classeStatut(d.statut) !== 'validee' || d.annule) { return 0; }
-    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-    if (d.type === 'stage') {
-      var reste = 0;
-      if (!d.acompte_paye) { reste += ACOMPTE_STAGE; }
-      if (!d.solde_paye) { reste += Math.max(total - ACOMPTE_STAGE, 0); }
-      return reste;
-    }
-    return d.paye ? 0 : total;
-  }
+  function resteAEncaisser(d) { return core.due(d); }
 
-  function dejaEncaisse(d) {
-    if (d.type === 'stage') {
-      var total = montantNumerique(d.tarif) || 840;
-      return (d.acompte_paye ? ACOMPTE_STAGE : 0) + (d.solde_paye ? Math.max(total - ACOMPTE_STAGE, 0) : 0);
-    }
-    return d.paye ? montantNumerique(d.paye_montant || d.tarif) : 0;
-  }
+  function dejaEncaisse(d) { return core.paid(d); }
 
   /* ---- relances par e-mail (via le service Google, jeton signé) ---- */
-  function relancer(d, sous, montant, silencieux) {
-    var etiquettes = { acompte: 'l’acompte (300 €)', solde: 'le solde', paiement: 'le paiement', annulation: 'l’annulation' };
-    if (!silencieux && !confirm('Envoyer au parent le mail concernant ' + (etiquettes[sous] || sous) + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    nuage.sessionValide().then(function (session) {
-      /* Le jeton signé de la demande prouve le lien ; pour les demandes
-         reçues par un ancien déploiement (jeton plus reconnu), la session
-         admin et les informations de la demande prennent le relais. */
-      var corps = {
-        type: 'relance', relance: sous,
-        d: d.jeton_d || '', s: d.jeton_s || '',
-        jeton: session ? session.jeton : '',
-        dtype: d.type || '', enfant: d.enfant || '',
-        parentEmail: d.parent_email || '', detail: d.detail || '',
-        paiement: /Règlement choisi : Au trimestre/.test(d.lignes || '') ? 'trimestre'
-          : /Règlement choisi : Au cours/.test(d.lignes || '') ? 'unite' : ''
-      };
-      if (montant) { corps.montant = montant; }
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(corps)
-      }).then(function (r) { return r.text(); }).then(function (rep) {
-        var morceaux = rep.trim().split(';');
-        if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
-      });
-    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
+  async function relancer(d, sous, montant, silencieux) {
+    var etiquettes = {acompte:'l’acompte',solde:'le solde',paiement:'le paiement',annulation:'l’annulation'};
+    if (!d.parent_email) { notifier('Ajoutez l’e-mail du parent avant d’envoyer un message.', true); return; }
+    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' un e-mail concernant ' + (etiquettes[sous] || sous) + ' de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    return operation('relance:' + d.id + ':' + sous, async function () {
+      var texte = await appelService({type:'relance',relance:sous,d:d.jeton_d || '',s:d.jeton_s || '',
+        dtype:d.type || '',enfant:d.enfant || '',parentEmail:d.parent_email,detail:d.detail || '',
+        paiement:formuleDe(d),montant:montant || ''});
+      if (texte.split(';')[0] !== 'ok relance') { throw new Error('Le service n’a pas confirmé l’envoi de ce message.'); }
+      notifier('E-mail envoyé à ' + d.parent_email + '.');
+    });
   }
 
   /* Le bon mail de paiement selon la demande : acompte (300 €) puis
@@ -334,246 +394,176 @@
     return 'unite';
   }
 
-  function planifierCours(d) {
-    var date = prompt(
-      'Date du cours convenue avec la famille (AAAA-MM-JJ) :',
-      d.cours_date || prochainsJoursCours(1)[0]);
-    if (date === null) { return; }
-    date = date.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('Date non comprise : écrivez-la comme ' + prochainsJoursCours(1)[0] + '.'); return; }
-    var heure = prompt('Heure du cours (par exemple 10h00) :', d.cours_heure || '10h00');
-    if (heure === null) { return; }
-    heure = heure.trim();
-    patchDemande(d, { cours_date: date, cours_heure: heure || null }, function () {
-      if (!/.+@.+\..+/.test(d.parent_email || '')) {
-        alert('C’est noté au planning. La demande n’a pas d’e-mail : prévenez la famille autrement.');
-        return;
-      }
-      if (confirm('C’est noté au planning : ' + jourLisible(date) + (heure ? ', ' + heure : '') + '.\n' +
-        'Envoyer maintenant à ' + d.parent_email + ' les infos du cours avec le lien de paiement (' +
-        (formuleDe(d) === 'trimestre' ? '325 € le trimestre' : '25 € le cours') + ') ?')) {
-        envoyerInfosCours(d, true);
-      }
+  async function planifierCours(d) {
+    var valeurs = await ui.form({ title:'Planifier le cours', description:d.enfant + ' · ' + (d.parent_email || 'Sans e-mail'),
+      validate:function (v) { return erreurCreneau(v.date, v.heure, d.id); },
+      submitLabel:'Enregistrer le créneau', fields:[
+        {name:'date',label:'Date du cours',type:'date',required:true,value:d.cours_date || prochainsJoursCours(1)[0],help:'Les cours ont lieu le samedi.'},
+        {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(d.cours_heure) || '10:00'}
+      ] });
+    if (!valeurs) { return; }
+    var enregistre = await patchDemande(d, {cours_date:valeurs.date,cours_heure:valeurs.heure,infos_envoyees_le:null});
+    if (!enregistre) { return; }
+    if (d.parent_email && await confirmer('Le créneau est enregistré. Envoyer à ' + d.parent_email + ' la date, l’heure et le lien de paiement ?')) {
+      await envoyerInfosCours(d, true);
+    }
+  }
+
+  function erreurCreneau(date, heure, demandeId) {
+    var erreur = core.validateSchedule(date, heure, isoLocal(new Date()));
+    if (erreur) { return erreur; }
+    var cle = core.scheduleKey({cours_date:date,cours_heure:heure});
+    var nombre = coursAVenir().filter(function (d) { return d.id !== demandeId && core.scheduleKey(d) === cle; }).length;
+    return nombre >= CAPACITE_COURS ? 'Ce créneau compte déjà ' + CAPACITE_COURS + ' inscrits. Choisissez un autre horaire.' : '';
+  }
+
+  async function envoyerInfosCours(d, silencieux) {
+    if (!d.cours_date) { return planifierCours(d); }
+    if (!/.+@.+\..+/.test(d.parent_email || '')) { notifier('Ajoutez une adresse e-mail à cette demande pour prévenir la famille.', true); return; }
+    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' les informations du cours du ' + jourLisible(d.cours_date) + ' à ' + d.cours_heure + ' et le lien de paiement ?')) { return; }
+    return operation('infos:' + d.id, async function () {
+      var texte = await appelService({type:'infos-cours',email:d.parent_email,enfant:d.enfant || '',
+        quand:jourLisible(d.cours_date),heure:d.cours_heure || '',paiement:formuleDe(d)});
+      if (texte.indexOf('ok infos') !== 0) { throw new Error('Le service n’a pas confirmé l’envoi. Actualisez puis réessayez.'); }
+      var sauve = await patchDemande(d, {infos_envoyees_le:isoLocal(new Date())});
+      notifier(sauve ? 'Informations et lien de paiement envoyés à la famille.' : 'E-mail envoyé, mais son suivi n’a pas pu être enregistré. Actualisez avant de renvoyer.', !sauve);
     });
   }
 
-  function envoyerInfosCours(d, silencieux) {
-    if (!d.cours_date) { planifierCours(d); return; }
-    if (!/.+@.+\..+/.test(d.parent_email || '')) { alert('Cette demande n’a pas d’adresse e-mail : contactez la famille autrement.'); return; }
-    if (!silencieux && !confirm('Envoyer à ' + d.parent_email + ' les infos du cours du ' + jourLisible(d.cours_date) +
-      (d.cours_heure ? ' (' + d.cours_heure + ')' : '') + ' avec le lien de paiement ?')) { return; }
-    nuage.sessionValide().then(function (session) {
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          type: 'infos-cours', jeton: session ? session.jeton : '',
-          email: d.parent_email, enfant: d.enfant || '',
-          quand: jourLisible(d.cours_date), heure: d.cours_heure || '',
-          paiement: formuleDe(d)
-        })
-      }).then(function (r) { return r.text(); }).then(function (t) {
-        if (t.trim().indexOf('ok infos') === 0) {
-          patchDemande(d, { infos_envoyees_le: isoLocal(new Date()) }, function () {
-            alert('C’est parti : les infos du cours et le lien de paiement viennent d’être envoyés à ' + d.parent_email + '.');
-          });
-        } else {
-          alert('Le service a répondu : « ' + t.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?');
-        }
-      });
-    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
-  }
-
-  function patchDemande(d, patch, apres) {
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('La mise à jour n’a pas abouti (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      afficherPlanning();
-      majCompteurs();
-      if (apres) { apres(); }
+  async function patchDemande(d, patch, apres) {
+    return operation('demande:' + d.id, async function () {
+      var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
+        method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)
+      }));
+      if (!lignes || !lignes[0]) { throw new Error('Cette demande n’est plus disponible. Actualisez la liste.'); }
+      Object.assign(d, lignes[0]); rafraichirAffichage(); notifier('Modifications enregistrées.');
+      if (apres) { await apres(); }
+      return d;
     });
   }
 
-  function marquerAcompte(d) {
-    if (!confirm('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function marquerAcompte(d) {
+    if (!await confirmer('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()) });
   }
-  function marquerSolde(d) {
-    if (!confirm('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function marquerSolde(d) {
+    if (!await confirmer('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()) });
   }
-  function annulerDemande(d) {
-    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-    var montant = prompt(
-      'Annuler l’inscription de ' + (d.enfant || 'ce voltigeur') + '.\n' +
-      'Montant à rembourser (de 0 € à ' + total + ' €) :', '0 €');
-    if (montant === null) { return; }
-    montant = montant.trim() || '0 €';
-    if (!confirm('Confirmer l’annulation' + (montantNumerique(montant) ? ' avec un remboursement de ' + montant : ' sans remboursement') + ' ?')) { return; }
-    patchDemande(d, { annule: true, annule_le: isoLocal(new Date()), rembourse_montant: montant }, function () {
-      if (confirm('Prévenir la famille par e-mail (annulation' + (montantNumerique(montant) ? ' + remboursement de ' + montant : '') + ') ?')) {
-        relancer(d, 'annulation', montant, true);
-      }
-    });
+  async function annulerDemande(d) {
+    var valeurs = await ui.form({title:'Annuler l’inscription',danger:true,submitLabel:'Enregistrer l’annulation',
+      description:'Cette action annule l’inscription de ' + d.enfant + '. Le montant ci-dessous déclare un remboursement déjà effectué ; aucun remboursement bancaire n’est exécuté ici.',
+      fields:[{name:'montant',label:'Remboursement déjà effectué (€)',type:'number',required:true,min:0,max:dejaEncaisse(d),step:'0.01',value:'0'}]});
+    if (!valeurs) { return; }
+    var montant = Number(valeurs.montant);
+    if (!Number.isFinite(montant) || montant < 0 || montant > dejaEncaisse(d)) { notifier('Le remboursement doit être compris entre 0 € et le montant encaissé.',true); return; }
+    var ok = await patchDemande(d,{annule:true,annule_le:isoLocal(new Date()),rembourse_montant:montant + ' €'});
+    if (ok && d.parent_email && await confirmer('Prévenir ' + d.parent_email + ' de cette annulation' + (montant ? ' et du remboursement déclaré de ' + montant + ' €' : '') + ' ?')) {
+      await relancer(d,'annulation',montant + ' €',true);
+    }
   }
-  function retablirDemande(d) {
-    if (!confirm('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function retablirDemande(d) {
+    var erreur = core.restoreError(d);
+    if (erreur) { notifier(erreur, true); return; }
+    if (!await confirmer('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { annule: false, annule_le: null, rembourse_montant: null });
   }
 
-  function modifierMontant(d) {
-    var montant = prompt('Montant encaissé :', d.paye_montant || d.tarif || '');
-    if (montant === null) { return; }
-    patchDemande(d, { paye_montant: montant.trim() });
+  async function modifierMontant(d) {
+    var valeurs = await ui.form({title:'Corriger le règlement déclaré',submitLabel:'Enregistrer',fields:[
+      {name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(dejaEncaisse(d))}
+    ]});
+    if (valeurs) { await patchDemande(d,{paye_montant:Number(valeurs.montant) + ' €'}); }
   }
 
-  function retirerMarques(d) {
-    if (!confirm('Retirer les marques « payé » (acompte + solde) sur le stage de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function retirerMarques(d) {
+    if (!await confirmer('Retirer les marques « payé » (acompte + solde) sur le stage de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { acompte_paye: false, acompte_le: null, solde_paye: false, solde_le: null, paye: false, paye_le: null, paye_montant: null });
   }
 
   /* Un stage réglé d'un coup (par exemple payé en entier avant la mise
      en place de l'acompte) : tout est noté en un clic. */
-  function reglerTotalite(d) {
-    if (!confirm('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
+  async function reglerTotalite(d) {
+    if (!await confirmer('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
     var jour = isoLocal(new Date());
-    patchDemande(d, {
-      acompte_paye: true, acompte_le: jour,
-      solde_paye: true, solde_le: jour,
-      paye: true, paye_le: jour, paye_montant: d.tarif || ''
-    });
+    patchDemande(d, core.totalPaymentPatch(d, jour));
   }
 
   /* ---- La vérification des paiements sur Stripe ----
      Le service Google (qui garde la clé Stripe, secrète) renvoie les
      règlements reçus ; on les rapproche ici des demandes en attente. */
-  function verifierStripe() {
-    var bouton = el('b-stripe');
-    var etat = el('m-stripe');
-    bouton.disabled = true;
-    etat.textContent = 'Interrogation de Stripe…';
-    nuage.sessionValide().then(function (s) {
-      if (!s) { bouton.disabled = false; etat.textContent = ''; alert('Reconnectez-vous puis réessayez.'); return; }
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ type: 'stripe', jeton: s.jeton })
-      }).then(function (r) { return r.text(); }).then(function (t) {
-        bouton.disabled = false;
-        etat.textContent = '';
-        var rep = null;
-        try { rep = JSON.parse(t); } catch (e) { /* réponse texte : un souci */ }
-        if (!rep || !rep.ok) {
-          var texte = String(t || '').trim();
-          if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
-          else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
-          else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
-          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
-          return;
-        }
-        rapprocherStripe(rep.paiements || []);
-      });
-    }).catch(function () {
-      bouton.disabled = false;
-      etat.textContent = '';
-      alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.');
-    });
+  async function verifierStripe() {
+    var bouton = el('b-stripe'), etat = el('m-stripe');
+    if (bouton.disabled) { return; }
+    bouton.disabled = true; etat.textContent = 'Vérification des règlements…';
+    try {
+      var rep = await appelService({type:'stripe'}, true);
+      if (rep.version < 22 || !Array.isArray(rep.propositions)) { throw new Error('La vérification sécurisée nécessite la mise à jour du service CRM. Aucun paiement n’a été modifié.'); }
+      rapprocherStripe(rep);
+      etat.textContent = rep.propositions.length + ' rapprochement(s) proposé(s) · vérification terminée';
+    } catch (erreur) { etat.textContent = 'Vérification non terminée'; notifier(erreur.message,true); }
+    finally { bouton.disabled = false; }
   }
 
-  function rapprocherStripe(paiements) {
-    var libres = paiements.filter(function (p) { return p && p.email && p.montant > 0; });
-    var reportes = 0;
-    demandes.filter(function (d) { return resteAEncaisser(d) > 0 && d.parent_email; }).forEach(function (d) {
-      var email = String(d.parent_email).toLowerCase();
-      var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-      var solde = Math.max(total - ACOMPTE_STAGE, 0);
-      for (var i = 0; i < libres.length; i++) {
-        var p = libres[i];
-        if (String(p.email).toLowerCase() !== email) { continue; }
-        var patch = null, quoi = '';
-        var jour = /^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? p.quand : isoLocal(new Date());
-        if (d.type === 'stage') {
-          if (p.montant >= total && total > 0) {
-            patch = { acompte_paye: true, acompte_le: jour, solde_paye: true, solde_le: jour, paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
-            quoi = 'la totalité du stage';
-          } else if (p.montant === ACOMPTE_STAGE && !d.acompte_paye) {
-            patch = { acompte_paye: true, acompte_le: jour };
-            quoi = 'l’acompte (300 €)';
-          } else if (p.montant === solde && d.acompte_paye && !d.solde_paye) {
-            patch = { solde_paye: true, solde_le: jour };
-            quoi = 'le solde (' + solde + ' €)';
-          }
-        } else if (!d.paye && total > 0 && p.montant >= total) {
-          patch = { paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
-          quoi = 'le paiement (' + p.montant + ' €)';
-        }
-        if (!patch) { continue; }
-        libres.splice(i, 1);
-        if (confirm('Stripe : ' + p.montant + ' € reçus de ' + d.parent_email + ' le ' +
-          new Date(jour + 'T12:00:00').toLocaleDateString('fr-FR') + '.\nNoter ' + quoi + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) {
-          patchDemande(d, patch);
-          reportes++;
-        }
-        break;
-      }
-    });
-    var bilan = reportes
-      ? 'C’est noté : ' + reportes + (reportes > 1 ? ' paiements reportés' : ' paiement reporté') + ' depuis Stripe.'
-      : 'Aucun nouveau paiement Stripe ne correspond aux demandes en attente de règlement.';
-    if (libres.length) {
-      bilan += '\n\nReçus sur Stripe, sans correspondance avec une demande en attente (déjà réglée, e-mail ou montant différent) :\n· ' +
-        libres.slice(0, 8).map(function (p) {
-          return p.montant + ' € · ' + p.email +
-            (/^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? ' · ' + new Date(p.quand + 'T12:00:00').toLocaleDateString('fr-FR') : '');
-        }).join('\n· ') +
-        '\n\nSi vous reconnaissez un règlement, notez-le à la main sur la bonne ligne (Réglé en totalité, Acompte reçu, Solde reçu ou Marquer payé).';
+  function rapprocherStripe(rep) {
+    var conteneur = el('stripe-propositions');
+    conteneur.innerHTML = '';
+    var titre = document.createElement('h3'); titre.textContent = 'Résultats de la vérification Stripe'; conteneur.appendChild(titre);
+    var paiements = (rep.paiements || []).filter(function (p) { return p.statut !== 'deja_rapproche'; });
+    if (!paiements.length) {
+      var vide = document.createElement('p'); vide.textContent = 'Aucun règlement à rapprocher sur la période vérifiée.'; conteneur.appendChild(vide); return;
     }
-    alert(bilan);
+    var tbody = fabriquerTableau(conteneur,['Règlement','Famille','Correspondance','Action']);
+    paiements.forEach(function (p) {
+      var tr = document.createElement('tr');
+      cellule(tr,p.montant + ' € · ' + (p.quand || 'Date non renseignée'));
+      cellule(tr,p.email || 'E-mail absent');
+      var candidats = p.candidats || [];
+      var choix = document.createElement('div');
+      choix.textContent = p.statut === 'ambigu' ? 'Plusieurs dossiers possibles : vérification manuelle nécessaire.'
+        : p.statut === 'sans_correspondance' ? 'Aucune demande compatible.' : '';
+      var d = demandes.find(function (x) { return x.id === p.demande_id; });
+      if (d) { choix.textContent = d.enfant + ' · ' + (d.detail || ''); }
+      cellule(tr,choix);
+      var actions = document.createElement('div');
+      if (p.statut === 'propose' && p.demande_id) {
+        actions.appendChild(lienAction('Rapprocher ce règlement', async function () {
+          if (!await confirmer('Attribuer ' + p.montant + ' € reçus de ' + p.email + ' à ' + (d ? d.enfant : 'ce dossier') + ' ?')) { return; }
+          await operation('stripe:' + p.session_id, async function () {
+            var resultat = await appelService({type:'stripe-rapprocher',demande_id:p.demande_id,session_id:p.session_id}, true);
+            if (!resultat.demande) { throw new Error('Le service n’a pas renvoyé la demande mise à jour. Actualisez les données.'); }
+            var locale = demandes.find(function (x) { return x.id === resultat.demande.id; });
+            if (locale) { Object.assign(locale,resultat.demande); } else { demandes.unshift(resultat.demande); }
+            tr.remove(); rafraichirAffichage(); notifier(resultat.deja_rapproche ? 'Ce règlement était déjà rapproché.' : 'Règlement rapproché et enregistré.');
+          });
+        }));
+      } else if (candidats.length) {
+        candidats.forEach(function (candidat) {
+          var demande = demandes.find(function (x) { return x.id === candidat.demande_id; });
+          if (demande) { actions.appendChild(lienAction('Voir ' + demande.enfant,function () { allerDemande(demande); })); }
+        });
+      }
+      cellule(tr,actions); tbody.appendChild(tr);
+    });
   }
 
   /* ================= Les paiements =================
      Note maison : le trimestre est dû, que le voltigeur vienne ou non. */
-  function montantNumerique(texte) {
-    var m = String(texte || '').replace(',', '.').match(/\d+(?:\.\d+)?/);
-    return m ? Number(m[0]) : 0;
+  function montantNumerique(texte) { return core.money(texte); }
+
+  async function marquerPaye(d) {
+    var valeurs = await ui.form({title:'Enregistrer un règlement',description:d.enfant + ' · indiquez le règlement complet déjà reçu. Pour corriger le prix convenu, modifiez d’abord le tarif de la demande.',submitLabel:'Enregistrer le règlement',
+      fields:[{name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(core.total(d))},
+        {name:'date',label:'Date du règlement',type:'date',required:true,max:isoLocal(new Date()),value:isoLocal(new Date())}]});
+    if (!valeurs) { return; }
+    if (Number(valeurs.montant) <= 0) { notifier('Le montant doit être supérieur à zéro.',true); return; }
+    return patchDemande(d,{paye:true,paye_le:valeurs.date,paye_montant:Number(valeurs.montant) + ' €'});
   }
 
-  function marquerPaye(d) {
-    var montant = prompt('Montant encaissé pour ' + (d.enfant || 'ce voltigeur') + ' :', d.tarif || '');
-    if (montant === null) { return; }
-    var patch = { paye: true, paye_le: isoLocal(new Date()), paye_montant: montant.trim() };
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('Le paiement n’a pas pu être noté (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    });
-  }
-
-  function annulerPaye(d) {
-    if (!confirm('Retirer la marque « payé » sur la demande de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    var patch = { paye: false, paye_le: null, paye_montant: null };
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function () {
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    });
+  async function annulerPaye(d) {
+    if (await confirmer('Retirer le règlement déclaré pour ' + d.enfant + ' ? Aucun remboursement bancaire ne sera effectué.',true)) {
+      return patchDemande(d,{paye:false,paye_le:null,paye_montant:null});
+    }
   }
 
   function pastilleEtat(texte, bonne) {
@@ -595,6 +585,7 @@
     colonnes.forEach(function (c) {
       var th = document.createElement('th');
       th.textContent = c;
+      th.scope = 'col';
       tr.appendChild(th);
     });
     thead.appendChild(tr);
@@ -657,7 +648,9 @@
       etat.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
       etat.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      etat.appendChild(pastilleEtat('payé' + (d.paye_montant ? ' · ' + d.paye_montant : ''), true));
+      etat.appendChild(pastilleEtat((reste > 0 ? 'partiellement réglé' : 'payé') + (d.paye_montant ? ' · ' + d.paye_montant : ''), reste === 0));
+    } else {
+      etat.appendChild(pastilleEtat('À régler', false));
     }
     ligne.appendChild(etat);
 
@@ -716,13 +709,12 @@
         totalite.addEventListener('click', function () { reglerTotalite(d); });
         actions.appendChild(totalite);
       } else {
-        actions.appendChild(lienAction('Modifier le montant', function () { modifierMontant(d); }));
         actions.appendChild(lienAction('Retirer les marques « payé »', function () { retirerMarques(d); }));
       }
       var annuler = document.createElement('button');
       annuler.type = 'button';
       annuler.className = 'lien-doux';
-      annuler.textContent = 'Annuler / rembourser';
+      annuler.textContent = 'Annuler / déclarer un remboursement';
       annuler.addEventListener('click', function () { annulerDemande(d); });
       actions.appendChild(annuler);
     } else if (groupe === 'regle') {
@@ -747,6 +739,9 @@
       rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
       actions.appendChild(rPaiement);
     }
+    if (d.type !== 'stage' && groupe !== 'annule') {
+      actions.appendChild(lienAction('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
+    }
     cellule(ligne, actions);
     return ligne;
   }
@@ -760,9 +755,11 @@
     payes.innerHTML = '';
     annules.innerHTML = '';
 
-    var dus = demandes.filter(function (d) { return resteAEncaisser(d) > 0; });
-    var regles = demandes.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
-    var lesAnnules = demandes.filter(function (d) { return d.annule; });
+    var mot=el('f-paiement-recherche') ? el('f-paiement-recherche').value : '';
+    var selection=demandes.filter(function(d){return core.matches(d,mot);});
+    var dus = selection.filter(function (d) { return resteAEncaisser(d) > 0; });
+    var regles = selection.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
+    var lesAnnules = selection.filter(function (d) { return d.annule; });
 
     var COLONNES_PAIEMENTS = ['Type', 'Voltigeur', 'Montant', 'État', 'Date', 'Actions'];
     var totalDu = 0, totalRegle = 0, totalRembourse = 0;
@@ -779,9 +776,9 @@
       lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); corpsAnnules.appendChild(lignePaiement(d, 'annule')); });
     }
 
-    el('t-encaisser').textContent = dus.length ? 'environ ' + totalDu + ' €' : '';
+    el('t-encaisser').textContent = dus.length ? totalDu + ' €' : '';
     el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
-    el('t-annules').textContent = lesAnnules.length ? totalRembourse + ' € remboursés' : '';
+    el('t-annules').textContent = lesAnnules.length ? totalRembourse + ' € de remboursements déclarés' : '';
 
     if (!dus.length) {
       var v1 = document.createElement('p');
@@ -864,75 +861,54 @@
 
   /* ================= Les demandes ================= */
   /* Ajouter, corriger ou supprimer une demande a la main. */
-  function ajouterDemande() {
-    var type = prompt('Quel type de demande ? (cours ou stage)', 'cours');
-    if (type === null) { return; }
-    type = /stage/i.test(type) ? 'stage' : 'cours';
-    var enfant = prompt('Nom du voltigeur :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var parentNom = prompt('Nom du parent :', '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent :', '');
-    if (email === null) { return; }
-    var detail = prompt(type === 'stage' ? 'Quel stage ? (intitulé et dates)' : 'Quelle formule ? (Cours à l’unité ou Cours au trimestre)',
-      type === 'stage' ? 'Stage de la Toussaint (Du 19 au 24 octobre 2026)' : 'Cours à l’unité');
-    if (detail === null) { return; }
-    var tarif = prompt('Tarif :', type === 'stage' ? '840 € / semaine' : '25 € / cours');
-    if (tarif === null) { return; }
-    var validee = confirm('Noter la demande directement « validée » ? (Annuler = en attente)');
-    var ligne = {
-      type: type, enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-      detail: detail.trim(), tarif: tarif.trim(),
-      lignes: 'Ajoutée à la main depuis l’espace académie.',
-      statut: validee ? 'validée' : 'en attente'
-    };
-    if (validee) { ligne.decide = new Date().toISOString(); }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(ligne)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      if (validee && type === 'stage' && /.+@.+\..+/.test(ligne.parent_email) &&
-          confirm('Envoyer tout de suite le lien de paiement de l’acompte (300 €) à ' + ligne.parent_email + ' ?')) {
-        envoyerLienPaiement(ligne, true);
-      }
-      if (validee && type === 'cours') {
-        alert('C’est noté. La demande apparaît « à appeler » : après votre appel, cliquez « Appelé : envoyer date, heure et paiement » pour tout envoyer en un clic.');
-      }
-      chargerDemandes();
+  async function ajouterDemande(options) {
+    options = options && (options.type === 'cours' || options.type === 'stage') ? options : {};
+    var valeurs = await ui.form({title:'Nouvelle demande',description:'Ajoutez un dossier reçu par téléphone ou sur place. Aucun e-mail ne part à cette étape.',submitLabel:'Créer la demande',
+      onChange:function (name, value, controls) {
+        if (name !== 'type') { return; }
+        var ancienTarif = value === 'stage' ? '25' : '840';
+        if (controls.tarif.value === ancienTarif) { controls.tarif.value = value === 'stage' ? '840' : '25'; }
+        if (!controls.detail.value || controls.detail.value === 'Cours à l’unité' || controls.detail.value === 'Stage — dates à préciser') {
+          controls.detail.value = value === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité';
+        }
+      },fields:[
+      {name:'type',label:'Activité',type:'select',value:options.type || 'cours',options:[{value:'cours',label:'Cours'},{value:'stage',label:'Stage'}]},
+      {name:'enfant',label:'Nom du voltigeur',required:true},
+      {name:'parent_nom',label:'Nom du parent'},
+      {name:'parent_email',label:'E-mail du parent',type:'email'},
+      {name:'detail',label:'Formule ou stage et dates',required:true,value:options.detail || (options.type === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité')},
+      {name:'tarif',label:'Tarif total (€)',type:'number',required:true,min:'0.01',step:'0.01',value:options.type === 'stage' ? '840' : '25'},
+      {name:'statut',label:'Statut initial',type:'select',value:'en attente',options:[{value:'en attente',label:'En attente de validation'},{value:'validée',label:'Validée'}]}
+    ]});
+    if (!valeurs) { return; }
+    await operation('nouvelle-demande',async function () {
+      var ligne = {type:valeurs.type,enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),
+        detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €',statut:valeurs.statut,lignes:'Ajoutée à la main depuis l’espace académie.'};
+      if (ligne.statut === 'validée') { ligne.decide = new Date().toISOString(); }
+      var d = await creerDemande(ligne); allerDemande(d);
     });
   }
 
-  function modifierDemande(d) {
-    var enfant = prompt('Nom du voltigeur :', d.enfant || '');
-    if (enfant === null) { return; }
-    var parentNom = prompt('Nom du parent :', d.parent_nom || '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent :', d.parent_email || '');
-    if (email === null) { return; }
-    var detail = prompt(d.type === 'stage' ? 'Stage (intitulé et dates) :' : 'Formule :', d.detail || '');
-    if (detail === null) { return; }
-    var tarif = prompt('Tarif :', d.tarif || '');
-    if (tarif === null) { return; }
-    patchDemande(d, {
-      enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-      detail: detail.trim(), tarif: tarif.trim()
-    });
+  async function modifierDemande(d) {
+    var valeurs = await ui.form({title:'Modifier la demande',description:d.enfant,submitLabel:'Enregistrer les modifications',
+      validate:function (v) { return core.validateTariff(d, v.tarif); },fields:[
+      {name:'enfant',label:'Nom du voltigeur',required:true,value:d.enfant || ''},
+      {name:'parent_nom',label:'Nom du parent',value:d.parent_nom || ''},
+      {name:'parent_email',label:'E-mail du parent',type:'email',value:d.parent_email || ''},
+      {name:'detail',label:'Formule ou stage et dates',required:true,value:d.detail || ''},
+      {name:'tarif',label:'Tarif total (€)',type:'number',min:'0.01',step:'0.01',required:true,value:String(core.total(d))}
+    ]});
+    if (!valeurs) { return; }
+    return patchDemande(d,{enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €'});
   }
 
-  function supprimerDemande(d) {
-    if (!confirm('Supprimer la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Son suivi de paiement disparaît aussi.')) { return; }
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'DELETE',
-      headers: { Prefer: 'return=minimal' }
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('La suppression n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      demandes = demandes.filter(function (x) { return x !== d; });
-      afficherDemandes();
-      afficherPaiements();
-      afficherPlanning();
-      majCompteurs();
+  async function supprimerDemande(d) {
+    if (dejaEncaisse(d) > 0) { notifier('Cette demande possède un règlement. Utilisez l’annulation pour conserver son historique.',true); return; }
+    if (!await confirmer('Supprimer définitivement la demande de ' + d.enfant + ' ? Pour garder son historique, vous pouvez annuler l’inscription à la place.',true)) { return; }
+    return operation('demande:' + d.id,async function () {
+      var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id),{method:'DELETE',headers:{Prefer:'return=representation'}}));
+      if (!lignes || !lignes.length) { throw new Error('Cette demande n’a pas été supprimée. Actualisez la liste.'); }
+      demandes = demandes.filter(function (x) { return x.id !== d.id; }); rafraichirAffichage(); notifier('Demande supprimée.');
     });
   }
 
@@ -1086,12 +1062,12 @@
 
     /* demande ajoutée à la main (pas de jeton) : décision directe, sans mail */
     if (classeStatut(d.statut) === 'attente' && !(d.jeton_d && d.jeton_s)) {
-      actions.appendChild(lienAction('Marquer validée', function () {
-        if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
+      actions.appendChild(lienAction('Marquer validée', async function () {
+        if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
       }));
-      actions.appendChild(lienAction('Marquer refusée', function () {
-        if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
+      actions.appendChild(lienAction('Marquer refusée', async function () {
+        if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'refusée (à la main)', decide: new Date().toISOString() });
       }));
     }
@@ -1107,6 +1083,8 @@
     dossier.addEventListener('click', function () { ouvrirDossier(d); });
     actions.appendChild(dossier);
     actions.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
+    if (!d.annule) { actions.appendChild(lienAction('Annuler l’inscription', function () { annulerDemande(d); })); }
+    else { actions.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
     actions.appendChild(lienAction('Supprimer', function () { supprimerDemande(d); }));
 
     cellule(c, actions);
@@ -1114,95 +1092,53 @@
   }
 
   function afficherDemandes() {
-    var conteneur = el('a-demandes');
-    conteneur.innerHTML = '';
-    var visibles = demandes.filter(function (d) {
-      if (filtreTexte && JSON.stringify(d).toLowerCase().indexOf(filtreTexte) === -1) { return false; }
-      if (filtre === 'toutes') { return true; }
-      if (filtre === 'en attente') { return classeStatut(d.statut) === 'attente'; }
-      if (filtre === 'validée') { return classeStatut(d.statut) === 'validee'; }
-      return classeStatut(d.statut) === 'refusee';
-    });
+    var conteneur = el('a-demandes'); conteneur.innerHTML = '';
+    var visibles = demandesVisibles();
+    if (el('resultats-demandes')) { el('resultats-demandes').textContent = visibles.length + ' résultat(s) sur ' + demandes.length + ' demandes'; }
     if (!visibles.length) {
-      var vide = document.createElement('p');
-      vide.className = 'aide';
-      vide.textContent = demandes.length
-        ? 'Aucune demande dans cette catégorie.'
-        : 'Aucune demande pour l’instant. Elles apparaîtront ici dès qu’un parent enverra une inscription depuis le site.';
-      conteneur.appendChild(vide);
-      return;
+      var vide = document.createElement('p'); vide.className = 'aide etat-vide';
+      vide.textContent = demandes.length ? 'Aucune demande ne correspond aux filtres. Essayez un autre nom ou élargissez la sélection.' : 'Aucune demande pour l’instant. Ajoutez un dossier ou attendez la première inscription.';
+      conteneur.appendChild(vide); return;
     }
-    var corpsTableau = fabriquerTableau(conteneur, ['Type', 'Voltigeur', 'Demande', 'Statut', 'Reçue le', 'Actions']);
-    visibles.forEach(function (d) { corpsTableau.appendChild(carteDemande(d)); });
-    majCompteurs();
+    var corps = fabriquerTableau(conteneur,['Type','Voltigeur','Demande','Statut','Reçue le','Actions']);
+    visibles.forEach(function (d) { corps.appendChild(carteDemande(d)); });
   }
 
-  function decider(d, action, motifCle, carteEl) {
-    var question = action === 'valider'
-      ? (d.type === 'stage'
-        ? 'Valider la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Le parent reçoit aussitôt le mail avec le lien de paiement.'
-        : 'Valider la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Le parent reçoit un mail « Fleur vous appelle pour convenir du créneau » (le lien de paiement partira après votre appel).')
-      : 'Refuser la demande de ' + (d.enfant || 'ce voltigeur') + ' (motif : ' + (MOTIFS[motifCle] || motifCle) + ') ? Le parent reçoit un message courtois avec ce motif.';
-    if (!confirm(question)) { return; }
-
-    if (carteEl) {
-      carteEl.boutons.forEach(function (b) { b.disabled = true; });
-      carteEl.etatAction.textContent = 'Envoi en cours…';
-    }
-
-    var corps = { type: 'decision', action: action, d: d.jeton_d, s: d.jeton_s };
-    if (action === 'refuser') { corps.motif = motifCle; }
-
-    fetch(SERVICE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(corps)
-    }).then(function (r) { return r.text(); }).then(function (t) {
-      var morceaux = t.trim().split(';');
-      if (morceaux[0] !== 'ok valide' && morceaux[0] !== 'ok refuse') {
-        var souci = 'Souci : « ' + t.trim().slice(0, 120) + ' ». Réessayez, ou utilisez les boutons du mail.';
-        if (carteEl) {
-          carteEl.boutons.forEach(function (b) { b.disabled = false; });
-          carteEl.etatAction.textContent = souci;
-        } else { alert(souci); }
-        return;
+  async function decider(d, action, motifCle, carteEl) {
+    var question = action === 'valider' ? 'Valider la demande de ' + d.enfant + ' et envoyer l’e-mail à la famille ?'
+      : 'Refuser la demande de ' + d.enfant + ' et envoyer le motif « ' + (MOTIFS[motifCle] || motifCle) + ' » à la famille ?';
+    if (!await confirmer(question,action !== 'valider')) { return; }
+    return operation('decision:' + d.id,async function () {
+      if (carteEl) { carteEl.boutons.forEach(function (b) { b.disabled=true; }); carteEl.etatAction.textContent='Traitement en cours…'; }
+      try {
+        var texte = await appelService({type:'decision',action:action,d:d.jeton_d,s:d.jeton_s,motif:motifCle || ''});
+        var code = texte.split(';')[0];
+        if (code !== 'ok valide' && code !== 'ok refuse') {
+          var erreurs = {
+            'decision deja traitee':'Cette demande a déjà été traitée. Actualisez son statut.',
+            'decision en cours':'Cette décision est déjà en cours de traitement. Actualisez dans un instant.',
+            'decision a verifier':'Le service demande une vérification. Contrôlez le dossier et les e-mails envoyés avant tout renvoi.'
+          };
+          throw new Error(erreurs[code] || 'La décision n’a pas été confirmée. Actualisez avant de réessayer.');
+        }
+        // Le service est propriétaire de cette transition : aucun second PATCH aveugle.
+        await chargerDemandes(); notifier('Décision enregistrée par le service.');
+      } finally {
+        if (carteEl) { carteEl.boutons.forEach(function (b) { b.disabled=false; }); carteEl.etatAction.textContent=''; }
       }
-      var statut = morceaux[0] === 'ok valide'
-        ? 'validée'
-        : 'refusée (' + (MOTIFS[motifCle] || motifCle) + ')';
-      d.statut = statut;
-      d.decide = new Date().toISOString();
-      /* le service note aussi le statut ; cette mise à jour rend la page exacte tout de suite */
-      nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ statut: statut, decide: d.decide })
-      });
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    }).catch(function () {
-      var panne = 'Le service n’a pas répondu. Vérifiez votre connexion et réessayez.';
-      if (carteEl) {
-        carteEl.boutons.forEach(function (b) { b.disabled = false; });
-        carteEl.etatAction.textContent = panne;
-      } else { alert(panne); }
     });
   }
 
-  function chargerDemandes() {
-    message('m-liste', 'Chargement des demandes…', true);
-    return nuage.requeteAuth('/rest/v1/demandes?select=*&order=cree.desc&limit=200')
-      .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (l) {
-        if (!l) { message('m-liste', 'Impossible de charger les demandes. Rechargez la page dans un instant.'); return; }
-        demandes = l;
-        el('m-liste').hidden = true;
-        afficherDemandes();
-        afficherPlanning();
-        afficherPaiements();
-      })
-      .catch(function () { message('m-liste', 'Impossible de charger les demandes. Rechargez la page dans un instant.'); });
+  async function chargerDemandes() {
+    var version = ++versionDemandes; chargements++; statutSynchro();
+    message('m-liste','Chargement de toutes les demandes…',true);
+    try {
+      var liste = await core.loadAll(nuage.requeteAuth,'/rest/v1/demandes?select=*&order=cree.desc,id.desc','id');
+      if (version !== versionDemandes) { return; }
+      demandes = liste; erreurDemandes=false; el('m-liste').hidden=true; rafraichirAffichage();
+    } catch (erreur) {
+      if (version === versionDemandes) { erreurDemandes=true; message('m-liste',erreur.message + (demandes.length ? ' Les données précédentes restent affichées.' : '')); }
+    } finally { chargements--; statutSynchro(); }
   }
 
   /* ================= Le planning en cases ================= */
@@ -1250,7 +1186,7 @@
     gStages.innerHTML = '';
 
     var parDate = {};
-    coursAVenir().forEach(function (d) { (parDate[d.cours_date] = parDate[d.cours_date] || []).push(d); });
+    coursAVenir().forEach(function (d) { var cle=core.scheduleKey(d); (parDate[cle] = parDate[cle] || []).push(d); });
     var jours = Object.keys(parDate).sort();
     if (!jours.length) {
       var videCours = document.createElement('p');
@@ -1261,7 +1197,8 @@
     jours.forEach(function (date) {
       var n = parDate[date].length;
       var sousTitre = n + '/' + CAPACITE_COURS + (n > 1 ? ' inscrits' : ' inscrit') + (n >= CAPACITE_COURS ? ' · complet' : '');
-      gCours.appendChild(casePlanning(jourLisible(date), sousTitre, false,
+      var premier=parDate[date][0];
+      gCours.appendChild(casePlanning(jourLisible(premier.cours_date) + ' · ' + (core.time(premier.cours_heure) || premier.cours_heure || 'Horaire à préciser'), sousTitre, false,
         !!(caseChoisie && caseChoisie.genre === 'cours' && caseChoisie.date === date),
         function () { caseChoisie = { genre: 'cours', date: date }; afficherPlanning(); }));
     });
@@ -1313,9 +1250,9 @@
     }
 
     if (caseChoisie.genre === 'cours') {
-      var date = caseChoisie.date;
-      titre.textContent = 'Cours du ' + jourLisible(date);
-      var inscrits = parDate[date] || [];
+      var inscrits = parDate[caseChoisie.date] || [];
+      var date = inscrits[0].cours_date, heure = core.time(inscrits[0].cours_heure) || inscrits[0].cours_heure || '';
+      titre.textContent = 'Cours du ' + jourLisible(date) + (heure ? ' · ' + heure : '');
       inscrits.forEach(function (d) {
         var li = document.createElement('li');
         li.textContent = (d.enfant || 'Voltigeur') + (d.cours_heure ? ' · ' + d.cours_heure : '') + (d.parent_email ? ' · ' + d.parent_email : '');
@@ -1329,7 +1266,7 @@
         aucun.textContent = 'Personne pour l’instant.';
         liste.appendChild(aucun);
       }
-      actions.appendChild(boutonAjout(function () { ajouterInscritCours(date); }));
+      actions.appendChild(boutonAjout(function () { ajouterInscritCours(date,heure); }));
       actions.appendChild(lienAction('Feuille de présence', function () {
         ouvrirFeuille({
           titre: 'Cours du ' + jourLisible(date),
@@ -1365,66 +1302,24 @@
   }
 
   /* ---- inscrire ou retirer un voltigeur a la main ---- */
-  function ajouterInscritCours(date) {
-    var nActuel = coursAVenir().filter(function (d) { return d.cours_date === date; }).length;
-    if (nActuel >= CAPACITE_COURS && !confirm('Ce cours est complet (' + nActuel + '/' + CAPACITE_COURS + '). Ajouter quand même ?')) { return; }
-    var enfant = prompt('Nom du voltigeur à inscrire au cours du ' + jourLisible(date) + ' :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var email = prompt('E-mail du parent (facultatif) :', '');
-    if (email === null) { return; }
-    var heure = prompt('Heure du cours (par exemple 10h00) :', '10h00');
-    if (heure === null) { return; }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({
-        type: 'cours', enfant: enfant.trim(), parent_nom: '', parent_email: email.trim(),
-        detail: 'Cours à l’unité', tarif: '25 € / cours',
-        statut: 'validée', decide: new Date().toISOString(),
-        lignes: 'Ajoutée à la main depuis l’espace académie.',
-        cours_date: date, cours_heure: heure.trim() || null
-      })
-    }).then(function (r) { return r && r.ok ? r.json().catch(function () { return null; }) : null; })
-      .then(function (lignes) {
-        if (!lignes) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-        var d = lignes[0];
-        if (d && /.+@.+\..+/.test(d.parent_email || '') &&
-            confirm('Envoyer tout de suite à ' + d.parent_email + ' les infos du cours avec le lien de paiement (25 €) ?')) {
-          envoyerInfosCours(d, true);
-        }
-        chargerDemandes();
-      });
+  async function ajouterInscritCours(date, heureInitiale) {
+    var valeurs = await ui.form({title:'Ajouter un inscrit au cours',description:jourLisible(date),submitLabel:'Ajouter au créneau',
+      validate:function (v) { return erreurCreneau(date, v.heure); },fields:[
+      {name:'enfant',label:'Nom du voltigeur',required:true},{name:'email',label:'E-mail du parent',type:'email'},
+      {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(heureInitiale) || '10:00'}]});
+    if (!valeurs) { return; }
+    await operation('nouvel-inscrit',async function () {
+      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'25 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:'Ajoutée à la main depuis l’espace académie.',cours_date:date,cours_heure:valeurs.heure});
+      if (d.parent_email && await confirmer('Inscrit ajouté. Envoyer les informations du cours à '+d.parent_email+' ?')) { await envoyerInfosCours(d,true); }
+    });
   }
 
-  function retirerDuPlanning(d) {
-    if (!confirm('Retirer ' + (d.enfant || 'ce voltigeur') + ' de ce cours ? La demande reste validée : vous pourrez replanifier après un nouvel appel.')) { return; }
+  async function retirerDuPlanning(d) {
+    if (!await confirmer('Retirer ' + (d.enfant || 'ce voltigeur') + ' de ce cours ? La demande reste validée : vous pourrez replanifier après un nouvel appel.')) { return; }
     patchDemande(d, { cours_date: null, cours_heure: null, infos_envoyees_le: null });
   }
 
-  function ajouterInscritStage(cle) {
-    var enfant = prompt('Nom du voltigeur à inscrire au stage :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var parentNom = prompt('Nom du parent :', '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent (facultatif) :', '');
-    if (email === null) { return; }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        type: 'stage', enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-        detail: cle, tarif: '840 € / semaine', statut: 'validée', decide: new Date().toISOString(),
-        lignes: 'Ajoutée à la main depuis l’espace académie.'
-      })
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      if (/.+@.+\..+/.test(email.trim()) &&
-          confirm('Envoyer tout de suite le lien de paiement de l’acompte (300 €) à ' + email.trim() + ' ?')) {
-        envoyerLienPaiement({ type: 'stage', enfant: enfant.trim(), parent_email: email.trim(), detail: cle, tarif: '840 € / semaine' }, true);
-      }
-      chargerDemandes();
-    });
-  }
+  function ajouterInscritStage(cle) { return ajouterDemande({type:'stage',detail:cle}); }
 
   /* ================= La base clients ================= */
   function carteFamille(f) {
@@ -1507,19 +1402,21 @@
     var actions = document.createElement('div');
     actions.className = 'actions';
     if (f.user_id) {
-      actions.appendChild(lienAction(f.note_admin ? 'Modifier la note' : 'Ajouter une note', function () {
-        var note = prompt('Note sur cette famille (visible de l’académie seulement) :', f.note_admin || '');
-        if (note === null) { return; }
-        nuage.requeteAuth('/rest/v1/familles?user_id=eq.' + encodeURIComponent(f.user_id), {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ note_admin: note.trim() || null })
-        }).then(function (r) {
-          if (!r || !r.ok) { alert('La note n’a pas pu être enregistrée (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-          f.note_admin = note.trim();
-          afficherFamilles();
+      var boutonNote = lienAction(f.note_admin ? 'Modifier la note' : 'Ajouter une note', async function () {
+        if (!notesDisponibles) { notifier('Les notes privées sont indisponibles. Actualisez la base clients.',true); return; }
+        var valeurs=await ui.form({title:'Note privée de l’académie',description:'Cette note est réservée aux administrateurs.',submitLabel:'Enregistrer la note',
+          fields:[{name:'note',label:'Note sur cette famille',type:'textarea',value:f.note_admin || ''}]});
+        if (!valeurs) { return; }
+        await operation('note:'+f.user_id,async function () {
+          var lignes=await reponseJson(await nuage.requeteAuth('/rest/v1/notes_familles?on_conflict=user_id',{
+            method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:f.user_id,note:valeurs.note.trim()})
+          }),'La note privée n’a pas pu être enregistrée. Vérifiez la connexion et la mise à jour du CRM.');
+          if (!lignes || !lignes[0]) { throw new Error('La note n’a pas été enregistrée.'); }
+          f.note_admin=lignes[0].note || ''; afficherFamilles(); notifier('Note privée enregistrée.');
         });
-      }));
+      });
+      boutonNote.disabled = !notesDisponibles;
+      actions.appendChild(boutonNote);
     }
     cellule(c, actions);
     return c;
@@ -1531,13 +1428,13 @@
     var mot = el('f-recherche').value.trim().toLowerCase();
     var visibles = familles.filter(function (f) {
       if (!mot) { return true; }
-      return JSON.stringify(f).toLowerCase().indexOf(mot) !== -1;
+      return core.normalize(JSON.stringify(f)).indexOf(core.normalize(mot)) !== -1;
     });
     if (!visibles.length) {
       var vide = document.createElement('p');
       vide.className = 'aide';
       vide.textContent = familles.length
-        ? 'Aucune famille ne correspond à cette recherche.'
+        ? 'Aucune famille ne correspond à cette recherche. Essayez un autre nom ou une autre adresse.'
         : 'Aucun compte famille pour l’instant.';
       conteneur.appendChild(vide);
       return;
@@ -1546,18 +1443,24 @@
     visibles.forEach(function (f) { corpsTableau.appendChild(carteFamille(f)); });
   }
 
-  function chargerFamilles() {
-    message('m-familles', 'Chargement de la base clients…', true);
-    return nuage.requeteAuth('/rest/v1/familles?select=user_id,email,donnees,maj,note_admin&order=maj.desc&limit=500')
-      .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (l) {
-        if (!l) { message('m-familles', 'Impossible de charger la base clients. Rechargez la page dans un instant.'); return; }
-        familles = l;
-        el('m-familles').hidden = true;
-        afficherFamilles();
-        majCompteurs();
-      })
-      .catch(function () { message('m-familles', 'Impossible de charger la base clients. Rechargez la page dans un instant.'); });
+  async function chargerFamilles() {
+    var version = ++versionFamilles; chargements++; statutSynchro();
+    message('m-familles','Chargement des familles et des notes privées…',true);
+    try {
+      var liste = await core.loadAll(nuage.requeteAuth,'/rest/v1/familles?select=user_id,email,donnees,maj&order=maj.desc,user_id.desc','user_id');
+      var notes = [], souciNotes = false;
+      try { notes = await core.loadAll(nuage.requeteAuth,'/rest/v1/notes_familles?select=user_id,note,maj&order=user_id','user_id'); }
+      catch (_) { souciNotes=true; }
+      if (version !== versionFamilles) { return; }
+      var index = {}; notes.forEach(function (n) { index[n.user_id]=n.note; });
+      liste.forEach(function (f) { f.note_admin=index[f.user_id] || ''; });
+      familles=liste; notesDisponibles=!souciNotes; erreurFamilles=souciNotes;
+      if (souciNotes) { message('m-familles','Les familles sont chargées, mais les notes privées sont indisponibles. Actualisez ; si le problème persiste, faites vérifier la mise à jour du CRM.'); }
+      else { el('m-familles').hidden=true; }
+      afficherFamilles(); majCompteurs();
+    } catch (erreur) {
+      if (version === versionFamilles) { erreurFamilles=true; message('m-familles',erreur.message + (familles.length ? ' Les données précédentes restent affichées.' : '')); }
+    } finally { chargements--; statutSynchro(); }
   }
 
   /* ================= Accès et navigation ================= */
@@ -1565,7 +1468,7 @@
     montrer('p-attente');
     nuage.retrouverEmail().then(function (s) {
       if (!s) { montrer('p-connexion'); return; }
-      nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
+      return nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
         .then(function (r) {
           /* la table admins ne répond pas : l'installation SQL n'a pas été faite */
           if (!r || !r.ok) {
@@ -1583,8 +1486,12 @@
           montrer('p-tableau');
           chargerDemandes();
           chargerFamilles();
+          var onglet=location.hash.slice(1);
+          if (['accueil','demandes','familles','reservations','paiements'].indexOf(onglet)!==-1) { ouvrirOnglet(onglet); }
         })
         .catch(function () { montrer('p-refuse'); });
+    }).catch(function () {
+      montrer('p-connexion'); message('m-admin','Impossible de vérifier votre session. Reconnectez-vous ou réessayez dans un instant.');
     });
   }
 
@@ -1595,12 +1502,14 @@
     message('m-admin', 'Connexion…', true);
     nuage.connexion(email, mdp).then(function (r) {
       if (r.erreur) { message('m-admin', r.erreur); return; }
-      entrer();
-    });
+      el('ad-mdp').value=''; entrer();
+    }).catch(function(){ message('m-admin','Connexion impossible. Vérifiez votre connexion et réessayez.'); });
   });
 
   el('p-deconnexion').addEventListener('click', function (ev) {
     ev.preventDefault();
+    versionDemandes++; versionFamilles++; demandes=[]; familles=[];
+    el('ad-mdp').value='';
     nuage.deconnexion();
     el('p-compte').textContent = '';
     el('p-deconnexion').hidden = true;
@@ -1616,6 +1525,8 @@
     el('o-familles').hidden = onglet !== 'familles';
     el('o-reservations').hidden = onglet !== 'reservations';
     el('o-paiements').hidden = onglet !== 'paiements';
+    if (ui.setPage) { ui.setPage(onglet); }
+    history.replaceState(null,'','#'+onglet);
   }
 
   document.querySelector('.onglets').addEventListener('click', function (ev) {
@@ -1636,7 +1547,7 @@
       [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
        { titre: 'E-mail', largeur: 165 }, { titre: 'Demande', largeur: 210 }, { titre: 'Tarif', largeur: 95 },
        { titre: 'Statut', largeur: 85 }, { titre: 'Reçue le', largeur: 105 }, { titre: 'Paiement', largeur: 150 }],
-      demandes.map(function (d) {
+      demandesVisibles().map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.detail, d.tarif, d.statut, quandLisible(d.cree),
           d.annule ? 'annulé' : d.type === 'stage'
             ? (d.acompte_paye ? 'acompte reçu' : 'acompte dû') + ' / ' + (d.solde_paye ? 'solde reçu' : 'solde dû')
@@ -1648,7 +1559,9 @@
       [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
        { titre: 'E-mail', largeur: 165 }, { titre: 'Tarif', largeur: 95 }, { titre: 'Encaissé (€)', largeur: 75 },
        { titre: 'Reste dû (€)', largeur: 75 }, { titre: 'État', largeur: 150 }, { titre: 'Réglé le', largeur: 80 }],
-      demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' || d.annule; }).map(function (d) {
+      demandes.filter(function (d) {
+        return (classeStatut(d.statut) === 'validee' || d.annule) && core.matches(d, el('f-paiement-recherche') ? el('f-paiement-recherche').value : '');
+      }).map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.tarif, dejaEncaisse(d), resteAEncaisser(d),
           d.annule ? 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : '')
             : resteAEncaisser(d) > 0 ? 'en attente' : 'réglé',
@@ -1664,11 +1577,14 @@
     if (!bouton) { return; }
     filtre = bouton.getAttribute('data-filtre');
     el('a-filtres').querySelectorAll('[data-filtre]').forEach(function (b) {
-      b.classList.toggle('actif-filtre', b === bouton);
+      b.classList.toggle('actif-filtre', b === bouton); b.setAttribute('aria-pressed',String(b===bouton));
     });
     afficherDemandes();
   });
 
+  ['f-type','f-suivi','f-tri'].forEach(function(id){if(el(id)){el(id).addEventListener('change',afficherDemandes);}});
+  if(el('f-paiement-recherche')){el('f-paiement-recherche').addEventListener('input',afficherPaiements);}
+  if(el('crm-refresh')){el('crm-refresh').addEventListener('click',function(){chargerDemandes();chargerFamilles();});}
   if (!nuage.configure()) { montrer('p-refuse'); return; }
   entrer();
 })();
