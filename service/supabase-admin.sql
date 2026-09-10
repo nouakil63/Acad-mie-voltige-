@@ -265,3 +265,10 @@ create policy "les admins retirent une attente" on public.attentes
 -- le script Google note ici la date de chaque relance envoyee.
 alter table public.demandes add column if not exists relance_acompte_le date;
 alter table public.demandes add column if not exists relance_solde_le date;
+
+-- v9 — Les cours planifies par Fleur : plus de choix de date par les
+-- familles. Fleur appelle, note la date et l'heure du cours sur le CRM,
+-- et le CRM envoie les infos + le lien de paiement aux parents.
+alter table public.demandes add column if not exists cours_date date;
+alter table public.demandes add column if not exists cours_heure text;
+alter table public.demandes add column if not exists infos_envoyees_le date;

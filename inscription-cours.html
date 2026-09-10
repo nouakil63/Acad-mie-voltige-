@@ -78,7 +78,7 @@
         <span class="ligne"><span>S'inscrire</span></span>
         <span class="ligne"><span>aux <em>cours</em>.</span></span>
       </h1>
-      <p class="sous-titre">Trois étapes, deux minutes : le voltigeur, la famille, puis vos dates cochées sur le planning des samedis. Georges Cotrait valide chaque demande sous 24&nbsp;h maximum, puis le lien de paiement sécurisé arrive par e-mail.</p>
+      <p class="sous-titre">Trois étapes, deux minutes : le voltigeur, la famille, puis votre formule. L'académie valide la demande sous 24&nbsp;h, Fleur vous appelle pour convenir du créneau du samedi, et le lien de paiement arrive par e-mail.</p>
     </div>
   </div>
 </header>
@@ -95,7 +95,7 @@
           <div class="lien-jalon" aria-hidden="true"></div>
           <div class="jalon" data-jalon="2"><span class="rond">2</span><span>La famille</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>Les dates</span></div>
+          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>La formule</span></div>
         </div>
 
         <!-- Étape 1 : le voltigeur -->
@@ -172,40 +172,29 @@
           </div>
         </fieldset>
 
-        <!-- Étape 3 : les dates, sur le planning -->
+        <!-- Étape 3 : la formule (pas de date : Fleur appelle pour convenir du créneau) -->
         <fieldset class="pas" data-pas="3">
-          <h2>Choisissez vos dates.</h2>
-          <p class="aide">Cochez les samedis qui vous arrangent sur le planning. Chaque cours dure 1h (30&nbsp;min de cheval d'arçon + 30&nbsp;min à cheval).</p>
-          <div class="planning-cours" id="planning-cours">
-            <div class="jour-groupe">
-              <h3>Les mercredis <small>14h00 — 16h00</small></h3>
-              <div class="jour-dates" id="dates-mercredi"></div>
-            </div>
-            <div class="jour-groupe">
-              <h3>Les samedis <small>10h00 — 13h00 · 14h00 — 16h00</small></h3>
-              <div class="jour-dates" id="dates-samedi"></div>
-            </div>
-          </div>
-          <p class="indice" id="planning-resume" style="margin-top:10px">Aucune date choisie pour l'instant.</p>
+          <h2>Choisissez votre formule.</h2>
+          <p class="aide">Pas de date à choisir : les cours ont lieu le samedi, et Fleur vous appelle après validation pour convenir ensemble du créneau de votre enfant. Chaque cours dure 1&nbsp;h (30&nbsp;min de cheval d'arçon + 30&nbsp;min à cheval).</p>
           <div class="champ" style="margin-top:20px">
-            <label>Comment souhaitez-vous régler ? <b>*</b></label>
+            <label>Votre formule <b>*</b></label>
             <label class="case">
               <input type="radio" name="paiement" value="unite" required>
-              <span><b>À l'unité :</b> 25&nbsp;€ par cours choisi.</span>
+              <span><b>À l'unité :</b> 25&nbsp;€ le cours, sans engagement.</span>
             </label>
             <label class="case">
               <input type="radio" name="paiement" value="trimestre">
-              <span><b>Au trimestre :</b> 325&nbsp;€ le trimestre (les dates cochées seront vos premiers cours).</span>
+              <span><b>Au trimestre :</b> 325&nbsp;€ le trimestre, un cours chaque samedi.</span>
             </label>
           </div>
-          <p class="aide" style="margin:14px 0 0">Aucun paiement maintenant : Georges Cotrait valide la demande sous 24&nbsp;h maximum, puis le lien de paiement arrive par e-mail. L'académie confirme le groupe de votre enfant.</p>
+          <p class="aide" style="margin:14px 0 0">Aucun paiement maintenant : l'académie valide la demande sous 24&nbsp;h maximum, Fleur vous appelle pour fixer la date et l'heure du premier cours, puis le récapitulatif et le lien de paiement sécurisé arrivent par e-mail.</p>
           <div class="btns-pas">
             <button type="button" class="btn btn-contour btn-retour" data-retour><span>← Retour</span></button>
             <button type="submit" class="btn btn-rouge"><span>Envoyer la demande</span></button>
           </div>
           <div class="confirmation" id="confirmation">
             <h3>Votre demande est prête à partir !</h3>
-            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». Georges Cotrait valide chaque demande sous 24&nbsp;h maximum ; vous recevrez alors un e-mail avec le lien de paiement sécurisé. Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
+            <p>Votre messagerie s'est ouverte avec la demande pré-remplie — il ne reste qu'à appuyer sur « Envoyer ». L'académie valide chaque demande sous 24&nbsp;h maximum, puis Fleur vous appelle pour convenir du créneau ; le lien de paiement arrive ensuite par e-mail. Si rien ne s'est ouvert, écrivez-nous directement à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.</p>
             <p style="margin-top:12px"><a class="btn btn-contour" id="btn-dossier" href="dossier-rempli.html" target="_blank" rel="noopener"><span>📄 Télécharger mon dossier d'inscription rempli</span></a></p>
           </div>
         </fieldset>
@@ -264,6 +253,6 @@
 <script src="assets/js/compte-config.js?v=2"></script>
 <script src="assets/js/nuage.js?v=2"></script>
 <script src="assets/js/famille.js?v=4"></script>
-<script src="assets/js/inscription-cours.js?v=59"></script>
+<script src="assets/js/inscription-cours.js?v=60"></script>
 </body>
 </html>

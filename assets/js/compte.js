@@ -250,6 +250,13 @@
     'https://script.google.com/macros/s/AKfycbwOXOkUQ0-ls0l8nSCUoG9wkKVNUgiKc4DtO8PsNEmn-yCq4eJu4UbmsJaGYpvqkYpw9w/exec';
 
   function chargerTrimestre() {
+    /* RESERVATION EN PAUSE : les familles ne choisissent plus leurs dates
+       elles-memes. Fleur appelle chaque famille et planifie les cours depuis
+       le CRM. Pour rouvrir la reservation en ligne, supprimez ces trois
+       lignes (tout le reste suit). */
+    var blocPause = el('bloc-trimestre');
+    if (blocPause) { blocPause.hidden = true; }
+    return;
     if (!nuage.requeteAuth) { return; }
     nuage.requeteAuth('/rest/v1/abonnements?select=*&order=fin.desc')
       .then(function (r) { return r && r.ok ? r.json() : []; })
