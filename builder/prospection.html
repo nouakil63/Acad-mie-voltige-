@@ -132,6 +132,10 @@
       <button class="btn btn-rouge" id="btn-tous">🚀 Lancer l'envoi groupé</button>
       <span class="note" id="etat-tous" style="display:inline-block;margin-left:10px"></span>
     </p>
+    <p style="margin:12px 0 0">
+      <button class="btn btn-ghost" id="btn-jpa">🎓 Envoyer seulement aux organisateurs &amp; formateurs (JPA)</button>
+      <span class="note" id="etat-jpa" style="display:inline-block;margin-left:10px"></span>
+    </p>
   </div>
 
   <!-- ============ Les contacts ============ -->
@@ -229,6 +233,28 @@
     { id: 'evasoleil', nom: 'Evasoleil', cat: 'Colonies & séjours', ville: 'Douy-la-Ramée (77)', email: 'info@evasoleil.com', tel: '06 62 81 20 00', site: 'https://www.colonie-evasoleil.com/contact/', info: 'Association de séjours enfants et ados en Île-de-France, sensible aux projets pédagogiques originaux comme voltige plus théâtre.' },
     { id: 'cjh', nom: 'Les Compagnons des Jours Heureux', cat: 'Colonies & séjours', ville: 'Saint-Germain-en-Laye (78)', email: 'murielle.dufros@compagnons.asso.fr', tel: '01 39 73 03 83', site: 'https://www.compagnons.asso.fr/', info: 'Association loi 1901 qui organise depuis 1969 des séjours 4-17 ans, interlocutrice relevée sur leur page partenariat CGOS.' },
     { id: 'adav-vacances', nom: 'ADAV Vacances & Voyages', cat: 'Colonies & séjours', ville: 'Bergues (59)', email: 'info@adav-vacances.com', tel: '03 28 68 69 60', site: 'https://www.adav-vacances.com/', info: 'Organisateur associatif de séjours enfants et ados depuis 1987, diffuse des séjours d\'autres producteurs dans son catalogue.' },
+
+    /* La liste JPA « Organisateurs de séjours et formateurs »
+       (organisations membres de la Jeunesse au Plein Air, juin 2026). */
+    { id: 'jpa-apajh', nom: 'APAJH', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'federationapajh@apajh.asso.fr', tel: '01 44 10 23 40', site: 'https://www.apajh.org', info: 'Association Pour Adultes et Jeunes Handicapés. Membre de la Jeunesse au Plein Air.' },
+    { id: 'jpa-cemea', nom: 'CEMEA', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'accueil@cemea.asso.fr', tel: '01 53 26 24 24', site: 'https://www.cemea.asso.fr', info: 'Centres d’Entraînement aux Méthodes d’Éducation Active.' },
+    { id: 'jpa-cmjcf', nom: 'CMJCF', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'cmjcf@cmjcf.fr', tel: '01 44 85 29 50', site: 'https://www.mjc-cmjcf.asso.fr', info: 'Confédération des Maisons des Jeunes et de la Culture de France.' },
+    { id: 'jpa-cmr', nom: 'Les CMR', cat: 'Organisateurs & formateurs', ville: 'Nogent-sur-Marne', email: 'federation@lescmr.asso.fr', tel: '01 48 73 06 72', site: 'https://www.lescmr.asso.fr', info: 'Fédération des Centres Musicaux Ruraux.' },
+    { id: 'jpa-cnfr', nom: 'CNFR', cat: 'Organisateurs & formateurs', ville: 'Montreuil', email: 'cnfr@mouvement-rural.org', tel: '01 43 60 14 20', site: 'https://www.foyersruraux.org', info: 'Confédération Nationale des Foyers Ruraux.' },
+    { id: 'jpa-croq', nom: 'Croq’ Vacances (siège)', cat: 'Organisateurs & formateurs', ville: 'Nantes', email: 'info@croqvacances.org', tel: '02 40 35 52 15', site: 'https://www.croqvacances.org', info: 'Adresse du siège relevée dans la liste JPA. Colonies équitation.' },
+    { id: 'jpa-eedf', nom: 'EEDF', cat: 'Organisateurs & formateurs', ville: 'Noisy-le-Grand', email: 'accueil.national@eedf.fr', tel: '01 48 15 17 66', site: 'https://www.eedf.asso.fr', info: 'Éclaireuses et Éclaireurs de France.' },
+    { id: 'jpa-aroeven', nom: 'AROEVEN (FOEVEN)', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'federation@aroeven.fr', tel: '01 45 88 62 77', site: 'https://www.aroeven.fr', info: 'Fédération des Œuvres Éducatives et de Vacances de l’Éducation Nationale.' },
+    { id: 'jpa-francas', nom: 'FRANCAS', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'tverrouil@francas.asso.fr', tel: '01 44 64 21 00', site: 'https://www.francas.asso.fr', info: 'Fédération Nationale des FRANCAS.' },
+    { id: 'jpa-aguesseau', nom: 'Fondation d’Aguesseau', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'contact@fda-fr.org', tel: '01 44 77 98 50', site: 'https://www.fda-fr.org', info: 'Membre de la Jeunesse au Plein Air.' },
+    { id: 'jpa-iforep', nom: 'IFOREP', cat: 'Organisateurs & formateurs', ville: 'Montreuil', email: 'muriel.marie@asmeg.org', tel: '01 48 18 69 12', site: 'https://www.iforep.fr', info: 'Institut de Formation, de Recherche et de Promotion.' },
+    { id: 'jpa-leolagrange', nom: 'Léo Lagrange', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'accueil.fnll@leolagrange.org', tel: '01 53 09 00 00', site: 'https://www.leolagrange.org', info: 'Fédération Léo Lagrange.' },
+    { id: 'jpa-laligue', nom: 'Ligue de l’enseignement (siège national)', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'dg@laligue.org', tel: '01 43 58 97 23', site: 'https://www.laligue.org', info: 'Siège national. L’antenne normande figure dans « Jeunesse & éducation ».' },
+    { id: 'jpa-pep', nom: 'PEP (fédération générale)', cat: 'Organisateurs & formateurs', ville: 'Créteil', email: 'accueil@lespep.org', tel: '01 41 78 92 60', site: 'https://www.lespep.org', info: 'Fédération générale. Les PEP 14 figurent dans « Jeunesse & éducation ».' },
+    { id: 'jpa-ucpa', nom: 'UCPA (siège)', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'bthomas@ucpa.asso.fr', tel: '01 45 87 45 87', site: 'https://www.ucpa.com', info: 'Contact du siège relevé dans la liste JPA. Le service groupes figure dans « Colonies & séjours ».' },
+    { id: 'jpa-atc', nom: 'ATC Routes du Monde', cat: 'Organisateurs & formateurs', ville: 'Paris', email: 'atc-siege@atc-routesdumonde.com', tel: '01 55 26 93 70', site: 'https://www.atc-routesdumonde.com', info: 'Association Touristique des Cheminots.' },
+    { id: 'jpa-ccas', nom: 'CCAS (siège)', cat: 'Organisateurs & formateurs', ville: 'Montreuil', email: 'cabinet.presidences-dg@asmeg.org', tel: '01 48 18 60 00', site: 'https://www.ccas.fr', info: 'Caisse Centrale d’Activités Sociales de l’Énergie (EDF). Contact du siège relevé dans la liste JPA.' },
+    { id: 'jpa-ratp', nom: 'CSEC-RATP', cat: 'Organisateurs & formateurs', ville: 'Bagnolet', email: 'dir.vacances-loisirs@ce-ratp.fr', tel: '01 58 78 93 00', site: 'https://www.ce.ratp.fr', info: 'Comité d’entreprise de la RATP, service vacances et loisirs.' },
+    { id: 'jpa-cgcv', nom: 'CGCV', cat: 'Organisateurs & formateurs', ville: 'La Défense', email: 'cgcvinfo@gmail.com', tel: '01 40 81 97 55', site: 'https://www.cgcv.org', info: 'Centres de vacances du ministère de l’Écologie.' },
     { id: 'cap-juniors', nom: 'Cap Juniors', cat: 'Colonies & séjours', ville: 'Vaulx-en-Velin (69)', email: '', tel: '04 78 79 64 04', site: 'https://www.capjuniors.com/nous-contacter.html', info: 'Agence de colonies 4-17 ans membre UNOSEL. L\'adresse e-mail relevée ne fonctionne plus : passez par le formulaire de leur site.' },
     { id: 'poneys-4-saisons', nom: 'Poneys des Quatre Saisons', cat: 'Colonies & séjours', ville: 'Épineau-les-Voves (89)', email: 'contact@p4s.fr', tel: '03 86 91 38 10', site: 'https://www.poneys-des-quatre-saisons.fr/', info: 'Spécialiste historique des colos équestres (6 centres, 350 équidés), e-mail relevé sur un annuaire, à confirmer au premier appel.' },
     { id: 'autrement-loisirs', nom: 'Autrement Loisirs et Voyages', cat: 'Colonies & séjours', ville: 'Sequedin (59)', email: '', tel: '', site: 'https://www.autrement-loisirs.com/', info: 'Organisateur de colonies 6-17 ans et classes de découvertes depuis 25 ans. L\'adresse e-mail relevée ne fonctionne pas : passez par le formulaire de leur site.' },
@@ -271,7 +297,7 @@
     { id: 'cos-caen', nom: 'COS du personnel municipal de la Ville de Caen', cat: 'CSE & entreprises', ville: 'Caen', email: '', tel: '', site: 'https://www.coscaen.fr/', info: 'Comité des œuvres sociales des agents municipaux caennais, subventionne vacances et loisirs des enfants, contact par formulaire.' }
   ];
 
-  var CATS = ['Toutes', 'Colonies & séjours', 'Jeunesse & éducation', 'Mairies & collectivités', 'CSE & entreprises'];
+  var CATS = ['Toutes', 'Colonies & séjours', 'Jeunesse & éducation', 'Mairies & collectivités', 'CSE & entreprises', 'Organisateurs & formateurs'];
   var STATUTS = ['À contacter', 'Présentation envoyée', 'Relancé', 'A répondu', 'Partenaire !', 'Pas intéressé'];
   var CLASSES = { 'Présentation envoyée': 'statut-envoye', 'Relancé': 'statut-relance', 'A répondu': 'statut-repondu', 'Partenaire !': 'statut-partenaire', 'Pas intéressé': 'statut-refus' };
 
@@ -434,12 +460,9 @@
 
   /* ============ Envoi groupé ============ */
   var ERREURS_BLOQUANTES = ['cle non configuree dans le script', 'cle incorrecte', 'sujet ou texte manquant', 'reseau'];
-  document.getElementById('btn-tous').addEventListener('click', function () {
-    var btn = this;
-    var etat = document.getElementById('etat-tous');
-    var cibles = tous().filter(function (c) { return c.email && etatDe(c).statut === 'À contacter'; });
+  function lancerEnvoiGroupe(btn, etat, cibles, messageVide) {
     if (!cibles.length) {
-      etat.textContent = 'Personne à contacter : tous les contacts avec une adresse e-mail ont déjà été traités.';
+      etat.textContent = messageVide;
       return;
     }
     var reglages = reglagesEnvoi();
@@ -490,6 +513,18 @@
     }
 
     suivant();
+  }
+
+  document.getElementById('btn-tous').addEventListener('click', function () {
+    lancerEnvoiGroupe(this, document.getElementById('etat-tous'),
+      tous().filter(function (c) { return c.email && etatDe(c).statut === 'À contacter'; }),
+      'Personne à contacter : tous les contacts avec une adresse e-mail ont déjà été traités.');
+  });
+
+  document.getElementById('btn-jpa').addEventListener('click', function () {
+    lancerEnvoiGroupe(this, document.getElementById('etat-jpa'),
+      tous().filter(function (c) { return c.cat === 'Organisateurs & formateurs' && c.email && etatDe(c).statut === 'À contacter'; }),
+      'Tous les organisateurs et formateurs ont déjà été contactés.');
   });
 
   document.getElementById('btn-test').addEventListener('click', function () {
