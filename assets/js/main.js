@@ -47,6 +47,19 @@
     });
   }
 
+  /* ---- Le bouton Inscription : malin selon la connexion ----
+     Déjà connecté : direct vers le choix cours / stages (inscription.html).
+     Pas connecté : vers la connexion / création de compte (compte.html).
+     L'icône « Mon compte » et le pied de page ne changent pas. */
+  try {
+    var sessionFamille = JSON.parse(localStorage.getItem('av:session'));
+    if (sessionFamille && sessionFamille.rafraichir) {
+      document.querySelectorAll('a.btn-nav[href="compte.html"], .menu-mobile a[href="compte.html"]').forEach(function (a) {
+        a.setAttribute('href', 'inscription.html');
+      });
+    }
+  } catch (e) { /* navigation privée : on garde compte.html */ }
+
   /* ---- Vidéo du hero : bascule sur le fond animé si absente ---- */
   var hero = document.querySelector('.hero-video');
   var video = hero && hero.querySelector('video');
