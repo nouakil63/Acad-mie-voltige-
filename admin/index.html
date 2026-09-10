@@ -42,6 +42,9 @@
     }
     .onglets button:hover{color:#fff;background:rgba(255,255,255,.05)}
     .onglets button.actif-onglet{color:#fff;border-left-color:var(--rouge);background:rgba(255,255,255,.06)}
+    /* les icônes et libellés courts ne servent que sur téléphone */
+    .onglets button svg{display:none}
+    .onglets button .court{display:none}
 
     .lateral .bas{
       padding:20px 22px;border-top:1px solid rgba(255,255,255,.08);
@@ -120,6 +123,7 @@
     .bloc-accueil{background:var(--blanc);border:1px solid var(--trait);border-radius:14px;padding:24px 28px;margin-bottom:18px}
     .bloc-accueil h3{font-size:15.5px;margin:0 0 12px}
     .bloc-accueil ul{list-style:none;margin:0;padding:0;font-size:13.5px;line-height:2.1;color:var(--texte-2)}
+    .bloc-accueil li .lien-doux{margin-left:14px}
 
     /* ---- Le planning en cases ---- */
     .grille-planning{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin-bottom:8px}
@@ -175,16 +179,109 @@
       font-weight:800;font-size:11.5px;letter-spacing:.02em;
     }
 
-    /* ---- Petit écran : la barre passe en haut ---- */
+    /* ---- Téléphone : une vraie application ----
+       Barre de marque en haut, onglets à icônes en bas (comme une appli),
+       tableaux transformés en cartes empilées. L'ordinateur ne change pas. */
     @media (max-width:860px){
       body{display:block}
-      .lateral{position:static;width:auto;height:auto}
-      .marque{padding:12px 16px;border-bottom:0}
-      .onglets{flex-direction:row;overflow-x:auto;padding:0 10px 10px;gap:4px}
-      .onglets button{border-left:0;border-bottom:3px solid transparent;padding:8px 12px;white-space:nowrap}
-      .onglets button.actif-onglet{border-bottom-color:var(--rouge);background:transparent}
-      .lateral .bas{flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 16px;gap:14px}
-      main{padding:20px 16px 60px}
+      body.connecte .lateral{display:contents}
+
+      /* la barre du haut : logo + nom + déconnexion */
+      .marque{
+        position:fixed;top:0;left:0;right:0;z-index:40;background:var(--encre);
+        padding:10px 96px 10px 16px;padding-top:calc(10px + env(safe-area-inset-top));border-bottom:0;
+      }
+      .marque img{width:30px;height:30px}
+      .marque b{font-size:14px}
+      .lateral .bas{
+        position:fixed;top:0;right:0;z-index:41;border-top:0;background:transparent;
+        padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+        display:flex;flex-direction:row;align-items:center;height:auto;
+      }
+      .lateral .bas #p-compte{display:none}
+      .lateral .bas a{color:#fff;font-size:11px;font-weight:600;border-bottom:1px solid var(--rouge);opacity:.9}
+      .lateral .bas a:not(#p-deconnexion){display:none}
+
+      /* la barre d'onglets en bas, avec les icônes */
+      .onglets{
+        position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--encre);
+        flex-direction:row;align-items:stretch;gap:0;
+        padding:7px 4px calc(9px + env(safe-area-inset-bottom));
+        border-top:1px solid rgba(255,255,255,.12);
+      }
+      .onglets button{
+        flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+        border-left:0;padding:4px 2px;font-size:9.5px;font-weight:700;letter-spacing:.03em;
+        color:#b9aeb2;white-space:nowrap;
+      }
+      .onglets button:hover{background:transparent}
+      .onglets button.actif-onglet{border-left:0;background:transparent;color:#fff}
+      .onglets button svg{display:block;width:21px;height:21px}
+      .onglets button.actif-onglet svg{color:#ff5d74}
+      .onglets button .long{display:none}
+      .onglets button .court{display:block}
+
+      /* la zone de travail entre les deux barres */
+      main{padding:calc(70px + env(safe-area-inset-top)) 16px calc(92px + env(safe-area-inset-bottom))}
+      body:not(.connecte) main{padding-top:24px}
+      body:not(.connecte) main > .pas{margin-top:6vh}
+      .titre-page{font-size:22px}
+      .sous-titre{margin-bottom:22px}
+      input,select,textarea{font-size:16px}
+
+      /* les chiffres en grille, les tuiles sur deux colonnes */
+      .chiffres{
+        display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:22px;
+        background:var(--blanc);border:1px solid var(--trait);border-radius:12px;overflow:hidden;
+      }
+      .chiffre{padding:14px 16px 12px;border-bottom:1px solid var(--trait)}
+      .chiffre:first-child{padding-left:16px}
+      .chiffre:nth-child(2n){border-right:0}
+      .chiffre:nth-last-child(-n+1){border-bottom:0}
+      .chiffre b{font-size:22px}
+      .tuiles{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+      .tuile{padding:15px 16px 13px}
+      .tuile b{font-size:20px;margin-bottom:5px}
+      .tuile span{font-size:9.5px}
+      .bloc-accueil{padding:18px 16px;border-radius:12px}
+      .bloc-accueil ul{line-height:1.75}
+      .bloc-accueil li{margin-bottom:12px}
+      .bloc-accueil li .lien-doux{margin-right:12px}
+
+      /* les tableaux deviennent des cartes empilées */
+      .cadre-tableau{background:transparent;border:0;border-radius:0;overflow:visible}
+      table.tableau,.tableau tbody{display:block}
+      .tableau thead{display:none}
+      .tableau tr{
+        display:block;background:var(--blanc);border:1px solid var(--trait);
+        border-left-width:3px;border-radius:12px;margin-bottom:12px;padding:15px 16px 13px;
+      }
+      .tableau tr.st-attente{border-left-color:#e0a800}
+      .tableau tr.st-validee{border-left-color:#1d7a3d}
+      .tableau tr.st-refusee{border-left-color:var(--rouge)}
+      .tableau tr.carte-famille{border-left-color:var(--encre)}
+      .tableau td{display:block;padding:3px 0;border-bottom:0;border-left:0;line-height:1.6}
+      .tableau td:first-child,.tableau td:nth-child(2),.tableau td:nth-child(3){border-left:0;min-width:0}
+      .tableau .nom{font-size:16.5px}
+      .tableau .quand{display:block;margin-top:2px}
+      .tableau .actions{margin-top:10px;flex-direction:row;flex-wrap:wrap;gap:10px 16px}
+      .tableau details pre{max-width:none}
+      .tableau select{max-width:100%}
+
+      /* filtres et actions qui respirent sous le pouce */
+      .filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+      .filtres button{white-space:nowrap;padding:9px 16px}
+      .actions .btn,main .btn{padding:11px 18px}
+      .lien-doux{padding:4px 0}
+
+      /* le planning et le panneau des inscrits */
+      .grille-planning{grid-template-columns:1fr 1fr;gap:10px}
+      .case-planning{padding:14px 14px 12px}
+      .case-planning b{font-size:14.5px}
+      #p-inscrits{padding:18px 16px;border-radius:12px}
+      #p-inscrits ul{line-height:1.8}
+      #p-inscrits ul li{margin-bottom:12px}
+      #p-inscrits ul .lien-doux{margin-left:0;margin-right:12px}
     }
   </style>
 </head>
@@ -199,11 +296,26 @@
     </span>
   </div>
   <nav class="onglets" aria-label="Sections">
-    <button type="button" class="actif-onglet" data-onglet="accueil">Tableau de bord</button>
-    <button type="button" data-onglet="demandes">Les demandes</button>
-    <button type="button" data-onglet="reservations">Le planning</button>
-    <button type="button" data-onglet="paiements">Les paiements</button>
-    <button type="button" data-onglet="familles">La base clients</button>
+    <button type="button" class="actif-onglet" data-onglet="accueil">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <span class="long">Tableau de bord</span><span class="court">Accueil</span>
+    </button>
+    <button type="button" data-onglet="demandes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>
+      <span class="long">Les demandes</span><span class="court">Demandes</span>
+    </button>
+    <button type="button" data-onglet="reservations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      <span class="long">Le planning</span><span class="court">Planning</span>
+    </button>
+    <button type="button" data-onglet="paiements">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10.5h19M6.5 15h4"/></svg>
+      <span class="long">Les paiements</span><span class="court">Paiements</span>
+    </button>
+    <button type="button" data-onglet="familles">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><path d="M16 5.6a3.2 3.2 0 0 1 0 5.8M18.5 14.8c1.9.8 3 2.3 3 4.2"/></svg>
+      <span class="long">La base clients</span><span class="court">Familles</span>
+    </button>
   </nav>
   <div class="bas">
     <span id="p-compte"></span>
