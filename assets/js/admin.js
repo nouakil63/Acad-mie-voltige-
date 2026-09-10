@@ -18,7 +18,11 @@
   var VUES = ['p-attente', 'p-connexion', 'p-refuse', 'p-tableau'];
   var DUREE_TRIMESTRE = 90; /* jours : 13 semaines de cours */
   var ACOMPTE_STAGE = 300;   /* euros, dus a l'inscription ; solde 30 jours avant le stage */
-  var CAPACITE_COURS = 8;    /* places par cours du mercredi (dites-le a Claude pour changer) */
+  var CAPACITE_COURS = 8;    /* places par cours (dites-le a Claude pour changer) */
+  /* MERCREDI EN PAUSE : les cours ont lieu le samedi pour l'instant.
+     Pour revenir au mercredi : JOUR_COURS = 3 et NOM_JOUR_COURS = 'mercredi'. */
+  var JOUR_COURS = 6;
+  var NOM_JOUR_COURS = 'samedi';
 
   function el(id) { return document.getElementById(id); }
   function montrer(vue) {
@@ -139,7 +143,7 @@
 
     var lProchains = el('l-prochains');
     lProchains.innerHTML = '';
-    var mercredi = prochainsMercredis(1)[0];
+    var mercredi = prochainsJoursCours(1)[0];
     var nMercredi = reservations.filter(function (r) { return r.date === mercredi; }).length;
     var liM = document.createElement('li');
     liM.textContent = 'Cours du ' + jourLisible(mercredi) + ' : ' + nMercredi + '/' + CAPACITE_COURS + ' inscrits';
@@ -1070,12 +1074,12 @@
     return isoLocal(d);
   }
 
-  function prochainsMercredis(n) {
+  function prochainsJoursCours(n) {
     var jours = [];
     var d = new Date();
     d.setHours(12, 0, 0, 0);
     while (jours.length < n) {
-      if (d.getDay() === 3) { jours.push(isoLocal(d)); }
+      if (d.getDay() === JOUR_COURS) { jours.push(isoLocal(d)); }
       d.setDate(d.getDate() + 1);
     }
     return jours;
@@ -1117,7 +1121,7 @@
       if (r.date >= aujourdHui) { (parDate[r.date] = parDate[r.date] || []).push(r); }
     });
     var dates = {};
-    prochainsMercredis(8).forEach(function (d) { dates[d] = true; });
+    prochainsJoursCours(8).forEach(function (d) { dates[d] = true; });
     Object.keys(parDate).forEach(function (d) { dates[d] = true; });
     Object.keys(dates).sort().forEach(function (date) {
       var n = (parDate[date] || []).length;
@@ -1207,7 +1211,7 @@
       actions.appendChild(lienAction('Feuille de présence', function () {
         ouvrirFeuille({
           titre: 'Cours du ' + jourLisible(date),
-          sousTitre: 'Cours de voltige · 14h00 à 16h00',
+          sousTitre: 'Cours de voltige du ' + NOM_JOUR_COURS,
           colonnes: ['Présent'],
           lignes: inscrits.map(function (r) { return { nom: r.enfant || 'Voltigeur', info: r.email || '' }; })
         });
@@ -1249,7 +1253,7 @@
     nuage.requeteAuth('/rest/v1/reservations', {
       method: 'POST',
       headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({ abonnement_id: null, enfant: enfant.trim(), email: email.trim(), jour: 'mercredi', date: date, semaine: lundiDe(date) })
+      body: JSON.stringify({ abonnement_id: null, enfant: enfant.trim(), email: email.trim(), jour: NOM_JOUR_COURS, date: date, semaine: lundiDe(date) })
     }).then(function (r) {
       if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v7, a-t-il été joué dans Supabase ?).'); return; }
       chargerReservations();

@@ -323,11 +323,12 @@
     while (lundi <= abonnement.fin && nbSemaines < 20) {
       nbSemaines++;
       var base = depuisIso(lundi);
-      /* SAMEDI EN PAUSE : pour rouvrir le samedi aux abonnés, décommentez
-         la deuxième ligne (et son pendant dans inscription-cours.js). */
+      /* MERCREDI EN PAUSE : les cours ont lieu le samedi pour l'instant.
+         Pour rouvrir le mercredi, décommentez la deuxième ligne (et son
+         pendant dans inscription-cours.js et admin.js). */
       var jours = [
-        { jour: 'mercredi', decalage: 2 }
-        /* , { jour: 'samedi', decalage: 5 } */
+        { jour: 'samedi', decalage: 5 }
+        /* , { jour: 'mercredi', decalage: 2 } */
       ];
       var rang = document.createElement('div');
       rang.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap';

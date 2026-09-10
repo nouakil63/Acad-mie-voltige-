@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '19';
+var VERSION_SCRIPT = '20';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -639,7 +639,7 @@ function traiterConfirmationResa(d) {
   var enfant = nettoyer(d.enfant) || 'votre voltigeur';
   var quand = nettoyer(d.quand) || 'mercredi choisi';
   var titre = 'Réservation confirmée !';
-  var intro = 'C’est noté : <b>' + enfant + '</b> est attendu(e) au cours de voltige du <b>' + quand + '</b>, de 14h00 à 16h00, à l’académie (Auberville).' +
+  var intro = 'C’est noté : <b>' + enfant + '</b> est attendu(e) au cours de voltige du <b>' + quand + '</b>, à l’académie (Auberville).' +
     '<br><br>Un empêchement ? Vous pouvez annuler jusqu’à la veille depuis votre espace « Mon compte » sur le site.';
   GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
     htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
@@ -657,7 +657,7 @@ function traiterPlaceLibre(d) {
   var enfant = nettoyer(d.enfant) || 'votre voltigeur';
   var quand = nettoyer(d.quand) || 'mercredi';
   var titre = 'Une place s’est libérée !';
-  var intro = 'Bonne nouvelle : une place vient de se libérer pour le cours de voltige du <b>' + quand + '</b> (14h00 à 16h00), et <b>' + enfant + '</b> est en tête de la liste d’attente.' +
+  var intro = 'Bonne nouvelle : une place vient de se libérer pour le cours de voltige du <b>' + quand + '</b>, et <b>' + enfant + '</b> est en tête de la liste d’attente.' +
     '<br><br>Réservez vite depuis votre espace « Mon compte » sur le site, ou répondez simplement à ce message.';
   GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
     htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
@@ -810,7 +810,7 @@ function rappelsVeille() {
   Object.keys(parEmail).forEach(function (email) {
     var noms = parEmail[email].join(' et ');
     var titre = 'À demain à l’académie !';
-    var intro = 'Petit rappel : <b>' + noms + '</b> est attendu(e) demain, <b>' + joli + '</b>, pour le cours de voltige de 14h00 à 16h00.' +
+    var intro = 'Petit rappel : <b>' + noms + '</b> est attendu(e) demain, <b>' + joli + '</b>, pour son cours de voltige à l’académie.' +
       '<br><br>Un empêchement ? Répondez simplement à ce message.';
     GmailApp.sendEmail(email, titre, intro.replace(/<[^>]+>/g, ''), {
       htmlBody: gabaritMail(titre, intro, [], [], 'À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
