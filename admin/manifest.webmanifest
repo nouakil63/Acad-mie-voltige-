@@ -1,0 +1,15 @@
+{
+  "name": "Académie de voltige · Espace académie",
+  "short_name": "Académie CRM",
+  "description": "La plateforme de l'Académie de voltige équestre : demandes, planning, paiements, familles.",
+  "lang": "fr",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#1D1216",
+  "theme_color": "#1D1216",
+  "icons": [
+    { "src": "/assets/img/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/img/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
