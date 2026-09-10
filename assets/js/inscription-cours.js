@@ -12,9 +12,10 @@
   };
   var SEMAINES = 10; /* nombre de semaines proposées sur le planning */
 
-  /* SAMEDI EN PAUSE : pour rouvrir les cours du samedi, remettez
-     JOURS_COURS = ['mercredi', 'samedi'] (tout le reste suit). */
-  var JOURS_COURS = ['mercredi'];
+  /* MERCREDI EN PAUSE : les cours ont lieu le samedi pour l'instant.
+     Pour rouvrir le mercredi, remettez JOURS_COURS = ['mercredi', 'samedi']
+     (tout le reste suit). */
+  var JOURS_COURS = ['samedi'];
 
   /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
   var PAIEMENTS = {
