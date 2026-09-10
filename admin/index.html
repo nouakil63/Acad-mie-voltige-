@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="Académie CRM">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="../assets/css/style.css?v=33">
-  <link rel="stylesheet" href="../assets/css/admin.css?v=22">
+  <link rel="stylesheet" href="../assets/css/admin.css?v=23">
 </head>
 <body>
 <a class="acces-rapide" href="#crm-main">Aller au contenu</a>
@@ -147,25 +147,30 @@
 
     <!-- Les demandes -->
     <section id="o-demandes" aria-labelledby="titre-demandes" hidden>
-      <h2 class="sr-only" id="titre-demandes">Les demandes</h2>
-      <details class="crm-guide">
-        <summary>Comment traiter une demande ?</summary>
-        <p>Pour un stage, validez la demande pour envoyer le lien de paiement de l’acompte. Pour un cours, validez puis appelez la famille : vous pourrez ensuite enregistrer le créneau et envoyer les informations de paiement. Un refus envoie un message avec le motif choisi.</p>
-      </details>
       <a href="#" id="a-rafraichir" hidden>Actualiser les demandes</a>
-      <div class="actions crm-section-actions">
-        <button type="button" class="btn btn-rouge" id="b-ajout-demande"><span>Ajouter une demande</span></button>
-        <button type="button" class="lien-doux" id="b-export-demandes">Exporter (Excel)</button>
+      <div class="crm-workspace">
+      <div class="crm-workspace-toolbar">
+        <div>
+          <h2 id="titre-demandes">Dossiers des familles</h2>
+          <p id="resultats-demandes" class="crm-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
+        <div class="actions crm-toolbar-actions">
+          <button type="button" class="btn btn-contour crm-export" id="b-export-demandes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter (Excel)</span></button>
+          <button type="button" class="btn btn-rouge" id="b-ajout-demande"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Ajouter une demande</span></button>
+        </div>
       </div>
       <div class="crm-filter-panel">
         <div class="crm-filter-grid">
           <div class="champ crm-search-field">
             <label for="d-recherche">Rechercher une demande</label>
-            <input id="d-recherche" type="search" placeholder="Voltigeur, parent, e-mail, stage…" autocomplete="off">
+            <div class="crm-search-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="d-recherche" type="search" placeholder="Un nom, un e-mail, un stage…" autocomplete="off"></div>
           </div>
+          <details class="crm-advanced-filters" open>
+          <summary>Filtres et tri <span id="crm-active-filters"></span></summary>
+          <div class="crm-advanced-fields">
           <div class="champ">
             <label for="f-type">Activité</label>
-            <select id="f-type"><option value="tous">Toutes les activités</option><option value="cours">Cours</option><option value="stage">Stages</option></select>
+            <select id="f-type"><option value="tous">Toutes</option><option value="cours">Cours</option><option value="stage">Stages</option></select>
           </div>
           <div class="champ">
             <label for="f-suivi">Suivi</label>
@@ -175,17 +180,23 @@
             <label for="f-tri">Trier par</label>
             <select id="f-tri"><option value="recent">Plus récentes</option><option value="ancien">Plus anciennes</option><option value="enfant">Nom du voltigeur</option></select>
           </div>
+          </div>
+          </details>
         </div>
       <div class="filtres" id="a-filtres" role="group" aria-label="Statut des demandes">
-        <button type="button" class="actif-filtre" data-filtre="toutes">Toutes</button>
-        <button type="button" data-filtre="en attente">En attente</button>
-        <button type="button" data-filtre="validée">Validées</button>
-        <button type="button" data-filtre="refusée">Refusées</button>
+        <button type="button" class="actif-filtre" data-filtre="toutes">Toutes <span data-status-count="toutes">—</span></button>
+        <button type="button" data-filtre="en attente"><i class="crm-status-dot" aria-hidden="true"></i>En attente <span data-status-count="en attente">—</span></button>
+        <button type="button" data-filtre="validée"><i class="crm-status-dot" aria-hidden="true"></i>Validées <span data-status-count="validée">—</span></button>
+        <button type="button" data-filtre="refusée"><i class="crm-status-dot" aria-hidden="true"></i>Refusées <span data-status-count="refusée">—</span></button>
       </div>
       </div>
-      <p id="resultats-demandes" class="crm-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
       <p class="message" id="m-liste" role="alert" hidden></p>
       <div id="a-demandes" class="crm-data-list"></div>
+      </div>
+      <details class="crm-guide crm-page-guide">
+        <summary>Comment traiter une demande ?</summary>
+        <p>Pour un stage, validez la demande pour envoyer le lien de paiement de l’acompte. Pour un cours, validez puis appelez la famille : vous pourrez ensuite enregistrer le créneau et envoyer les informations de paiement. Un refus envoie un message avec le motif choisi.</p>
+      </details>
     </section>
 
     <!-- Le planning -->
@@ -203,23 +214,52 @@
     <!-- Les paiements -->
     <section id="o-paiements" aria-labelledby="titre-paiements" hidden>
       <h2 class="sr-only" id="titre-paiements">Les paiements</h2>
-      <p class="sous-titre">Suivez les règlements et les montants encore dus. Pour les stages : acompte de 300&nbsp;€ à l’inscription, puis solde au plus tard 30 jours avant le début du stage. Le trimestre de cours est dû indépendamment des présences.</p>
-      <div class="actions crm-section-actions">
-        <button type="button" class="btn btn-contour" id="b-stripe"><span>Vérifier les paiements Stripe</span></button>
-        <button type="button" class="lien-doux" id="b-export-paiements">Exporter (Excel)</button>
-        <span class="quand" id="m-stripe" role="status" aria-live="polite"></span>
+      <div class="crm-payment-overview" role="group" aria-label="Afficher les paiements par situation">
+        <button type="button" class="crm-payment-metric is-selected" data-payment-view="du" aria-pressed="true" aria-controls="payment-view-du">
+          <span class="crm-metric-label">À encaisser</span><strong id="t-encaisser">—</strong>
+          <span class="crm-metric-footer"><span id="pc-due-count">— dossiers</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
+        </button>
+        <button type="button" class="crm-payment-metric" data-payment-view="regle" aria-pressed="false" aria-controls="payment-view-regle">
+          <span class="crm-metric-label">Dossiers réglés</span><strong id="t-payes">—</strong>
+          <span class="crm-metric-footer"><span id="pc-paid-count">— dossiers</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
+        </button>
+        <button type="button" class="crm-payment-metric" data-payment-view="annule" aria-pressed="false" aria-controls="payment-view-annule">
+          <span class="crm-metric-label">Remboursements déclarés</span><strong id="t-annules">—</strong>
+          <span class="crm-metric-footer"><span id="pc-cancel-count">— annulations</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
+        </button>
       </div>
-      <div id="stripe-propositions" class="crm-stripe-propositions"></div>
-      <div class="champ crm-search-standalone">
-        <label for="f-paiement-recherche">Rechercher un règlement</label>
-        <input id="f-paiement-recherche" type="search" placeholder="Voltigeur, parent, e-mail, stage…" autocomplete="off">
+      <div class="crm-workspace">
+        <div class="crm-workspace-toolbar crm-payment-toolbar">
+          <div class="champ crm-payment-search">
+            <label for="f-paiement-recherche">Rechercher un règlement</label>
+            <div class="crm-search-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="f-paiement-recherche" type="search" placeholder="Un nom, un e-mail, un stage…" autocomplete="off"></div>
+          </div>
+          <button type="button" class="btn btn-contour crm-export" id="b-export-paiements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter (Excel)</span></button>
+        </div>
+        <p id="resultats-paiements" class="crm-payment-results" role="status" aria-live="polite" aria-atomic="true"></p>
+        <section id="payment-view-du" class="crm-payment-view" aria-labelledby="payment-title-du">
+          <div class="crm-list-heading"><div><h3 id="payment-title-du">Règlements à recevoir</h3><p>Les montants encore dus, dossier par dossier.</p></div><span class="crm-list-marker crm-list-marker-due" aria-hidden="true"></span></div>
+          <div id="a-encaisser" class="crm-data-list"></div>
+        </section>
+        <section id="payment-view-regle" class="crm-payment-view" aria-labelledby="payment-title-regle" hidden>
+          <div class="crm-list-heading"><div><h3 id="payment-title-regle">Dossiers réglés</h3><p>Les inscriptions dont le règlement est complet.</p></div><span class="crm-list-marker crm-list-marker-paid" aria-hidden="true"></span></div>
+          <div id="a-payes" class="crm-data-list"></div>
+        </section>
+        <section id="payment-view-annule" class="crm-payment-view" aria-labelledby="payment-title-annule" hidden>
+          <div class="crm-list-heading"><div><h3 id="payment-title-annule">Annulations et remboursements</h3><p>Les inscriptions annulées et les remboursements déclarés.</p></div><span class="crm-list-marker crm-list-marker-cancel" aria-hidden="true"></span></div>
+          <div id="a-annules" class="crm-data-list"></div>
+        </section>
       </div>
-      <h3 class="crm-section-title">À encaisser <span class="quand crm-inline-count" id="t-encaisser"></span></h3>
-      <div id="a-encaisser" class="crm-data-list crm-data-list-spaced"></div>
-      <h3 class="crm-section-title">Encaissés <span class="quand crm-inline-count" id="t-payes"></span></h3>
-      <div id="a-payes" class="crm-data-list crm-data-list-spaced"></div>
-      <h3 class="crm-section-title">Annulations et remboursements déclarés <span class="quand crm-inline-count" id="t-annules"></span></h3>
-      <div id="a-annules" class="crm-data-list"></div>
+      <aside class="crm-stripe-panel" aria-labelledby="crm-stripe-title">
+        <div class="crm-stripe-heading"><span class="crm-stripe-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></svg></span><div><h3 id="crm-stripe-title">Rapprocher les paiements Stripe</h3><p>Retrouvez les règlements en ligne à associer aux inscriptions.</p></div></div>
+        <button type="button" class="btn btn-contour" id="b-stripe"><span>Vérifier les paiements Stripe</span><span aria-hidden="true">↗</span></button>
+        <p id="m-stripe" class="crm-stripe-status" role="status" aria-live="polite"></p>
+        <div id="stripe-propositions" class="crm-stripe-propositions"></div>
+      </aside>
+      <details class="crm-guide crm-page-guide">
+        <summary>Échéances et modalités de règlement</summary>
+        <p>Pour les stages : acompte de 300&nbsp;€ à l’inscription, puis solde au plus tard 30 jours avant le début du stage. Le trimestre de cours est dû indépendamment des présences. Un remboursement déclaré dans le CRM n’effectue aucune opération bancaire.</p>
+      </details>
     </section>
 
     <!-- La base clients -->
@@ -243,7 +283,7 @@
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=3"></script>
 <script src="../assets/js/admin-core.js?v=22"></script>
-<script src="../assets/js/admin-ui.js?v=22"></script>
-<script src="../assets/js/admin.js?v=22"></script>
+<script src="../assets/js/admin-ui.js?v=23"></script>
+<script src="../assets/js/admin.js?v=23"></script>
 </body>
 </html>

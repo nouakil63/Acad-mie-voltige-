@@ -575,9 +575,9 @@
 
   /* Un tableau type CRM : en-tetes de colonnes + corps, dans un cadre
      qui defile horizontalement sur petit ecran. */
-  function fabriquerTableau(conteneur, colonnes) {
+  function fabriquerTableau(conteneur, colonnes, classe) {
     var cadre = document.createElement('div');
-    cadre.className = 'cadre-tableau';
+    cadre.className = 'cadre-tableau' + (classe ? ' ' + classe : '');
     var table = document.createElement('table');
     table.className = 'tableau';
     var thead = document.createElement('thead');
@@ -607,142 +607,140 @@
     return td;
   }
 
+  /* Présentation commune aux demandes et aux paiements ; les règles de
+     calcul et les callbacks métier restent dans leurs fonctions dédiées. */
+  var formatEuros = new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2
+  });
+  function euros(valeur) { return formatEuros.format(Number(valeur) || 0); }
+  function elementFiche(balise, classe, texte) {
+    var element = document.createElement(balise);
+    if (classe) { element.className = classe; }
+    if (texte != null) { element.textContent = String(texte); }
+    return element;
+  }
+  function actionSensible(texte, surClic) {
+    var bouton = lienAction(texte, surClic);
+    bouton.classList.add('crm-action-danger');
+    return bouton;
+  }
+  function badgeActivite(d) {
+    return elementFiche('span', 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours'), d.type === 'stage' ? 'Stage' : 'Cours');
+  }
+  function identiteFiche(d, avecInscription) {
+    var celluleIdentite = elementFiche('td', 'crm-record-person');
+    var personne = elementFiche('div', 'crm-person');
+    var nom = d.enfant || 'Voltigeur';
+    var initiales = nom.trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
+    var avatar = elementFiche('span', 'crm-avatar', initiales);
+    avatar.setAttribute('aria-hidden', 'true');
+    var copie = elementFiche('div', 'crm-person-copy');
+    copie.appendChild(elementFiche('span', 'nom', nom));
+    copie.appendChild(elementFiche('span', 'crm-record-meta', d.parent_nom || 'Parent non renseigné'));
+    copie.appendChild(elementFiche('span', 'crm-record-meta crm-record-email', d.parent_email || 'E-mail non renseigné'));
+    if (avecInscription) {
+      var inscription = elementFiche('div', 'crm-person-offer');
+      inscription.appendChild(badgeActivite(d));
+      inscription.appendChild(elementFiche('span', 'crm-record-detail', detailCourt(d) || 'Inscription'));
+      copie.appendChild(inscription);
+    } else if (d.cree) {
+      copie.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', 'Reçue le ' + quandLisible(d.cree)));
+    }
+    personne.appendChild(avatar);
+    personne.appendChild(copie);
+    celluleIdentite.appendChild(personne);
+    return celluleIdentite;
+  }
+  function actionsFiche(d) {
+    var celluleActions = elementFiche('td', 'crm-record-actions');
+    var contenu = elementFiche('div', 'crm-row-actions');
+    var menu = elementFiche('details', 'crm-actions-menu');
+    var resume = elementFiche('summary', '', 'Gérer');
+    resume.setAttribute('aria-label', 'Gérer le dossier de ' + (d.enfant || 'ce voltigeur'));
+    var secondaires = elementFiche('div', 'crm-actions-menu-content');
+    menu.appendChild(resume);
+    menu.appendChild(secondaires);
+    contenu.appendChild(menu);
+    celluleActions.appendChild(contenu);
+    return {
+      cellule: celluleActions, contenu: contenu, menu: menu, secondaires: secondaires,
+      principale: function (bouton) {
+        bouton.className = 'btn btn-rouge crm-record-primary';
+        contenu.insertBefore(bouton, menu);
+        return bouton;
+      },
+      terminer: function () { if (!secondaires.children.length) { menu.remove(); } }
+    };
+  }
+
   function lignePaiement(d, groupe) {
-    var ligne = document.createElement('tr');
-    ligne.className = 'carte-demande st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente');
+    var ligne = elementFiche('tr', 'carte-demande crm-record-row st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente'));
+    ligne.appendChild(identiteFiche(d, true));
 
-    var type = document.createElement('span');
-    type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
-    type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    cellule(ligne, type);
-
-    var qui = document.createElement('td');
-    var nom = document.createElement('span');
-    nom.className = 'nom';
-    nom.textContent = d.enfant || 'Voltigeur';
-    qui.appendChild(nom);
-    var parent = document.createElement('div');
-    parent.className = 'corps';
-    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
-    qui.appendChild(parent);
-    ligne.appendChild(qui);
-
-    var montant = document.createElement('td');
-    montant.appendChild(document.createTextNode(d.tarif || ''));
     var reste = resteAEncaisser(d);
-    if (groupe === 'du' && d.type === 'stage') {
-      var du = document.createElement('div');
-      du.className = 'corps';
-      du.textContent = 'reste dû : ' + reste + ' €';
-      montant.appendChild(du);
+    var recu = dejaEncaisse(d);
+    var remboursement = montantNumerique(d.rembourse_montant);
+    var montant = elementFiche('td', 'crm-record-amount');
+    montant.appendChild(elementFiche('span', 'crm-money', euros(groupe === 'du' ? reste : groupe === 'annule' ? remboursement : recu)));
+    montant.appendChild(elementFiche('span', 'crm-record-meta', groupe === 'du' ? 'Reste à encaisser' : groupe === 'annule' ? 'Remboursement déclaré' : 'Montant encaissé'));
+    montant.appendChild(elementFiche('span', 'crm-record-meta', 'Tarif total : ' + euros(core.total(d))));
+    if (groupe === 'du' && recu > 0) {
+      montant.appendChild(elementFiche('span', 'crm-record-meta', 'Déjà reçu : ' + euros(recu)));
     }
     ligne.appendChild(montant);
 
-    var etat = document.createElement('td');
+    var etat = elementFiche('td', 'crm-record-status');
+    var badges = elementFiche('div', 'crm-status-badges');
     if (groupe === 'annule') {
-      var pAnnule = document.createElement('span');
-      pAnnule.className = 'pastille refusee';
-      pAnnule.textContent = 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : ' · sans remboursement');
-      etat.appendChild(pAnnule);
+      badges.appendChild(elementFiche('span', 'pastille refusee', 'Inscription annulée'));
+      badges.appendChild(elementFiche('span', 'crm-record-meta', remboursement ? 'Remboursement déclaré' : 'Sans remboursement'));
     } else if (d.type === 'stage') {
-      etat.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
-      etat.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      etat.appendChild(pastilleEtat((reste > 0 ? 'partiellement réglé' : 'payé') + (d.paye_montant ? ' · ' + d.paye_montant : ''), reste === 0));
+      badges.appendChild(pastilleEtat(reste > 0 ? 'Partiellement réglé' : 'Réglé', reste === 0));
     } else {
-      etat.appendChild(pastilleEtat('À régler', false));
+      badges.appendChild(pastilleEtat('À régler', false));
     }
+    etat.appendChild(badges);
+    var dateTexte = groupe === 'annule' && d.annule_le
+      ? 'Annulée le ' + new Date(d.annule_le + 'T12:00:00').toLocaleDateString('fr-FR')
+      : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
+        ? 'Réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
+        : d.cree ? 'Demande du ' + quandLisible(d.cree) : '';
+    if (dateTexte) { etat.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', dateTexte)); }
     ligne.appendChild(etat);
 
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = groupe === 'annule' && d.annule_le
-      ? 'annulé le ' + new Date(d.annule_le + 'T12:00:00').toLocaleDateString('fr-FR')
-      : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
-        ? 'réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
-        : quandLisible(d.cree);
-    cellule(ligne, quand);
-
-    var actions = document.createElement('div');
-    actions.className = 'actions';
-
+    var actions = actionsFiche(d);
+    var secondaires = actions.secondaires;
     if (groupe === 'annule') {
-      var retablir = document.createElement('button');
-      retablir.type = 'button';
-      retablir.className = 'lien-doux';
-      retablir.textContent = 'Rétablir l’inscription';
-      retablir.addEventListener('click', function () { retablirDemande(d); });
-      actions.appendChild(retablir);
+      actions.principale(lienAction('Rétablir l’inscription', function () { retablirDemande(d); }));
     } else if (d.type === 'stage') {
       if (!d.acompte_paye) {
-        var bAcompte = document.createElement('button');
-        bAcompte.type = 'button';
-        bAcompte.className = 'btn btn-rouge';
-        bAcompte.innerHTML = '<span>Acompte reçu</span>';
-        bAcompte.addEventListener('click', function () { marquerAcompte(d); });
-        actions.appendChild(bAcompte);
-        var rAcompte = document.createElement('button');
-        rAcompte.type = 'button';
-        rAcompte.className = 'lien-doux';
-        rAcompte.textContent = 'Relancer l’acompte';
-        rAcompte.addEventListener('click', function () { relancer(d, 'acompte'); });
-        actions.appendChild(rAcompte);
+        actions.principale(lienAction('Acompte reçu', function () { marquerAcompte(d); }));
+        secondaires.appendChild(lienAction('Relancer l’acompte', function () { relancer(d, 'acompte'); }));
       } else if (!d.solde_paye) {
-        var bSolde = document.createElement('button');
-        bSolde.type = 'button';
-        bSolde.className = 'btn btn-rouge';
-        bSolde.innerHTML = '<span>Solde reçu</span>';
-        bSolde.addEventListener('click', function () { marquerSolde(d); });
-        actions.appendChild(bSolde);
-        var rSolde = document.createElement('button');
-        rSolde.type = 'button';
-        rSolde.className = 'lien-doux';
-        rSolde.textContent = 'Relancer le solde';
-        rSolde.addEventListener('click', function () { relancer(d, 'solde'); });
-        actions.appendChild(rSolde);
+        actions.principale(lienAction('Solde reçu', function () { marquerSolde(d); }));
+        secondaires.appendChild(lienAction('Relancer le solde', function () { relancer(d, 'solde'); }));
       }
       if (!(d.acompte_paye && d.solde_paye)) {
-        var totalite = document.createElement('button');
-        totalite.type = 'button';
-        totalite.className = 'lien-doux';
-        totalite.textContent = 'Réglé en totalité';
-        totalite.addEventListener('click', function () { reglerTotalite(d); });
-        actions.appendChild(totalite);
+        secondaires.appendChild(lienAction('Réglé en totalité', function () { reglerTotalite(d); }));
       } else {
-        actions.appendChild(lienAction('Retirer les marques « payé »', function () { retirerMarques(d); }));
+        secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { retirerMarques(d); }));
       }
-      var annuler = document.createElement('button');
-      annuler.type = 'button';
-      annuler.className = 'lien-doux';
-      annuler.textContent = 'Annuler / déclarer un remboursement';
-      annuler.addEventListener('click', function () { annulerDemande(d); });
-      actions.appendChild(annuler);
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
     } else if (groupe === 'regle') {
-      actions.appendChild(lienAction('Modifier le montant', function () { modifierMontant(d); }));
-      var retirer = document.createElement('button');
-      retirer.type = 'button';
-      retirer.className = 'lien-doux';
-      retirer.textContent = 'Retirer la marque « payé »';
-      retirer.addEventListener('click', function () { annulerPaye(d); });
-      actions.appendChild(retirer);
+      actions.principale(lienAction('Modifier le montant', function () { modifierMontant(d); }));
+      secondaires.appendChild(actionSensible('Retirer la marque « payé »', function () { annulerPaye(d); }));
     } else {
-      var payer = document.createElement('button');
-      payer.type = 'button';
-      payer.className = 'btn btn-rouge';
-      payer.innerHTML = '<span>Marquer payé</span>';
-      payer.addEventListener('click', function () { marquerPaye(d); });
-      actions.appendChild(payer);
-      var rPaiement = document.createElement('button');
-      rPaiement.type = 'button';
-      rPaiement.className = 'lien-doux';
-      rPaiement.textContent = 'Relancer le paiement';
-      rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
-      actions.appendChild(rPaiement);
+      actions.principale(lienAction('Marquer payé', function () { marquerPaye(d); }));
+      secondaires.appendChild(lienAction('Relancer le paiement', function () { relancer(d, 'paiement'); }));
     }
     if (d.type !== 'stage' && groupe !== 'annule') {
-      actions.appendChild(lienAction('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
     }
-    cellule(ligne, actions);
+    actions.terminer();
+    ligne.appendChild(actions.cellule);
     return ligne;
   }
 
@@ -755,51 +753,47 @@
     payes.innerHTML = '';
     annules.innerHTML = '';
 
-    var mot=el('f-paiement-recherche') ? el('f-paiement-recherche').value : '';
-    var selection=demandes.filter(function(d){return core.matches(d,mot);});
+    var mot = el('f-paiement-recherche') ? el('f-paiement-recherche').value : '';
+    var selection = demandes.filter(function (d) { return core.matches(d, mot); });
     var dus = selection.filter(function (d) { return resteAEncaisser(d) > 0; });
     var regles = selection.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
     var lesAnnules = selection.filter(function (d) { return d.annule; });
 
-    var COLONNES_PAIEMENTS = ['Type', 'Voltigeur', 'Montant', 'État', 'Date', 'Actions'];
+    var colonnes = ['Famille / inscription', 'Montant', 'Suivi', 'Actions'];
     var totalDu = 0, totalRegle = 0, totalRembourse = 0;
     if (dus.length) {
-      var corpsDus = fabriquerTableau(encaisser, COLONNES_PAIEMENTS);
+      var corpsDus = fabriquerTableau(encaisser, colonnes, 'crm-record-table crm-payment-table');
       dus.forEach(function (d) { totalDu += resteAEncaisser(d); corpsDus.appendChild(lignePaiement(d, 'du')); });
     }
     if (regles.length) {
-      var corpsRegles = fabriquerTableau(payes, COLONNES_PAIEMENTS);
+      var corpsRegles = fabriquerTableau(payes, colonnes, 'crm-record-table crm-payment-table');
       regles.forEach(function (d) { totalRegle += dejaEncaisse(d); corpsRegles.appendChild(lignePaiement(d, 'regle')); });
     }
     if (lesAnnules.length) {
-      var corpsAnnules = fabriquerTableau(annules, COLONNES_PAIEMENTS);
+      var corpsAnnules = fabriquerTableau(annules, colonnes, 'crm-record-table crm-payment-table');
       lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); corpsAnnules.appendChild(lignePaiement(d, 'annule')); });
     }
 
-    el('t-encaisser').textContent = dus.length ? totalDu + ' €' : '';
-    el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
-    el('t-annules').textContent = lesAnnules.length ? totalRembourse + ' € de remboursements déclarés' : '';
-
+    el('t-encaisser').textContent = euros(totalDu);
+    el('t-payes').textContent = euros(totalRegle);
+    el('t-annules').textContent = euros(totalRembourse);
+    [['pc-due-count', dus.length, 'dossier'], ['pc-paid-count', regles.length, 'dossier'], ['pc-cancel-count', lesAnnules.length, 'annulation']].forEach(function (compteur) {
+      if (el(compteur[0])) { el(compteur[0]).textContent = compteur[1] + ' ' + compteur[2] + (compteur[1] > 1 ? 's' : ''); }
+    });
+    if (el('resultats-paiements')) {
+      var nombre = dus.length + regles.length + lesAnnules.length;
+      el('resultats-paiements').textContent = nombre + (nombre > 1 ? ' dossiers' : ' dossier') + (mot.trim() ? ' · Les montants suivent votre recherche.' : ' dans le suivi des règlements.');
+    }
     if (!dus.length) {
-      var v1 = document.createElement('p');
-      v1.className = 'aide';
-      v1.textContent = 'Rien à encaisser : toutes les demandes validées sont réglées.';
-      encaisser.appendChild(v1);
+      encaisser.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucun montant à encaisser pour cette recherche.' : 'Rien à encaisser : toutes les demandes validées sont réglées.'));
     }
     if (!regles.length) {
-      var v2 = document.createElement('p');
-      v2.className = 'aide';
-      v2.textContent = 'Aucun paiement complet pour l’instant.';
-      payes.appendChild(v2);
+      payes.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucun règlement complet pour cette recherche.' : 'Aucun paiement complet pour l’instant.'));
     }
     if (!lesAnnules.length) {
-      var v3 = document.createElement('p');
-      v3.className = 'aide';
-      v3.textContent = 'Aucune annulation.';
-      annules.appendChild(v3);
+      annules.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucune annulation pour cette recherche.' : 'Aucune annulation.'));
     }
   }
-
 
   /* ================= Les feuilles de présence ================= */
   function ouvrirFeuille(feuille) {
@@ -923,184 +917,122 @@
   }
 
   function carteDemande(d) {
-    var c = document.createElement('tr');
-    c.className = 'carte-demande st-' + classeStatut(d.statut);
+    var c = elementFiche('tr', 'carte-demande crm-record-row st-' + classeStatut(d.statut));
+    c.appendChild(identiteFiche(d, false));
 
-    var type = document.createElement('span');
-    type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
-    type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    cellule(c, type);
-
-    var qui = document.createElement('td');
-    var nom = document.createElement('span');
-    nom.className = 'nom';
-    nom.textContent = d.enfant || 'Voltigeur';
-    qui.appendChild(nom);
-    var parent = document.createElement('div');
-    parent.className = 'corps';
-    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
-    qui.appendChild(parent);
-    c.appendChild(qui);
-
-    var demande = document.createElement('td');
-    demande.appendChild(document.createTextNode(detailCourt(d)));
-    if (d.tarif) {
-      var tarif = document.createElement('div');
-      tarif.className = 'corps';
-      tarif.textContent = d.tarif;
-      demande.appendChild(tarif);
-    }
-    if (d.lignes) {
-      var plus = document.createElement('details');
-      var resume = document.createElement('summary');
-      resume.textContent = 'Tout le dossier';
-      plus.appendChild(resume);
-      var pre = document.createElement('pre');
-      pre.textContent = d.lignes;
-      plus.appendChild(pre);
-      demande.appendChild(plus);
-    }
+    var demande = elementFiche('td', 'crm-record-offer');
+    demande.appendChild(badgeActivite(d));
+    demande.appendChild(elementFiche('span', 'crm-record-detail', detailCourt(d) || 'Inscription'));
+    if (d.tarif) { demande.appendChild(elementFiche('span', 'crm-record-price', d.tarif)); }
     c.appendChild(demande);
 
-    var etatTd = document.createElement('td');
-    var statut = document.createElement('span');
-    statut.className = 'pastille ' + classeStatut(d.statut);
-    statut.textContent = d.statut || 'en attente';
-    etatTd.appendChild(statut);
+    var etatTd = elementFiche('td', 'crm-record-status');
+    var badges = elementFiche('div', 'crm-status-badges');
+    badges.appendChild(elementFiche('span', 'pastille ' + classeStatut(d.statut), d.statut || 'en attente'));
+    etatTd.appendChild(badges);
     c.appendChild(etatTd);
-
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = quandLisible(d.cree);
-    cellule(c, quand);
-
-    var actions = document.createElement('div');
-    actions.className = 'actions';
+    var actions = actionsFiche(d);
+    var secondaires = actions.secondaires;
+    var paiementCours;
 
     if (classeStatut(d.statut) === 'attente' && d.jeton_d && d.jeton_s) {
-      var valider = document.createElement('button');
-      valider.type = 'button';
-      valider.className = 'btn btn-rouge';
-      valider.innerHTML = '<span>Valider</span>';
-      valider.addEventListener('click', function () { decider(d, 'valider', null, c); });
-      actions.appendChild(valider);
-
-      var motif = document.createElement('select');
-      motif.setAttribute('aria-label', 'Motif du refus');
+      var valider = actions.principale(lienAction('Valider', function () { decider(d, 'valider', null, c); }));
+      var motif = elementFiche('select', 'crm-refusal-reason');
+      motif.setAttribute('aria-label', 'Motif du refus pour ' + (d.enfant || 'ce voltigeur'));
       Object.keys(MOTIFS).forEach(function (cle) {
-        var o = document.createElement('option');
+        var o = elementFiche('option', '', 'Motif : ' + MOTIFS[cle]);
         o.value = cle;
-        o.textContent = 'Motif : ' + MOTIFS[cle];
         motif.appendChild(o);
       });
-      actions.appendChild(motif);
-
-      var refuser = document.createElement('button');
-      refuser.type = 'button';
-      refuser.className = 'btn btn-contour';
-      refuser.innerHTML = '<span>Refuser</span>';
-      refuser.addEventListener('click', function () { decider(d, 'refuser', motif.value, c); });
-      actions.appendChild(refuser);
-
-      var etat = document.createElement('span');
-      etat.className = 'quand';
-      etat.style.marginLeft = '0';
-      actions.appendChild(etat);
+      secondaires.appendChild(motif);
+      var refuser = actionSensible('Refuser', function () { decider(d, 'refuser', motif.value, c); });
+      secondaires.appendChild(refuser);
+      var etat = elementFiche('span', 'crm-record-meta crm-action-status');
+      etat.setAttribute('role', 'status');
+      actions.contenu.appendChild(etat);
       c.etatAction = etat;
       c.boutons = [valider, refuser];
     }
 
     if (d.annule) {
-      var pAnnulee = document.createElement('span');
-      pAnnulee.className = 'pastille refusee';
-      pAnnulee.textContent = 'annulé';
-      etatTd.appendChild(pAnnulee);
+      badges.appendChild(elementFiche('span', 'pastille refusee', 'Annulée'));
     } else if (d.type === 'stage' && classeStatut(d.statut) === 'validee') {
-      var pA = document.createElement('span');
-      pA.className = 'pastille ' + (d.acompte_paye ? 'validee' : 'attente');
-      pA.textContent = d.acompte_paye ? 'acompte ✓' : 'acompte dû';
-      etatTd.appendChild(pA);
-      var pS = document.createElement('span');
-      pS.className = 'pastille ' + (d.solde_paye ? 'validee' : 'attente');
-      pS.textContent = d.solde_paye ? 'solde ✓' : 'solde dû';
-      etatTd.appendChild(pS);
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      var payee = document.createElement('span');
-      payee.className = 'pastille validee';
-      payee.textContent = 'payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
-      etatTd.appendChild(payee);
+      badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '')));
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
-      var payer = document.createElement('button');
-      payer.type = 'button';
-      payer.className = 'lien-doux';
-      payer.textContent = 'Marquer payé';
-      payer.addEventListener('click', function () { marquerPaye(d); });
-      actions.appendChild(payer);
+      paiementCours = lienAction('Marquer payé', function () { marquerPaye(d); });
     }
 
-    /* Un cours validé : « à appeler » tant que Fleur n'a pas noté le
-       créneau, puis tout part en un clic (infos + lien de paiement). */
     if (estCours(d)) {
-      var pCours = document.createElement('span');
-      pCours.className = 'pastille ' + (d.cours_date ? 'validee' : 'attente');
-      pCours.textContent = d.cours_date
-        ? 'planifié · ' + jourLisible(d.cours_date) + (d.cours_heure ? ' · ' + d.cours_heure : '')
-        : 'à appeler';
-      etatTd.appendChild(pCours);
+      badges.appendChild(pastilleEtat(d.cours_date ? 'Planifié' : 'À appeler', !!d.cours_date));
+      if (d.cours_date) {
+        etatTd.appendChild(elementFiche('span', 'crm-record-schedule', jourLisible(d.cours_date) + (d.cours_heure ? ' · ' + d.cours_heure : '')));
+      }
       if (!d.cours_date) {
-        var bPlanifier = document.createElement('button');
-        bPlanifier.type = 'button';
-        bPlanifier.className = 'btn btn-rouge';
-        bPlanifier.innerHTML = '<span>Appelé : envoyer date, heure et paiement</span>';
-        bPlanifier.addEventListener('click', function () { planifierCours(d); });
-        actions.appendChild(bPlanifier);
+        actions.principale(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        if (paiementCours) { secondaires.appendChild(paiementCours); }
       } else {
-        actions.appendChild(lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); }));
-        actions.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
+        var renvoyer = lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); });
+        if (paiementCours) { actions.principale(paiementCours); secondaires.appendChild(renvoyer); }
+        else { actions.principale(renvoyer); }
+        secondaires.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
       }
     }
 
-    /* demande ajoutée à la main (pas de jeton) : décision directe, sans mail */
+    /* Les demandes manuelles conservent leur décision locale, sans e-mail. */
     if (classeStatut(d.statut) === 'attente' && !(d.jeton_d && d.jeton_s)) {
-      actions.appendChild(lienAction('Marquer validée', async function () {
+      actions.principale(lienAction('Marquer validée', async function () {
         if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
       }));
-      actions.appendChild(lienAction('Marquer refusée', async function () {
+      secondaires.appendChild(lienAction('Marquer refusée', async function () {
         if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'refusée (à la main)', decide: new Date().toISOString() });
       }));
     }
-
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
-      actions.appendChild(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
+      actions.principale(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
     }
 
-    var dossier = document.createElement('button');
-    dossier.type = 'button';
-    dossier.className = 'lien-doux';
-    dossier.textContent = 'Dossier d’inscription rempli (imprimer / PDF)';
-    dossier.addEventListener('click', function () { ouvrirDossier(d); });
-    actions.appendChild(dossier);
-    actions.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
-    if (!d.annule) { actions.appendChild(lienAction('Annuler l’inscription', function () { annulerDemande(d); })); }
-    else { actions.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
-    actions.appendChild(lienAction('Supprimer', function () { supprimerDemande(d); }));
-
-    cellule(c, actions);
+    if (d.lignes) {
+      var plus = elementFiche('details', 'crm-dossier-details');
+      plus.appendChild(elementFiche('summary', '', 'Tout le dossier'));
+      plus.appendChild(elementFiche('pre', '', d.lignes));
+      secondaires.appendChild(plus);
+    }
+    secondaires.appendChild(lienAction('Dossier à imprimer', function () { ouvrirDossier(d); }));
+    secondaires.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
+    if (!d.annule) { secondaires.appendChild(actionSensible('Annuler l’inscription', function () { annulerDemande(d); })); }
+    else { secondaires.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
+    secondaires.appendChild(actionSensible('Supprimer', function () { supprimerDemande(d); }));
+    actions.terminer();
+    c.appendChild(actions.cellule);
     return c;
   }
 
   function afficherDemandes() {
-    var conteneur = el('a-demandes'); conteneur.innerHTML = '';
+    var conteneur = el('a-demandes');
+    conteneur.innerHTML = '';
     var visibles = demandesVisibles();
-    if (el('resultats-demandes')) { el('resultats-demandes').textContent = visibles.length + ' résultat(s) sur ' + demandes.length + ' demandes'; }
-    if (!visibles.length) {
-      var vide = document.createElement('p'); vide.className = 'aide etat-vide';
-      vide.textContent = demandes.length ? 'Aucune demande ne correspond aux filtres. Essayez un autre nom ou élargissez la sélection.' : 'Aucune demande pour l’instant. Ajoutez un dossier ou attendez la première inscription.';
-      conteneur.appendChild(vide); return;
+    if (el('resultats-demandes')) {
+      el('resultats-demandes').textContent = visibles.length + (visibles.length > 1 ? ' demandes affichées' : ' demande affichée') + ' sur ' + demandes.length;
     }
-    var corps = fabriquerTableau(conteneur,['Type','Voltigeur','Demande','Statut','Reçue le','Actions']);
+    // Les compteurs suivent recherche/activité/suivi et ignorent seulement
+    // le statut sélectionné, pour comparer les quatre filtres entre eux.
+    var optionsCompteurs = {query: filtreTexte,
+      type: el('f-type') ? el('f-type').value : 'tous',
+      followup: el('f-suivi') ? el('f-suivi').value : 'tous'};
+    document.querySelectorAll('[data-status-count]').forEach(function (compteur) {
+      optionsCompteurs.status = compteur.getAttribute('data-status-count');
+      compteur.textContent = String(core.filterRequests(demandes, optionsCompteurs).length);
+    });
+    if (!visibles.length) {
+      conteneur.appendChild(elementFiche('p', 'aide etat-vide', demandes.length ? 'Aucune demande ne correspond aux filtres. Essayez un autre nom ou élargissez la sélection.' : 'Aucune demande pour l’instant. Ajoutez un dossier ou attendez la première inscription.'));
+      return;
+    }
+    var corps = fabriquerTableau(conteneur, ['Famille', 'Inscription', 'Suivi', 'Actions'], 'crm-record-table crm-request-table');
     visibles.forEach(function (d) { corps.appendChild(carteDemande(d)); });
   }
 

@@ -6,6 +6,7 @@ Cette mise à jour améliore l’interface d’administration et la fiabilité d
 
 - Interface responsive aux couleurs de l’académie, navigation bureau/mobile, dialogues accessibles et notifications. Les ajouts, modifications, notes, règlements et dates sont saisis dans des formulaires, avec validation.
 - Recherche sans accents, filtres combinables par activité/statut/suivi, tri et nombre de résultats. Les exports respectent les recherches/filtres de leur écran.
+- Pages demandes et paiements : identité regroupée, montants mis en évidence, action principale directe et autres actions dans « Gérer ». Les cartes des paiements sélectionnent la liste à encaisser, réglée ou annulée ; leurs montants et compteurs suivent la recherche. Les compteurs de statut des demandes suivent recherche/activité/suivi, indépendamment du statut sélectionné. Présentation en lignes sur ordinateur et en cartes sur mobile, menus natifs accessibles au clavier.
 - Chargement de toutes les pages de demandes/familles, sans limites silencieuses à 200/500 lignes. Si une page échoue, les données précédentes sont conservées et le défaut d’actualisation est signalé.
 - Planning par date et heure normalisée ; validation samedi/date à venir/capacité de huit inscrits aussi côté base. Les anciens dossiers restent consultables et leur suivi de paiement reste modifiable.
 - Notes stockées dans une table exclusivement administrative ; migration des anciennes notes avant retrait de la colonne exposée aux propriétaires des carnets.

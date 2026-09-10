@@ -299,4 +299,41 @@
     new MutationObserver(syncFilters).observe(filters, { subtree: true, attributes: true, attributeFilter: ['class'] });
     syncFilters();
   }
+
+  var advancedFilters = document.querySelector('.crm-advanced-filters');
+  if (advancedFilters) {
+    var compactFilters = window.matchMedia('(max-width:860px)');
+    function syncAdvancedLayout() { advancedFilters.open = !compactFilters.matches; }
+    function syncAdvancedCount() {
+      var count = [['f-type', 'tous'], ['f-suivi', 'tous'], ['f-tri', 'recent']].filter(function (field) {
+        return el(field[0]) && el(field[0]).value !== field[1];
+      }).length;
+      if (el('crm-active-filters')) { el('crm-active-filters').textContent = count ? count + ' actif' + (count > 1 ? 's' : '') : ''; }
+    }
+    syncAdvancedLayout();
+    syncAdvancedCount();
+    compactFilters.addEventListener('change', syncAdvancedLayout);
+    advancedFilters.addEventListener('change', syncAdvancedCount);
+    // Les compteurs sont recalculés aussi lorsqu'un raccourci ouvre un dossier.
+    if (el('resultats-demandes')) { new MutationObserver(syncAdvancedCount).observe(el('resultats-demandes'), { childList: true }); }
+  }
+
+  // Les cartes de synthèse pilotent une seule liste de paiements à la fois.
+  // Des boutons natifs conservent l'accès clavier sans simuler un menu ARIA.
+  var paymentViews = document.querySelector('.crm-payment-overview');
+  if (paymentViews) {
+    paymentViews.addEventListener('click', function (event) {
+      var selected = event.target.closest('button[data-payment-view]');
+      if (!selected || !paymentViews.contains(selected)) { return; }
+      paymentViews.querySelectorAll('button[data-payment-view]').forEach(function (button) {
+        var active = button === selected;
+        button.classList.toggle('is-selected', active);
+        button.setAttribute('aria-pressed', String(active));
+        var panel = el(button.getAttribute('aria-controls'));
+        if (panel) { panel.hidden = !active; }
+      });
+      var title = el('payment-title-' + selected.getAttribute('data-payment-view'));
+      if (title) { announce(title.textContent); }
+    });
+  }
 }());
