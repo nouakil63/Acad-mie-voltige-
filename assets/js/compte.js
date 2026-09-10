@@ -247,7 +247,7 @@
 
   var CAPACITE_COURS = 8; /* places par cours, meme valeur que dans l'espace academie */
   var SERVICE_ACADEMIE = window.AV_SERVICE_URL ||
-    'https://script.google.com/macros/s/AKfycbwOXOkUQ0-ls0l8nSCUoG9wkKVNUgiKc4DtO8PsNEmn-yCq4eJu4UbmsJaGYpvqkYpw9w/exec';
+    'https://script.google.com/macros/s/AKfycbyDW_h6BmR4QpKs1l_917hrml-CUjDQCb-GdyNEPfLufxDhgPwsCRP9Wxwnnk-ByZc/exec';
 
   function chargerTrimestre() {
     /* RESERVATION EN PAUSE : les familles ne choisissent plus leurs dates
