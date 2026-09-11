@@ -1,6 +1,6 @@
 /* Carnet de famille — évite de tout re-remplir à chaque inscription.
    À la fin d'une demande (cours ou stage), le responsable légal et le
-   voltigeur sont retenus dans CE navigateur. Au retour, les informations
+   voltigeur peuvent être retenus dans CE navigateur avec votre accord. Au retour, les informations
    de la famille sont pré-remplies et chaque enfant enregistré se remet
    en un clic. Avec un compte (page « Mon compte »), les informations
    suivent la famille sur tous ses appareils. */
@@ -10,15 +10,29 @@
   var form = document.getElementById('form-cours') || document.getElementById('form-resa');
   if (!form) { return; }
 
-  var CLE = 'av:famille';
   var nuage = window.AVNuage || null;
+  if (!nuage) { return; }
   function connecte() { return !!(nuage && nuage.configure() && nuage.lireSession()); }
+  var sessionChargee = connecte() ? nuage.lireSession() : null;
+  var carnetCharge = !connecte();
+  var retenir = null;
 
   function lire() {
-    try { return JSON.parse(localStorage.getItem(CLE)) || null; } catch (e) { return null; }
+    return nuage.lireFamilleLocale(sessionChargee);
   }
   function ecrire(f) {
-    try { localStorage.setItem(CLE, JSON.stringify(f)); } catch (e) { /* navigation privée */ }
+    return nuage.ecrireFamilleLocale(f, sessionChargee);
+  }
+  function messageCarnet(texte) {
+    var mot = document.getElementById('message-carnet');
+    if (!mot) {
+      mot = document.createElement('p');
+      mot.id = 'message-carnet';
+      mot.setAttribute('role', 'status');
+      mot.style.cssText = 'font-size:13px;margin:0 0 18px';
+      form.insertBefore(mot, form.querySelector('.pas-nav'));
+    }
+    mot.textContent = texte;
   }
   function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
   function met(id, v) {
@@ -111,7 +125,8 @@
       'color:#6d6266;font-size:12.5px;cursor:pointer;text-decoration:underline;font-family:inherit';
     oublier.addEventListener('click', function () {
       if (!confirm('Effacer les informations de famille et les voltigeurs enregistrés dans ce navigateur ?')) { return; }
-      try { localStorage.removeItem(CLE); } catch (e) { /* rien */ }
+      nuage.oublierFamilleLocale();
+      if (retenir) { retenir.checked = false; }
       bandeau.remove();
     });
     bandeau.appendChild(oublier);
@@ -139,13 +154,34 @@
 
   if (connecte()) {
     /* la version du compte fait foi : elle peut venir d'un autre appareil */
-    nuage.chargerFamille().then(function (duCompte) {
-      if (duCompte && JSON.stringify(duCompte) !== JSON.stringify(locale)) {
-        ecrire(duCompte);
-        afficher(duCompte);
-      }
+    nuage.retrouverEmail().then(function (session) {
+      if (!session) { throw new Error('Session expirée'); }
+      sessionChargee = session;
+      return nuage.chargerFamille();
+    }).then(function (duCompte) {
+      carnetCharge = true;
+      ecrire(duCompte || {});
+      if (duCompte) { afficher(duCompte); }
+    }).catch(function () {
+      carnetCharge = false;
+      messageCarnet('Votre carnet n’a pas pu être chargé. Vous pouvez envoyer cette inscription ; le carnet du compte ne sera pas modifié.');
     });
-  } else if (nuage && nuage.configure() && !locale) {
+  } else {
+    /* La conservation d'un carnet invité reste un choix explicite. */
+    var choix = document.createElement('label');
+    choix.style.cssText = 'display:block;font-size:13px;margin:0 0 18px';
+    retenir = document.createElement('input');
+    retenir.type = 'checkbox';
+    retenir.id = 'retenir-famille';
+    retenir.checked = !!locale;
+    choix.appendChild(retenir);
+    choix.appendChild(document.createTextNode(' Retenir mon carnet de famille sur cet appareil personnel pour mes prochaines inscriptions.'));
+    retenir.addEventListener('change', function () {
+      if (!retenir.checked) { nuage.oublierFamilleLocale(); }
+    });
+    form.insertBefore(choix, form.querySelector('.pas-nav'));
+  }
+  if (!connecte() && nuage.configure() && !locale) {
     /* première visite : glisser un mot sur l'espace famille */
     var invite = document.createElement('p');
     invite.id = 'invite-compte';
@@ -168,7 +204,7 @@
     return nouveau;
   }
 
-  form.addEventListener('submit', function () {
+  function familleDuFormulaire() {
     var f = lire() || {};
     f.responsable = completer({
       qualite: val('parent-qualite'), nom: val('parent-nom'),
@@ -194,14 +230,20 @@
       });
       if (i >= 0) { f.enfants[i] = completer(enfant, f.enfants[i]); } else { f.enfants.push(enfant); }
     }
-    ecrire(f);
-  }, true);
+    return f;
+  }
 
   /* ---- demande réellement envoyée : la garder dans le carnet ----
      (et tout envoyer au compte en une fois quand on est connecté) */
   document.addEventListener('av:demande-envoyee', function (ev) {
+    var actuelle = nuage.lireSession();
+    if (sessionChargee ? !actuelle || actuelle.user_id !== sessionChargee.user_id : !!actuelle) {
+      messageCarnet('Le compte a changé. Cette inscription ne sera pas ajoutée au carnet ; rechargez la page pour retrouver votre famille.');
+      return;
+    }
+    if (!carnetCharge || (!sessionChargee && (!retenir || !retenir.checked))) { return; }
     var d = ev.detail || {};
-    var f = lire() || {};
+    var f = familleDuFormulaire();
     f.demandes = f.demandes || [];
     f.demandes.unshift({
       quand: new Date().toISOString(),
@@ -212,6 +254,22 @@
     });
     f.demandes = f.demandes.slice(0, 20);
     ecrire(f);
-    if (connecte()) { nuage.enregistrerFamille(f); }
+    if (sessionChargee) {
+      nuage.enregistrerFamille(f, sessionChargee.user_id).then(function (ok) {
+        if (!ok) { messageCarnet('Le carnet est retenu sur cet appareil, mais sa synchronisation a échoué. Vérifiez-le depuis Mon compte.'); }
+      });
+    }
+  });
+
+  window.addEventListener('storage', function (ev) {
+    if (ev.key !== 'av:session' && ev.key !== null) { return; }
+    var actuelle = nuage.lireSession();
+    if (sessionChargee ? actuelle && actuelle.user_id === sessionChargee.user_id : !actuelle) { return; }
+    carnetCharge = false;
+    form.reset();
+    var bandeau = document.getElementById('carnet-famille');
+    if (bandeau) { bandeau.remove(); }
+    notifier();
+    messageCarnet('Le compte a changé dans un autre onglet. Le formulaire a été vidé ; rechargez la page pour retrouver votre famille.');
   });
 })();
