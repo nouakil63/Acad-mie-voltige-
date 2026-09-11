@@ -1,4 +1,4 @@
-/* Espace académie — composants du CRM, v23.
+/* Espace académie — composants du CRM, v24.
    Identité partagée avec style.css : rouge Cotrait, ivoire, encre,
    Hanken Grotesk et Bricolage. Surfaces en filets, boutons en pilules.
    Les états métier conservent un libellé : la couleur n'est jamais seule. */
@@ -390,6 +390,33 @@ body.crm-dialog-open{overflow:hidden}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+.crm-refund-panel{background:var(--blanc);border:1px solid var(--crm-trait);border-top:3px solid var(--rouge);border-radius:12px;padding:26px;margin:0 0 26px;scroll-margin-top:95px}
+.crm-refund-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:22px;border-bottom:1px solid var(--crm-trait);margin-bottom:20px}
+.crm-refund-heading h3{font-size:24px;line-height:1.2;margin-bottom:10px}
+.crm-refund-heading p{font-size:13px;line-height:1.6;color:var(--crm-texte-doux);max-width:670px}
+.crm-refund-heading-actions{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex-shrink:0}
+.crm-refund-heading-actions .btn{white-space:nowrap}
+.crm-refund-totals{display:flex;flex-wrap:wrap;gap:12px 24px;margin-bottom:20px;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.crm-refund-notice{padding:12px 14px;margin:12px 0 18px;background:var(--crm-attente-fond);border-left:3px solid var(--crm-attente);color:var(--crm-attente);font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.crm-refund-payment{padding:22px;border:1px solid var(--crm-trait);border-radius:9px;margin-top:16px;background:var(--blanc)}
+.crm-refund-payment h4{font-family:var(--display);font-size:20px;line-height:1.3;margin:0 0 8px}
+.crm-refund-payment>.btn{margin-top:17px;min-height:44px}
+.crm-refund-payment-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin:20px 0}
+.crm-refund-payment-numbers>div{min-width:0;border-left:2px solid var(--crm-trait);padding-left:13px}
+.crm-refund-payment-numbers span{display:block;font-size:11px;color:var(--crm-texte-doux)}
+.crm-refund-payment-numbers strong{display:block;font-size:24px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.crm-refund-history{list-style:none;margin:20px 0 0;padding:0;border-top:1px solid var(--crm-trait)}
+.crm-refund-history li{padding:15px 0;border-bottom:1px solid var(--crm-trait)}
+.crm-refund-history li:last-child{border-bottom:0;padding-bottom:0}
+.crm-refund-history strong{margin-left:12px;font-size:15px;font-variant-numeric:tabular-nums}
+.crm-refund-history .pastille{display:inline-block}
+.crm-record-meta.crm-refund-inline{color:var(--rouge-sombre);font-size:11px;font-weight:650;margin-top:9px}
+@media(max-width:860px){
+  .crm-refund-panel{padding:20px}.crm-refund-heading{flex-direction:column;gap:16px}.crm-refund-heading-actions{flex-direction:row;align-items:center;gap:18px}.crm-refund-payment{padding:18px}.crm-refund-payment-numbers{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.crm-refund-heading h3{font-size:22px}
+}
+@media(max-width:520px){
+  .crm-refund-panel{padding:18px 15px}.crm-refund-heading-actions{flex-wrap:wrap;gap:10px 17px}.crm-refund-payment{padding:16px}.crm-refund-totals{flex-direction:column;gap:6px;font-size:15px}.crm-refund-payment-numbers strong{font-size:22px}.crm-refund-payment>.btn{width:100%;font-size:12px}.crm-refund-history .pastille{max-width:100%;white-space:normal}
 }
 @media print{
   .lateral,.crm-sync-tools,.crm-section-actions,.crm-filter-panel,.crm-toasts,.acces-rapide,.crm-toolbar-actions,.crm-payment-toolbar,.crm-stripe-panel,.crm-page-guide,.crm-row-actions,.crm-record-table .tableau th:last-child,.crm-record-table .crm-record-actions,.crm-metric-arrow{display:none!important}

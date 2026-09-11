@@ -103,6 +103,61 @@
     return '';
   }
 
+  // Les remboursements conservent les centimes Stripe jusqu'à l'affichage.
+  // Aucun arrondi silencieux d'un montant saisi avec plus de deux décimales.
+  function refundAmountCents(value) {
+    var match = String(value == null ? '' : value).trim().match(/^(\d+)(?:[.,](\d{1,2}))?$/);
+    if (!match) { return null; }
+    var cents = Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0'));
+    return Number.isSafeInteger(cents) ? cents : null;
+  }
+  function refundValidation(payment, cents) {
+    if (!payment || !payment.session_id || !payment.payment_intent_id) { return 'Ce paiement Stripe ne peut pas être remboursé depuis le CRM.'; }
+    if (payment.conteste) { return 'Ce paiement est contesté. Vérifiez le litige dans Stripe.'; }
+    if (payment.operation_en_cours || Number(payment.en_attente_centimes) > 0) { return 'Un remboursement reste en cours sur ce paiement. Actualisez son statut avant une nouvelle opération.'; }
+    if (!Number.isSafeInteger(cents) || cents <= 0) { return 'Indiquez un montant positif avec deux décimales maximum.'; }
+    if (!Number.isSafeInteger(payment.disponible_centimes) || cents > payment.disponible_centimes) { return 'Le montant dépasse le solde actuellement remboursable. Actualisez le paiement.'; }
+    return '';
+  }
+  function refundStatus(status) {
+    return {succeeded:'Remboursé',pending:'En attente chez Stripe',requires_action:'Action requise',
+      failed:'Échec du remboursement',canceled:'Annulé par Stripe',reserved:'Demande réservée',reserve:'Demande réservée',
+      processing:'Traitement en cours',uncertain:'Résultat à vérifier',incertain:'Résultat à vérifier'}[status] || 'Résultat à vérifier';
+  }
+  function refundRecovery(payment, saved, now) {
+    var current = payment && payment.operation_en_cours;
+    var history = payment && payment.remboursements || [];
+    if (saved && saved.session_id !== payment.session_id) { saved = null; }
+    if (saved) {
+      var known = history.find(function (refund) { return refund.operation_id === saved.operation_id; });
+      if (known) {
+        if (['succeeded','failed','canceled'].indexOf(known.statut) !== -1) {
+          saved = null;
+        } else {
+          return {operation:Object.assign({},saved,{statut:known.statut}),blocked:'Le remboursement est connu de Stripe : ' + refundStatus(known.statut).toLowerCase() + '. Actualisez son suivi.',resolved:false};
+        }
+      }
+    }
+    if (current) {
+      return {operation:current,blocked:current.reprise_possible === true ? '' : 'Cette opération ne peut pas être relancée automatiquement. Vérifiez son état dans Stripe.',resolved:false};
+    }
+    if (saved) {
+      var age = Number(now == null ? Date.now() : now) - new Date(saved.cree_le).getTime();
+      return {operation:saved,blocked:!Number.isFinite(age) || age < 0 || age >= 23 * 3600000
+        ? 'Cette opération ancienne doit être vérifiée dans Stripe avant toute nouvelle demande.' : '',resolved:false};
+    }
+    return {operation:null,blocked:Number(payment.en_attente_centimes) > 0 ? 'Un remboursement est encore en attente chez Stripe.' : '',resolved:true};
+  }
+  function refundCanForget(operationId, response, isRetry) {
+    if (!response || response.operation_id !== operationId) { return false; }
+    var status = response.remboursement && response.remboursement.statut || response.operation_statut;
+    if (['succeeded','failed','canceled'].indexOf(status) !== -1) { return true; }
+    if (['pending','requires_action','reserve','incertain'].indexOf(status) !== -1) { return false; }
+    // Un rejet avant réservation ne décrit que l'appel actuel. Il ne prouve
+    // jamais qu'un POST antérieur, dont la réponse a été perdue, est terminé.
+    return !isRetry && response.operation_reservee === false;
+  }
+
   // On ne conclut jamais qu'une liste est complète parce qu'une page est courte :
   // le projet Supabase peut imposer une limite inférieure à celle demandée.
   async function loadAll(request, path, key) {
@@ -140,5 +195,7 @@
   return { money: money, total: total, deposit: deposit, paid: paid, due: due, receivedInMonth: receivedInMonth,
     validateTariff: validateTariff, totalPaymentPatch: totalPaymentPatch, restoreError: restoreError,
     normalize: normalize, matches: matches, filterRequests: filterRequests, time: time, scheduleKey: scheduleKey,
-    validateSchedule: validateSchedule, loadAll: loadAll };
+    validateSchedule: validateSchedule, loadAll: loadAll, refundAmountCents: refundAmountCents,
+    refundValidation: refundValidation, refundStatus: refundStatus, refundRecovery: refundRecovery,
+    refundCanForget: refundCanForget };
 }));

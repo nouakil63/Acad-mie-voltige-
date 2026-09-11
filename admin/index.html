@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="Académie CRM">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="../assets/css/style.css?v=33">
-  <link rel="stylesheet" href="../assets/css/admin.css?v=23">
+  <link rel="stylesheet" href="../assets/css/admin.css?v=24">
 </head>
 <body>
 <a class="acces-rapide" href="#crm-main">Aller au contenu</a>
@@ -214,6 +214,13 @@
     <!-- Les paiements -->
     <section id="o-paiements" aria-labelledby="titre-paiements" hidden>
       <h2 class="sr-only" id="titre-paiements">Les paiements</h2>
+      <section id="crm-refunds" class="crm-refund-panel" aria-labelledby="crm-refunds-title" hidden>
+        <header class="crm-refund-heading">
+          <div><h3 id="crm-refunds-title" tabindex="-1">Remboursements Stripe</h3><p>Vérifiez chaque paiement et son historique avant de rembourser tout ou partie du montant disponible.</p></div>
+          <div class="crm-refund-heading-actions"><button type="button" class="btn btn-contour" id="crm-refunds-refresh">Actualiser Stripe</button><button type="button" class="lien-doux" id="crm-refunds-close">Fermer le suivi</button></div>
+        </header>
+        <div id="crm-refunds-body"></div>
+      </section>
       <div class="crm-payment-overview" role="group" aria-label="Afficher les paiements par situation">
         <button type="button" class="crm-payment-metric is-selected" data-payment-view="du" aria-pressed="true" aria-controls="payment-view-du">
           <span class="crm-metric-label">À encaisser</span><strong id="t-encaisser">—</strong>
@@ -255,10 +262,11 @@
         <button type="button" class="btn btn-contour" id="b-stripe"><span>Vérifier les paiements Stripe</span><span aria-hidden="true">↗</span></button>
         <p id="m-stripe" class="crm-stripe-status" role="status" aria-live="polite"></p>
         <div id="stripe-propositions" class="crm-stripe-propositions"></div>
+        <p id="crm-refund-summary-status" class="crm-stripe-status" role="status"></p>
       </aside>
       <details class="crm-guide crm-page-guide">
         <summary>Échéances et modalités de règlement</summary>
-        <p>Pour les stages : acompte de 300&nbsp;€ à l’inscription, puis solde au plus tard 30 jours avant le début du stage. Le trimestre de cours est dû indépendamment des présences. Un remboursement déclaré dans le CRM n’effectue aucune opération bancaire.</p>
+        <p>Pour les stages : acompte de 300&nbsp;€ à l’inscription, puis solde au plus tard 30 jours avant le début du stage. Le trimestre de cours est dû indépendamment des présences. Les déclarations manuelles restent distinctes des remboursements bancaires exécutés depuis « Remboursements Stripe ». Les encaissements affichés restent bruts ; un remboursement n’annule pas automatiquement l’inscription.</p>
       </details>
     </section>
 
@@ -282,8 +290,8 @@
 
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=3"></script>
-<script src="../assets/js/admin-core.js?v=22"></script>
-<script src="../assets/js/admin-ui.js?v=23"></script>
-<script src="../assets/js/admin.js?v=23"></script>
+<script src="../assets/js/admin-core.js?v=24"></script>
+<script src="../assets/js/admin-ui.js?v=24"></script>
+<script src="../assets/js/admin.js?v=24"></script>
 </body>
 </html>

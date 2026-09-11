@@ -271,13 +271,32 @@ test('migration planning : dates, créneaux, quota et préservation de l’exist
   });
 });
 
-test('les trois migrations ensemble autorisent un paiement et un renvoi d’informations pour un ancien cours', async t => {
+test('les quatre migrations ensemble autorisent paiement, remboursement Stripe et informations pour un ancien cours', async t => {
   const db = await database(); t.after(() => db.close());
   const id = await demande(db);
   await db.query("update demandes set cours_date='2000-01-03',cours_heure='ancienne notation' where id=$1", [id]);
-  for (const name of ['20260911_notes_crm.sql', '20260911_paiements_crm.sql', '20260911_planning_crm.sql']) await db.exec(sql(name));
+  for (const name of ['20260911_notes_crm.sql', '20260911_paiements_crm.sql', '20260911_planning_crm.sql', '20260912_remboursements_stripe.sql']) await db.exec(sql(name));
   await paiement(db, 'cs_ancien_cours', 2500);
+  await assert.rejects(admin(db, tx => apply(tx, id, 'cs_ancien_cours')), /snapshot_requis_rapprochement/);
+  await service(db, tx => tx.query('select crm_enregistrer_snapshot_stripe($1,$2)', ['cs_ancien_cours', {
+    payment_intent_id: 'pi_ancien_cours', charge_id: 'ch_ancien_cours', montant_centimes: 2500,
+    rembourse_centimes: 0, en_attente_centimes: 0, conteste: false, devise: 'eur', livemode: true,
+    verifie_le: new Date().toISOString(), remboursements: []
+  }]));
   assert.equal((await admin(db, tx => apply(tx, id, 'cs_ancien_cours'))).rows[0].result.demande.paye, true);
+  const operation = '44444444-4444-4444-8444-444444444444';
+  await service(db, tx => tx.query('select crm_reserver_remboursement_stripe($1,$2,$3,500,$4)',
+    [operation, id, 'cs_ancien_cours', 'requested_by_customer']));
+  const remboursement = (await service(db, tx => tx.query('select crm_terminer_remboursement_stripe($1,$2) as result', [operation, {
+    id: 're_ancien_cours', payment_intent_id: 'pi_ancien_cours', charge_id: 'ch_ancien_cours',
+    montant_centimes: 500, statut: 'succeeded', motif: 'requested_by_customer', operation_id: operation,
+    cree_le: new Date().toISOString(), verifie_le: new Date().toISOString()
+  }]))).rows[0].result;
+  assert.equal(remboursement.etat.rembourse_centimes, 500);
+  assert.equal(remboursement.disponible_centimes, 2000);
   await admin(db, tx => tx.query('update demandes set infos_envoyees_le=current_date where id=$1', [id]));
-  assert.equal((await db.query('select cours_heure from demandes where id=$1', [id])).rows[0].cours_heure, 'ancienne notation');
+  const after = (await db.query('select cours_heure,paye,rembourse_montant from demandes where id=$1', [id])).rows[0];
+  assert.equal(after.cours_heure, 'ancienne notation'); assert.equal(after.paye, true);
+  assert.equal(after.rembourse_montant, null);
+  assert.equal((await parent(db, tx => tx.query('select * from crm_etats_stripe'))).rows.length, 0);
 });

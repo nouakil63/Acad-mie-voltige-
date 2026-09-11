@@ -74,6 +74,16 @@ test('configuration : ScriptProperties prioritaires et valeurs historiques compa
   assert.equal(r.ctx.cleStripe(), 'ancienne-cle');
 });
 
+test('migration configuration : la clé de prospection en propriétés remplace le placeholder sans envoi', () => {
+  const r = runtime();
+  r.properties.set('CLE_PROSPECTION', 'cle-fictive-conservee');
+  assert.equal(r.ctx.envoyerProspection({cle:'incorrecte'}).text, 'cle incorrecte');
+  assert.equal(r.ctx.envoyerProspection({cle:'cle-fictive-conservee'}).text, 'destinataire invalide');
+  r.properties.delete('CLE_PROSPECTION'); r.ctx.CLE_PROSPECTION = 'ancienne-cle-fictive';
+  assert.equal(r.ctx.envoyerProspection({cle:'ancienne-cle-fictive'}).text, 'destinataire invalide');
+  assert.equal(r.mails.length, 0);
+});
+
 test('Stripe : EUR en centimes exacts, email normalisé, date France', () => {
   const { ctx } = runtime();
   const p = ctx.paiementDepuisSession(session({ amount_total: 2555 }));
@@ -205,6 +215,8 @@ test('Application : relit Stripe, importe les faits et appelle exclusivement la 
     return response({ ok: true, deja_rapproche: false, demande: demande({ paye: true }),
       paiement: { session_id: SESSION, demande_id: ID_A, nature: 'total' } });
   });
+  // Le détail PI/charge/remboursements est couvert par stripe-refunds.test.cjs.
+  r.ctx.actualiserPaiementStripe = () => ({ snapshot: { rembourse_centimes: 0, en_attente_centimes: 0, conteste: false } });
   assert.equal(r.ctx.appliquerPaiementStripe(ID_A, SESSION, 'admin@example.fr').ok, true);
   assert.equal(r.calls.some(c => c.options.method === 'patch'), false);
 });
@@ -215,6 +227,7 @@ test('Conflit RPC : ne transforme pas un double emploi en succès', () => {
     if (url.includes('crm_paiements_stripe?')) return response('', 201);
     return response({ message: 'paiement_deja_affecte' }, 400);
   });
+  r.ctx.actualiserPaiementStripe = () => ({ snapshot: { rembourse_centimes: 0, en_attente_centimes: 0, conteste: false } });
   assert.throws(() => r.ctx.appliquerPaiementStripe(ID_B, SESSION, 'admin@example.fr'), { code: 'paiement_deja_affecte' });
 });
 

@@ -26,6 +26,7 @@ let families=requests.slice(0,6).map((r,i)=>({user_id:id(i+20),email:r.parent_em
 let notes=[{user_id:id(20),note:'Famille intéressée par les cours du samedi matin.',maj:today+'T08:00:00Z'}];
 const calls=[];
 let failure=false;
+const refundFixture=require('./stripe-refunds-fixture.cjs')(requests,id);
 function json(res,data,status=200,headers={}){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(data));}
 async function body(req){let text='';for await(const chunk of req){text+=chunk;if(text.length>1000000)throw new Error('too large');}return text?JSON.parse(text):{};}
 function list(res,rows,url){const offset=Number(url.searchParams.get('offset')||0),limit=Math.min(Number(url.searchParams.get('limit')||1000),3);const selection=rows.slice(offset,offset+limit);json(res,selection,200,{'Content-Range':offset+'-'+(offset+selection.length-1)+'/'+rows.length});}
@@ -34,10 +35,13 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
   if(url.pathname==='/__crm/calls'){json(res,calls);return;}
   if(url.pathname==='/__crm/fail'){failure=url.searchParams.get('on')==='1';json(res,{failure});return;}
+  if(url.pathname==='/__crm/refund-mode'){json(res,refundFixture.configure(url));return;}
   if(url.pathname.startsWith('/__crm/')){
    calls.push({path:url.pathname,method:req.method});
    if(failure){json(res,{message:'Simulated failure'},503);return;}
    if(url.pathname.endsWith('/admins')){json(res,[{email:'equipe@example.test'}]);return;}
+   if(req.method==='GET' && url.pathname.endsWith('/crm_etats_stripe')){list(res,refundFixture.etats(),url);return;}
+   if(req.method==='GET' && url.pathname.endsWith('/crm_operations_remboursement_stripe')){list(res,refundFixture.operations(),url);return;}
    let rows=url.pathname.endsWith('/demandes')?requests:url.pathname.endsWith('/familles')?families:url.pathname.endsWith('/notes_familles')?notes:null;
    if(rows){
     if(req.method==='GET'){list(res,rows,url);return;}
@@ -55,6 +59,9 @@ const server=http.createServer(async(req,res)=>{
    }
    if(url.pathname==='/__crm/service'){
     const data=await body(req);
+    if(data.type==='stripe-remboursements' || data.type==='stripe-rembourser') {
+     const result=refundFixture.handle(data);json(res,result.data,result.status);return;
+    }
     if(data.type==='stripe'){
      const payment={session_id:'cs_fixture_1',email:'sacha@example.test',montant:25,montant_centimes:2500,quand:today,statut:'propose',demande_id:id(12),nature:'cours',candidats:[{demande_id:id(12),enfant:'Louise Moreau'}]};
      json(res,{ok:true,version:22,paiements:[payment],propositions:[payment],bilan:{proposes:1}});return;

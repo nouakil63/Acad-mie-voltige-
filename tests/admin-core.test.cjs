@@ -2,6 +2,60 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const core = require('../assets/js/admin-core.js');
 
+test('remboursement : conversion exacte et refus des arrondis implicites', () => {
+  assert.equal(core.refundAmountCents('12,35'),1235);
+  assert.equal(core.refundAmountCents('0.01'),1);
+  assert.equal(core.refundAmountCents('300'),30000);
+  ['12.345','-1','1e2','NaN','Infinity',''].forEach(v=>assert.equal(core.refundAmountCents(v),null));
+});
+test('remboursement : seul le disponible du paiement exact est autorisé', () => {
+  const payment={session_id:'cs_deposit',payment_intent_id:'pi_deposit',disponible_centimes:10000,en_attente_centimes:0};
+  assert.equal(core.refundValidation(payment,10000),'');
+  assert.match(core.refundValidation(payment,10001),/dépasse/);
+  assert.match(core.refundValidation(payment,0),/positif/);
+  assert.match(core.refundValidation({...payment,conteste:true},1),/contesté/);
+  assert.match(core.refundValidation({...payment,en_attente_centimes:100},1),/cours/);
+  assert.match(core.refundValidation({...payment,payment_intent_id:null},1),/ne peut pas/);
+});
+test('remboursement incertain : réutiliser l’opération exacte après timeout', () => {
+  const now=Date.parse('2026-09-12T12:00:00Z');
+  const saved={operation_id:'stable-operation',session_id:'cs_1',montant_centimes:2500,motif:'requested_by_customer',cree_le:'2026-09-12T11:00:00Z'};
+  const payment={session_id:'cs_1',en_attente_centimes:0,remboursements:[]};
+  assert.equal(core.refundRecovery(payment,saved,now).operation,saved);
+  assert.equal(core.refundRecovery(payment,saved,now).blocked,'');
+  assert.equal(core.refundRecovery({...payment,session_id:'cs_2'},saved,now).operation,null);
+  assert.match(core.refundRecovery(payment,saved,now+23*3600000).blocked,/ancienne/);
+  const remote={...saved,reprise_possible:false};
+  assert.match(core.refundRecovery({...payment,operation_en_cours:remote},saved,now).blocked,/Stripe/);
+});
+test('remboursement : les états non terminés interdisent une seconde demande', () => {
+  const saved={operation_id:'same-id',session_id:'cs_1'};
+  const base={session_id:'cs_1',en_attente_centimes:0};
+  for(const statut of ['pending','requires_action']){
+    const state=core.refundRecovery({...base,remboursements:[{operation_id:'same-id',statut}]},saved);
+    assert.match(state.blocked,/connu de Stripe/);
+    assert.equal(state.operation.statut,statut);
+    assert.notEqual(core.refundStatus(statut),'Remboursé');
+  }
+  for(const statut of ['succeeded','failed','canceled']){
+    const state=core.refundRecovery({...base,remboursements:[{operation_id:'same-id',statut}]},saved);
+    assert.equal(state.operation,null);assert.equal(state.resolved,true);
+  }
+});
+test('après timeout, un refus de reprise ne libère jamais la première opération incertaine', () => {
+  const rejected={operation_id:'same-id',operation_reservee:false};
+  assert.equal(core.refundCanForget('same-id',rejected,false),true);
+  assert.equal(core.refundCanForget('same-id',rejected,true),false);
+  assert.equal(core.refundCanForget('same-id',undefined,false),false);
+  assert.equal(core.refundCanForget('different-id',rejected,false),false);
+  for(const statut of ['pending','requires_action','incertain','reserve']){
+    assert.equal(core.refundCanForget('same-id',{...rejected,operation_statut:statut},true),false);
+  }
+  for(const statut of ['succeeded','failed','canceled']){
+    assert.equal(core.refundCanForget('same-id',{operation_id:'same-id',remboursement:{statut}},true),true);
+  }
+});
+
 test('montants français, centimes et valeur négative restent explicites', () => {
   assert.equal(core.money('1 250,50 €'), 1250.5);
   assert.equal(core.money('1\u202f250,50 € / trimestre'), 1250.5);
