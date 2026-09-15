@@ -6,8 +6,8 @@
   "start_url": "/admin/",
   "scope": "/admin/",
   "display": "standalone",
-  "background_color": "#1D1216",
-  "theme_color": "#1D1216",
+  "background_color": "#F7F3F0",
+  "theme_color": "#F7F3F0",
   "icons": [
     { "src": "/assets/img/favicon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/assets/img/icone-app-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }

@@ -128,6 +128,7 @@
     <div class="champ"><b>Né(e) le :</b><span id="d-naissance"></span></div>
     <div class="champ"><b>À :</b><span id="d-lieu"></span></div>
   </div>
+  <div id="d-age-ligne" hidden><div class="champ"><b>Âge à l’inscription :</b><span id="d-age"></span></div></div>
   <div class="rang">
     <div class="champ"><b>Nationalité :</b><span id="d-nationalite"></span></div>
     <div class="champ"><b>Sexe :</b><span id="d-sexe"></span></div>
@@ -207,7 +208,7 @@
       ? localStorage.getItem('av:dossier-admin')
       : (localStorage.getItem('av:dossier-inscription') || localStorage.getItem('av:dossier-cours')));
   } catch (e) { /* rien */ }
-  if (!d || !d.parentNom) {
+  if (!d || !(d.parentNom || (depuisAdmin && (d.enfantPrenom || d.enfantNom)))) {
     document.getElementById('vide').hidden = false;
     return;
   }
@@ -266,6 +267,10 @@
   met('d-enfant-nom', d.enfantNom);
   met('d-enfant-prenom', d.enfantPrenom);
   met('d-naissance', dateFr(d.enfantNaissance));
+  if (d.enfantAge != null && String(d.enfantAge) !== '') {
+    met('d-age', d.enfantAge + (Number(d.enfantAge) > 1 ? ' ans' : ' an'));
+    document.getElementById('d-age-ligne').hidden = false;
+  }
   met('d-lieu', d.enfantLieu);
   met('d-nationalite', d.nationalite);
   met('d-sexe', d.sexe === 'F' ? 'Fille' : d.sexe === 'M' ? 'Garçon' : d.sexe);

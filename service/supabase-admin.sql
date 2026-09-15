@@ -3,6 +3,11 @@
 -- ------------------------------------------------------------
 -- À coller UNE FOIS dans Supabase : menu « SQL Editor » →
 -- « New query » → coller tout ce fichier → bouton « Run ».
+-- Puis appliquer, dans cet ordre, les migrations CRM :
+--   migrations/20260911_notes_crm.sql
+--   migrations/20260911_paiements_crm.sql
+--   migrations/20260911_planning_crm.sql
+-- Voir README-CRM.md avant de publier le nouveau frontend et Code.gs.
 --
 -- Il crée :
 --  · la table qui garde TOUTES les demandes d'inscription
@@ -203,16 +208,8 @@ create policy "les admins ajoutent une reservation" on public.reservations
 -- v8 : notes clients, liste d'attente, places et relances auto
 -- ============================================================
 
--- Une note libre de l'academie sur chaque famille.
-alter table public.familles add column if not exists note_admin text;
-
-drop policy if exists "les admins annotent les familles" on public.familles;
-create policy "les admins annotent les familles" on public.familles
-  for update using (
-    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
-  ) with check (
-    exists (select 1 from public.admins a where a.email = (auth.jwt() ->> 'email'))
-  );
+-- Les notes privées sont désormais dans notes_familles, créée par la migration
+-- 20260911_notes_crm.sql. Ne pas recréer note_admin dans les lignes des familles.
 
 -- Le nombre d'inscrits par date de cours, visible de tous : le site
 -- s'en sert pour afficher les jours complets. Seuls les totaux sont
