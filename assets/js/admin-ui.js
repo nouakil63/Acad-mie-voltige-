@@ -14,12 +14,13 @@
   var sequence = 0;
   var pending = Promise.resolve();
   var pageActive = '';
+  var activeDialogCloser = null;
   var pages = {
-    accueil: { title: 'Tableau de bord', description: 'Les demandes à traiter, les encaissements et vos prochains rendez-vous.' },
-    demandes: { title: 'Les demandes', description: 'Accompagnez chaque famille, de la première demande au cours ou au stage.' },
-    reservations: { title: 'Le planning', description: 'Vos cours et vos stages, avec tous les inscrits au même endroit.' },
-    paiements: { title: 'Les paiements', description: 'Une vue claire des règlements reçus, des échéances et des relances.' },
-    familles: { title: 'Les familles', description: 'Retrouvez les coordonnées, les voltigeurs et le suivi de chaque famille.' }
+    accueil: { title: 'Accueil', description: 'L’essentiel pour organiser la journée.' },
+    demandes: { title: 'Demandes', description: 'Inscriptions et demandes à traiter.' },
+    reservations: { title: 'Planning', description: 'Cours, stages et participants.' },
+    paiements: { title: 'Paiements', description: 'Règlements, échéances et remboursements.' },
+    familles: { title: 'Familles', description: 'Coordonnées et suivi des familles.' }
   };
 
   function el(id) { return document.getElementById(id); }
@@ -52,39 +53,80 @@
     pageActive = key;
   }
 
+  // Le body fixe évite que Safari fasse défiler la liste derrière le formulaire.
+  // À la fermeture, la liste retrouve exactement sa position précédente.
+  function lockPageScroll() {
+    var body = document.body;
+    var root = document.documentElement;
+    var x = window.scrollX || 0, y = window.scrollY || 0;
+    var properties = ['position', 'top', 'left', 'right', 'width', 'overflow', 'paddingRight'];
+    var previous = {};
+    properties.forEach(function (property) { previous[property] = body.style[property]; });
+    var scrollbar = Math.max(0, window.innerWidth - root.clientWidth);
+    if (scrollbar) {
+      body.style.paddingRight = ((parseFloat(window.getComputedStyle(body).paddingRight) || 0) + scrollbar) + 'px';
+    }
+    body.style.position = 'fixed';
+    body.style.top = -y + 'px';
+    body.style.left = -x + 'px';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    body.classList.add('crm-dialog-open');
+    return function () {
+      properties.forEach(function (property) { body.style[property] = previous[property]; });
+      body.classList.remove('crm-dialog-open');
+      var behavior = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      window.scrollTo(x, y);
+      root.style.scrollBehavior = behavior;
+    };
+  }
+
+  function closeDialog() {
+    if (!activeDialogCloser) { return false; }
+    activeDialogCloser(null);
+    return true;
+  }
+
   function openForm(options) {
     options = options || {};
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
       var previousFocus = document.activeElement;
       var prefix = 'crm-dialog-' + (++sequence);
       var dialog = node('dialog', 'crm-dialog' + (options.danger ? ' crm-dialog-danger' : ''));
       dialog.setAttribute('aria-labelledby', prefix + '-title');
       dialog.setAttribute('aria-modal', 'true');
-      var form = node('form');
+      var form = node('form', 'crm-dialog-form');
       form.noValidate = true;
-      var header = node('div', 'crm-dialog-header');
+      var header = node('header', 'crm-dialog-header');
+      var close = node('button', 'crm-dialog-back');
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Retour et annuler');
+      var backIcon = node('span', 'crm-dialog-back-icon', '←');
+      backIcon.setAttribute('aria-hidden', 'true');
+      close.appendChild(backIcon);
+      close.appendChild(node('span', '', 'Retour'));
+      header.appendChild(close);
       var title = node('h2', 'crm-dialog-title', options.title || 'Modifier');
       title.id = prefix + '-title';
       title.tabIndex = -1;
       header.appendChild(title);
+      form.appendChild(header);
+      var body = node('div', 'crm-dialog-body');
       if (options.description) {
         var description = node('p', 'crm-dialog-description', options.description);
         description.id = prefix + '-description';
-        header.appendChild(description);
+        body.appendChild(description);
         dialog.setAttribute('aria-describedby', description.id);
       }
-      var close = node('button', 'crm-dialog-close', '×');
-      close.type = 'button';
-      close.setAttribute('aria-label', 'Fermer et annuler');
-      header.appendChild(close);
-      form.appendChild(header);
       var businessError = node('p', 'message souci');
       businessError.id = prefix + '-error';
       businessError.setAttribute('role', 'alert');
       businessError.setAttribute('aria-live', 'assertive');
       businessError.tabIndex = -1;
       businessError.hidden = true;
-      form.appendChild(businessError);
+      body.appendChild(businessError);
       function clearBusinessError() {
         businessError.hidden = true;
         businessError.textContent = '';
@@ -164,8 +206,9 @@
         controls.push(input);
         controlsByName[input.name] = input;
       });
-      form.appendChild(fields);
-      var actions = node('div', 'crm-dialog-actions');
+      body.appendChild(fields);
+      form.appendChild(body);
+      var actions = node('footer', 'crm-dialog-actions');
       var cancel = node('button', 'btn btn-contour', 'Annuler');
       cancel.type = 'button';
       var submit = node('button', 'btn btn-rouge', options.submitLabel || 'Enregistrer');
@@ -175,19 +218,46 @@
       form.appendChild(actions);
       dialog.appendChild(form);
       document.body.appendChild(dialog);
-      document.body.classList.add('crm-dialog-open');
+      var releaseScroll = lockPageScroll();
+      var viewport = window.visualViewport;
+      function resizeDialog() {
+        dialog.style.setProperty('--crm-dialog-viewport-height', (viewport ? viewport.height : window.innerHeight) + 'px');
+        dialog.style.setProperty('--crm-dialog-viewport-top', (viewport ? viewport.offsetTop : 0) + 'px');
+        // Le clavier réduit uniquement le contenu défilant, les actions restent accessibles.
+        var focused = document.activeElement;
+        if (focused && body.contains(focused)) {
+          var contentRect = body.getBoundingClientRect();
+          var focusRect = focused.getBoundingClientRect();
+          if (focusRect.bottom > contentRect.bottom - 20) { body.scrollTop += focusRect.bottom - contentRect.bottom + 20; }
+          else if (focusRect.top < contentRect.top + 20) { body.scrollTop -= contentRect.top - focusRect.top + 20; }
+        }
+      }
+      if (viewport) {
+        viewport.addEventListener('resize', resizeDialog);
+        viewport.addEventListener('scroll', resizeDialog);
+      }
+      window.addEventListener('resize', resizeDialog);
+      resizeDialog();
       var settled = false;
-      function finish(value) {
+      function finish(value, error) {
         if (settled) { return; }
         settled = true;
-        dialog.close();
+        activeDialogCloser = null;
+        if (viewport) {
+          viewport.removeEventListener('resize', resizeDialog);
+          viewport.removeEventListener('scroll', resizeDialog);
+        }
+        window.removeEventListener('resize', resizeDialog);
+        if (dialog.open) { dialog.close(); }
         dialog.remove();
-        document.body.classList.remove('crm-dialog-open');
+        releaseScroll();
         if (previousFocus && previousFocus.isConnected && previousFocus.getClientRects().length && !previousFocus.disabled) {
           previousFocus.focus({ preventScroll: true });
         } else if (el('crm-page-title')) { el('crm-page-title').focus({ preventScroll: true }); }
-        resolve(value);
+        if (error) { reject(error); }
+        else { resolve(value); }
       }
+      activeDialogCloser = finish;
       close.addEventListener('click', function () { finish(null); });
       cancel.addEventListener('click', function () { finish(null); });
       dialog.addEventListener('cancel', function (event) { event.preventDefault(); finish(null); });
@@ -229,8 +299,14 @@
         }
         finish(result);
       });
-      dialog.showModal();
-      var initialFocus = controls[0] || (options.danger ? cancel : submit);
+      try { dialog.showModal(); }
+      catch (error) {
+        finish(null, error);
+        return;
+      }
+      // L’ouverture d’un écran mobile ne doit pas déclencher le clavier à elle seule.
+      var mobile = window.matchMedia('(max-width:860px)').matches;
+      var initialFocus = mobile ? title : (controls[0] || (options.danger ? cancel : submit));
       initialFocus.focus({ preventScroll: true });
     });
   }
@@ -278,7 +354,9 @@
     schedule();
   }
 
-  window.AVCrmUI = { form: form, confirm: confirm, toast: toast, setPage: setPage };
+  window.AVCrmUI = { form: form, confirm: confirm, toast: toast, setPage: setPage,
+    closeDialog: closeDialog, isDialogOpen: function () { return !!activeDialogCloser; } };
+  window.addEventListener('popstate', closeDialog);
   var nav = document.querySelector('.onglets');
   function syncNavigation() {
     var active = document.querySelector('.onglets .actif-onglet[data-onglet]');

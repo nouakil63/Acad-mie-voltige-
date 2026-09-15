@@ -1,12 +1,14 @@
-# CRM de l’Académie — version 24
+# CRM de l’Académie — interface 25, service 24
 
 Cette mise à jour améliore l’interface d’administration et la fiabilité du service. Elle nécessite une mise à jour coordonnée de Supabase, de Google Apps Script et du site. GitHub Pages ne publie ni le SQL ni le script Google automatiquement.
 
 ## Changements
 
-- Interface responsive aux couleurs de l’académie, navigation bureau/mobile, dialogues accessibles et notifications. Les ajouts, modifications, notes, règlements et dates sont saisis dans des formulaires, avec validation.
+- Interface repensée autour du rouge, de l’ivoire et des typographies de l’académie. Sur mobile : cinq rubriques fixées en bas, accueil centré sur les tâches du jour, statistiques secondaires repliées et cartes de dossiers allégées.
+- Dossiers, séances et remboursements s’ouvrent dans des écrans dédiés. Le bouton Retour et le retour du navigateur restaurent les filtres et la position de lecture. Les formulaires occupent l’écran mobile, avec un en-tête et des boutons fixes, un contenu défilant et une adaptation à la hauteur du clavier.
 - Recherche sans accents, filtres combinables par activité/statut/suivi, tri et nombre de résultats. Les exports respectent les recherches/filtres de leur écran.
-- Pages demandes et paiements : identité regroupée, montants mis en évidence, action principale directe et autres actions dans « Gérer ». Les cartes des paiements sélectionnent la liste à encaisser, réglée ou annulée ; leurs montants et compteurs suivent la recherche. Les compteurs de statut des demandes suivent recherche/activité/suivi, indépendamment du statut sélectionné. Présentation en lignes sur ordinateur et en cartes sur mobile, menus natifs accessibles au clavier.
+- Pages demandes et paiements : identité regroupée, montants mis en évidence et bouton « Ouvrir le dossier ». Le dossier garde l’action principale visible et regroupe les autres dans « Autres actions ». Les cartes des paiements sélectionnent la liste à encaisser, réglée ou annulée ; leurs montants et compteurs suivent la recherche. Les compteurs de statut des demandes suivent recherche/activité/suivi, indépendamment du statut sélectionné. Les filtres défilent horizontalement dans leur zone ; la page reste verticale.
+- Familles : accès direct aux coordonnées et aux notes depuis leur dossier. Planning : écran de séance avec retour au planning ; feuille de présence adaptée au mobile et à l’impression, avec défilement horizontal limité au tableau.
 - Chargement de toutes les pages de demandes/familles, sans limites silencieuses à 200/500 lignes. Si une page échoue, les données précédentes sont conservées et le défaut d’actualisation est signalé.
 - Planning par date et heure normalisée ; validation samedi/date à venir/capacité de huit inscrits aussi côté base. Les anciens dossiers restent consultables et leur suivi de paiement reste modifiable.
 - Notes stockées dans une table exclusivement administrative ; migration des anciennes notes avant retrait de la colonne exposée aux propriétaires des carnets.
@@ -42,7 +44,7 @@ Les migrations sont transactionnelles et peuvent être rejouées. La migration d
 4. Vérifier d’abord la lecture depuis le CRM. Les remboursements restent désactivés tant que la propriété `STRIPE_REMBOURSEMENTS_ACTIFS` ne vaut pas exactement `true`. L’activer une fois le compte, les droits et l’installation vérifiés. Ce paramètre active la fonction ; il n’envoie aucun remboursement à lui seul.
 5. Exécuter `installerSynchronisationStripe` dans Apps Script pour installer la synchronisation horaire. Elle lit les états de Stripe et ne crée aucun remboursement. Chaque passage traite au plus 20 règlements affectés, avec un curseur conservé entre les passages ; un cycle complet peut donc prendre plusieurs heures. Les états sont aussi relus à l’ouverture d’un dossier de remboursements et avant une demande de remboursement.
 
-Pour rembourser, ouvrir **Gérer → Remboursements Stripe** sur le dossier, choisir le paiement associé et le montant. Pour un stage réglé en deux fois, chaque paiement possède son propre disponible. Vérifier le récapitulatif avant de confirmer : l’action déclenche un remboursement bancaire sur le moyen de paiement d’origine, contrairement à « déclarer un remboursement ».
+Pour rembourser, ouvrir **Ouvrir le dossier → Autres actions → Remboursements Stripe**, puis choisir le paiement associé et le montant. Pour un stage réglé en deux fois, chaque paiement possède son propre disponible. Vérifier le récapitulatif avant de confirmer : l’action déclenche un remboursement bancaire sur le moyen de paiement d’origine, contrairement à « déclarer un remboursement ».
 
 Un paiement déclaré manuellement ne prouve pas qu’il existe dans Stripe : il doit avoir été rapproché d’une session exacte. Les cas ambigus restent à examiner. L’annulation d’une inscription et le remboursement de son paiement sont deux opérations indépendantes ; le CRM ne change pas silencieusement la réservation après un remboursement.
 
@@ -61,7 +63,9 @@ npm install --prefix ../tmp/academie-crm-test-tools --no-audit --no-fund --ignor
 node --test tests/*.test.cjs
 ```
 
-Un emplacement différent peut être indiqué par `AV_SQL_TEST_TOOLS` (dossier contenant `node_modules`) ou `PGLITE_MODULE_PATH` (chemin absolu du package). Les tests portent sur règles financières, pagination, auth/stockage, Stripe/Apps Script avec mocks, et migrations/RLS exécutées réellement dans PostgreSQL local.
+Un emplacement différent peut être indiqué par `AV_SQL_TEST_TOOLS` (dossier contenant `node_modules`) ou `PGLITE_MODULE_PATH` (chemin absolu du package). Les tests portent sur les règles financières, la pagination, l’auth/stockage, Stripe/Apps Script avec mocks, la navigation des dossiers, les formulaires mobiles et les migrations/RLS exécutées réellement dans PostgreSQL local.
+
+La refonte mobile a été vérifiée dans le navigateur à 320, 390 et 768 px, puis sur ordinateur à 1024 et 1440 px : cinq rubriques sans débordement horizontal de la page et navigation mobile fixée en bas. Le retour des formulaires conserve la position et le focus. Le clavier mobile est couvert par la simulation de `visualViewport` ; une validation sur un appareil iOS/Android physique reste à effectuer.
 
 L’aperçu navigateur utilise exclusivement des données fictives :
 

@@ -64,6 +64,11 @@
   }
   function rafraichirAffichage() {
     afficherDemandes(); afficherPaiements(); afficherPlanning(); majCompteurs();
+    if (navigationActive && navigation.detail && navigation.detail.genre === 'remboursement') {
+      var d = demandes.find(function (x) { return String(x.id) === navigation.detail.id; });
+      if (d && !dossierRemboursement) { chargerVueRemboursements(d); }
+      else if (d && remboursementsStripe[d.id]) { dossierRemboursement = d; afficherRemboursements(d, remboursementsStripe[d.id]); }
+    }
   }
   function statutSynchro() {
     var statut = el('crm-sync-status'), bouton = el('crm-refresh');
@@ -73,6 +78,10 @@
     statut.textContent = chargements ? 'Actualisation en cours…' : erreurDemandes || erreurFamilles
       ? 'Actualisation incomplète — réessayez' : 'À jour à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
     statut.classList.toggle('est-erreur', !chargements && (erreurDemandes || erreurFamilles));
+    if (!chargements && positionApresChargement) {
+      restaurerPosition(positionApresChargement.position, positionApresChargement.focus);
+      positionApresChargement = null;
+    }
   }
   async function operation(cle, action) {
     if (operations.has(cle)) { return null; }
@@ -136,13 +145,7 @@
       sort:el('f-tri') ? el('f-tri').value : 'recent'});
   }
   function allerDemande(d) {
-    ouvrirOnglet('demandes'); filtre = 'toutes'; filtreTexte = d.enfant || d.parent_email || '';
-    el('d-recherche').value = filtreTexte;
-    ['f-type','f-suivi'].forEach(function (id) { if (el(id)) { el(id).value = 'tous'; } });
-    el('a-filtres').querySelectorAll('[data-filtre]').forEach(function (b) {
-      b.classList.toggle('actif-filtre', b.dataset.filtre === 'toutes'); b.setAttribute('aria-pressed', String(b.dataset.filtre === 'toutes'));
-    });
-    afficherDemandes(); el('d-recherche').focus();
+    ouvrirDetail('demande', d.id);
   }
   var filtre = 'toutes';
   var filtreTexte = '';
@@ -237,29 +240,41 @@
     tuile(rembourseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'remboursements déclarés', true);
 
     /* « À traiter » : tout ce qui attend un clic, avec les actions directes. */
+    function tacheAccueil(d, detail) {
+      var li = document.createElement('li');
+      li.appendChild(elementFiche('span','crm-task-title',d.enfant || 'Voltigeur'));
+      li.appendChild(elementFiche('span','crm-task-meta',detail));
+      var actions = elementFiche('div','crm-task-actions');
+      li.appendChild(actions);
+      return {ligne:li,actions:actions};
+    }
+    function ouvrirDepuisAccueil(d) {
+      var bouton = lienAction('Ouvrir le dossier', function () { allerDemande(d); });
+      bouton.setAttribute('data-record-open','accueil-demande:' + d.id);
+      return bouton;
+    }
     var lTraiter = el('l-traiter');
     if (lTraiter) {
       lTraiter.innerHTML = '';
       var enAttente = demandes.filter(function (d) { return classeStatut(d.statut) === 'attente' && !d.annule; });
       enAttente.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.type === 'stage' ? 'stage' : 'cours') + ' · demande à valider ou refuser';
+        var tache = tacheAccueil(d,(d.type === 'stage' ? 'Stage' : 'Cours') + ' · À valider');
         if (d.jeton_d && d.jeton_s) {
-          li.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
+          tache.actions.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
         } else {
-          li.appendChild(lienAction('Marquer validée', async function () {
+          tache.actions.appendChild(lienAction('Marquer validée', async function () {
             if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
             patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
           }));
         }
-        li.appendChild(lienAction('Ouvrir', function () { allerDemande(d); }));
-        lTraiter.appendChild(li);
+        tache.actions.appendChild(ouvrirDepuisAccueil(d));
+        lTraiter.appendChild(tache.ligne);
       });
       coursAPlanifier().forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · cours validé · à appeler pour convenir du créneau';
-        li.appendChild(lienAction('Appelé : envoyer date, heure et paiement', function () { planifierCours(d); }));
-        lTraiter.appendChild(li);
+        var tache = tacheAccueil(d,'Cours · Créneau à prévoir');
+        tache.actions.appendChild(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        tache.actions.appendChild(ouvrirDepuisAccueil(d));
+        lTraiter.appendChild(tache.ligne);
       });
       el('b-traiter').hidden = !lTraiter.children.length;
     }
@@ -274,10 +289,10 @@
     var lRelances = el('l-relances');
     lRelances.innerHTML = '';
     aRelancer.forEach(function (d) {
-      var li = document.createElement('li');
-      li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (!d.acompte_paye ? 'acompte de 300 € en attente' : 'solde à réclamer (stage dans moins de 45 jours)');
-      li.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
-      lRelances.appendChild(li);
+      var tache = tacheAccueil(d,'Stage · ' + (!d.acompte_paye ? 'Acompte de 300 € en attente' : 'Solde à relancer'));
+      tache.actions.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
+      tache.actions.appendChild(ouvrirDepuisAccueil(d));
+      lRelances.appendChild(tache.ligne);
     });
 
     var lProchains = el('l-prochains');
@@ -672,17 +687,15 @@
     if (!acteur || identiteAdmin !== acteur) { throw new Error('Votre session a changé. Rouvrez le suivi de ce dossier.'); }
     return accepterRemboursements(d,rep);
   }
-  async function ouvrirRemboursements(d) {
+  function ouvrirRemboursements(d) { ouvrirDetail('remboursement', d.id); }
+  async function chargerVueRemboursements(d) {
     var version = ++versionRemboursement;
     dossierRemboursement = d;
-    ouvrirOnglet('paiements');
     var panneau = el('crm-refunds');
     panneau.hidden = false;
     el('crm-refunds-title').textContent = 'Remboursements Stripe · ' + (d.enfant || 'Voltigeur');
     el('crm-refunds-body').innerHTML = '';
     el('crm-refunds-body').appendChild(elementFiche('p','crm-refund-notice','Vérification du paiement et des remboursements auprès de Stripe…'));
-    panneau.scrollIntoView({behavior:'smooth',block:'start'});
-    el('crm-refunds-title').focus({preventScroll:true});
     try {
       var rep = await appelService({type:'stripe-remboursements',demande_id:d.id},true);
       if (version === versionRemboursement) { accepterRemboursements(d,rep); }
@@ -690,7 +703,7 @@
       if (version !== versionRemboursement) { return; }
       var message = elementFiche('p','message souci',erreur.message);
       message.setAttribute('role','alert'); el('crm-refunds-body').innerHTML = ''; el('crm-refunds-body').appendChild(message);
-      el('crm-refunds-body').appendChild(lienAction('Réessayer la consultation',function () { ouvrirRemboursements(d); }));
+      el('crm-refunds-body').appendChild(lienAction('Réessayer la consultation',function () { chargerVueRemboursements(d); }));
     }
   }
   function afficherRemboursements(d, rep) {
@@ -751,8 +764,10 @@
     });
   }
   async function preparerRemboursement(d, sessionId) {
+    var version = versionRemboursement;
     return operation('preparer-remboursement:' + d.id,async function () {
       var rep = await lireRemboursements(d);
+      if (version !== versionRemboursement) { return; }
       if (rep.remboursements_actifs !== true) { throw new Error('Les remboursements Stripe ne sont pas activés.'); }
       var p = rep.paiements.find(function (paiement) { return paiement.session_id === sessionId; });
       if (!p) { throw new Error('Ce paiement ne figure plus dans le dossier. Actualisez le suivi.'); }
@@ -766,7 +781,7 @@
             {name:'montant',label:'Montant à rembourser (€)',type:'number',required:true,min:'0.01',max:String(p.disponible_centimes / 100),step:'0.01',value:String(p.disponible_centimes / 100),help:'Vous pouvez rembourser tout le disponible ou une partie.'},
             {name:'motif',label:'Motif transmis à Stripe',type:'select',required:true,value:'requested_by_customer',options:Object.keys(MOTIFS_REMBOURSEMENT).map(function (cle) { return {value:cle,label:MOTIFS_REMBOURSEMENT[cle]}; })}
           ],validate:function (valeurs) { return core.refundValidation(p,core.refundAmountCents(valeurs.montant)); }});
-        if (!valeurs) { return; }
+        if (!valeurs || version !== versionRemboursement) { return; }
         op = {montant_centimes:core.refundAmountCents(valeurs.montant),motif:valeurs.motif};
       }
       if (!Number.isSafeInteger(op.montant_centimes) || op.montant_centimes <= 0 || !MOTIFS_REMBOURSEMENT[op.motif]) {
@@ -777,7 +792,9 @@
         'Les fonds seront retournés sur le moyen de paiement utilisé à l’origine. Cette opération bancaire est irréversible. L’inscription reste inchangée.' +
         (reprise.operation ? '\nVous reprenez la demande existante et son montant déjà confirmé.' : '');
       if (!await ui.confirm({title:reprise.operation ? 'Reprendre ce remboursement ?' : 'Confirmer le remboursement Stripe',description:description,danger:true,submitLabel:reprise.operation ? 'Reprendre le remboursement' : 'Rembourser ' + euros(op.montant_centimes / 100)})) { return; }
+      if (version !== versionRemboursement) { return; }
       var session = await nuage.sessionValide();
+      if (version !== versionRemboursement) { return; }
       if (!session || (session.user_id || session.email) !== identiteAdmin) { throw new Error('Votre session a changé. Reconnectez-vous avant de rembourser.'); }
       if (!op.operation_id) { op.operation_id = nouvelIdentifiantRemboursement(); op.cree_le = new Date().toISOString(); op.statut = 'incertain'; }
       garderOperationLocale(d.id,sessionId,op);
@@ -939,7 +956,7 @@
     };
   }
 
-  function lignePaiement(d, groupe) {
+  function lignePaiement(d, groupe, detail) {
     var ligne = elementFiche('tr', 'carte-demande crm-record-row st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente'));
     ligne.appendChild(identiteFiche(d, true));
 
@@ -1009,6 +1026,7 @@
     if (recu > 0 || d.annule) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
     ligne.appendChild(actions.cellule);
+    if (!detail) { ajouterOuvertureDossier(ligne, actions.cellule, 'paiement', d.id, d.enfant); }
     return ligne;
   }
 
@@ -1061,12 +1079,14 @@
     if (!lesAnnules.length) {
       annules.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucune annulation pour cette recherche.' : 'Aucune annulation.'));
     }
+    actualiserDetail('paiement');
   }
 
   /* ================= Les feuilles de présence ================= */
   function ouvrirFeuille(feuille) {
+    feuille.retour = location.hash;
     try { localStorage.setItem('av:feuille', JSON.stringify(feuille)); } catch (e) { return; }
-    window.open('feuille.html', '_blank', 'noopener');
+    window.location.href = 'feuille.html';
   }
 
   /* ================= Le dossier d'inscription rempli =================
@@ -1184,7 +1204,7 @@
     return d.detail || '';
   }
 
-  function carteDemande(d) {
+  function carteDemande(d, detail) {
     var c = elementFiche('tr', 'carte-demande crm-record-row st-' + classeStatut(d.statut));
     c.appendChild(identiteFiche(d, false));
 
@@ -1279,10 +1299,12 @@
     if (dejaEncaisse(d) > 0 || d.annule) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
     c.appendChild(actions.cellule);
+    if (!detail) { ajouterOuvertureDossier(c, actions.cellule, 'demande', d.id, d.enfant); }
     return c;
   }
 
   function afficherDemandes() {
+    actualiserDetail('demande');
     var conteneur = el('a-demandes');
     conteneur.innerHTML = '';
     var visibles = demandesVisibles();
@@ -1367,10 +1389,11 @@
     return b;
   }
 
-  function casePlanning(titre, sousTitre, stage, actif, surClic) {
+  function casePlanning(titre, sousTitre, stage, actif, surClic, cle) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'case-planning' + (stage ? ' case-stage' : '') + (actif ? ' actif' : '');
+    if (cle) { b.setAttribute('data-record-open', (stage ? 'stage:' : 'cours:') + cle); }
     var t = document.createElement('b');
     t.textContent = titre;
     b.appendChild(t);
@@ -1382,6 +1405,7 @@
   }
 
   function afficherPlanning() {
+    if (navigationActive) { caseChoisie = selectionPlanning(navigation); }
     var gCours = el('g-cours');
     var gStages = el('g-stages');
     if (!gCours || !gStages) { return; }
@@ -1403,7 +1427,7 @@
       var premier=parDate[date][0];
       gCours.appendChild(casePlanning(jourLisible(premier.cours_date) + ' · ' + (core.time(premier.cours_heure) || premier.cours_heure || 'Horaire à préciser'), sousTitre, false,
         !!(caseChoisie && caseChoisie.genre === 'cours' && caseChoisie.date === date),
-        function () { caseChoisie = { genre: 'cours', date: date }; afficherPlanning(); }));
+        function () { ouvrirDetail('cours', date); }, date));
     });
 
     var parStage = {};
@@ -1423,10 +1447,11 @@
       var nS = parStage[cle].length;
       gStages.appendChild(casePlanning(cle, nS + (nS > 1 ? ' inscrits' : ' inscrit'), true,
         !!(caseChoisie && caseChoisie.genre === 'stage' && caseChoisie.cle === cle),
-        function () { caseChoisie = { genre: 'stage', cle: cle }; afficherPlanning(); }));
+        function () { ouvrirDetail('stage', cle); }, cle));
     });
 
     afficherInscrits(parDate, parStage);
+    if (navigation.detail && ['cours','stage'].indexOf(navigation.detail.genre) !== -1) { afficherDetail(); }
   }
 
   function afficherInscrits(parDate, parStage) {
@@ -1459,6 +1484,7 @@
       inscrits.forEach(function (d) {
         var li = document.createElement('li');
         li.textContent = (d.enfant || 'Voltigeur') + (d.cours_heure ? ' · ' + d.cours_heure : '') + (d.parent_email ? ' · ' + d.parent_email : '');
+        li.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
         li.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
         li.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
         li.appendChild(lienAction('Retirer', function () { retirerDuPlanning(d); }));
@@ -1485,6 +1511,7 @@
       lesInscrits.forEach(function (d) {
         var li = document.createElement('li');
         li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
+        li.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
         li.appendChild(lienAction('Retirer', function () { supprimerDemande(d); }));
         liste.appendChild(li);
       });
@@ -1525,7 +1552,7 @@
   function ajouterInscritStage(cle) { return ajouterDemande({type:'stage',detail:cle}); }
 
   /* ================= La base clients ================= */
-  function carteFamille(f) {
+  function carteFamille(f, detail) {
     var d = f.donnees || {};
     var r = d.responsable || {};
     var c = document.createElement('tr');
@@ -1555,11 +1582,23 @@
     c.appendChild(qui);
 
     var contact = document.createElement('td');
+    contact.className = 'crm-family-contact';
     var contacts = [f.email, r.tel, [r.cp, r.ville].filter(Boolean).join(' ')].filter(Boolean);
     if (contacts.length) {
       contacts.forEach(function (ligne) {
         var l = document.createElement('div');
-        l.textContent = ligne;
+        var href = '';
+        if (detail && ligne === f.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ligne)) {
+          href = 'mailto:' + encodeURIComponent(ligne);
+        } else if (detail && ligne === r.tel && /^\+?[\d\s().-]{6,25}$/.test(String(ligne))) {
+          var telephone = String(ligne).replace(/[^\d+]/g,'');
+          if (/^\+?\d{6,15}$/.test(telephone)) { href = 'tel:' + telephone; }
+        }
+        if (href) {
+          var lien = elementFiche('a','crm-contact-link',ligne);
+          lien.setAttribute('href',href);
+          l.appendChild(lien);
+        } else { l.textContent = ligne; }
         contact.appendChild(l);
       });
     } else {
@@ -1568,6 +1607,7 @@
     c.appendChild(contact);
 
     var voltigeurs = document.createElement('td');
+    voltigeurs.className = 'crm-family-children';
     var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
     enfants.forEach(function (e) {
       var puce = document.createElement('div');
@@ -1580,6 +1620,7 @@
     c.appendChild(voltigeurs);
 
     var suivi = document.createElement('td');
+    suivi.className = 'crm-family-followup';
     var nbDemandes = (d.demandes || []).length;
     if (nbDemandes) {
       var lDemandes = document.createElement('div');
@@ -1621,11 +1662,14 @@
       boutonNote.disabled = !notesDisponibles;
       actions.appendChild(boutonNote);
     }
-    cellule(c, actions);
+    var celluleActions = cellule(c, actions);
+    celluleActions.className = 'crm-family-actions';
+    if (!detail) { ajouterOuvertureDossier(c, celluleActions, 'famille', f.user_id || f.email, nomComplet); }
     return c;
   }
 
   function afficherFamilles() {
+    actualiserDetail('famille');
     var conteneur = el('a-familles');
     conteneur.innerHTML = '';
     var mot = el('f-recherche').value.trim().toLowerCase();
@@ -1690,8 +1734,7 @@
           montrer('p-tableau');
           chargerDemandes();
           chargerFamilles();
-          var onglet=location.hash.slice(1);
-          if (['accueil','demandes','familles','reservations','paiements'].indexOf(onglet)!==-1) { ouvrirOnglet(onglet); }
+          initialiserNavigation();
         })
         .catch(function () { montrer('p-refuse'); });
     }).catch(function () {
@@ -1714,6 +1757,11 @@
     ev.preventDefault();
     versionDemandes++; versionFamilles++; versionRemboursement++; demandes=[]; familles=[];
     identiteAdmin=''; dossierRemboursement=null; remboursementsStripe=Object.create(null); resumesRemboursements=Object.create(null); operationsRemboursementLocales=Object.create(null);
+    navigationActive = false; revisionNavigation++; positionApresChargement = null; positionsOnglets = Object.create(null);
+    restaurerPanneaux(); navigation = {onglet:'accueil',detail:null};
+    document.body.classList.remove('crm-detail-open');
+    if (ui.closeDialog) { ui.closeDialog(); }
+    if (el('crm-detail')) { el('crm-detail').hidden=true; el('crm-detail-body').innerHTML=''; }
     if (el('crm-refunds')) { el('crm-refunds').hidden=true; el('crm-refunds-body').innerHTML=''; }
     el('ad-mdp').value='';
     nuage.deconnexion();
@@ -1722,23 +1770,215 @@
     montrer('p-connexion');
   });
 
-  function ouvrirOnglet(onglet) {
-    document.querySelectorAll('.onglets [data-onglet]').forEach(function (b) {
-      b.classList.toggle('actif-onglet', b.getAttribute('data-onglet') === onglet);
-    });
-    el('o-accueil').hidden = onglet !== 'accueil';
-    el('o-demandes').hidden = onglet !== 'demandes';
-    el('o-familles').hidden = onglet !== 'familles';
-    el('o-reservations').hidden = onglet !== 'reservations';
-    el('o-paiements').hidden = onglet !== 'paiements';
-    if (ui.setPage) { ui.setPage(onglet); }
-    history.replaceState(null,'','#'+onglet);
+  /* Une entrée d'historique par écran. Les filtres restent dans la liste ;
+     le retour restaure sa position et le bouton qui a ouvert le dossier. */
+  var ONGLETS_CRM = ['accueil','demandes','familles','reservations','paiements'];
+  var DETAILS_CRM = ['demande','paiement','famille','remboursement','cours','stage'];
+  var navigation = {onglet:'accueil',detail:null}, navigationActive = false;
+  var positionsOnglets = Object.create(null), panneauxDeplaces = Object.create(null);
+  var revisionNavigation = 0, positionApresChargement = null;
+
+  function routeDepuisHash(hash) {
+    var morceaux = String(hash || '').replace(/^#/, '').split('/');
+    var route = {onglet: ONGLETS_CRM.indexOf(morceaux[0]) !== -1 ? morceaux[0] : 'accueil', detail:null};
+    if (DETAILS_CRM.indexOf(morceaux[1]) !== -1 && morceaux[2]) {
+      try { route.detail = {genre:morceaux[1],id:decodeURIComponent(morceaux.slice(2).join('/'))}; } catch (_) {}
+    }
+    return route;
   }
+  function hashDeRoute(route) {
+    return '#' + route.onglet + (route.detail ? '/' + route.detail.genre + '/' + encodeURIComponent(route.detail.id) : '');
+  }
+  function selectionPlanning(route) {
+    return route.detail && route.detail.genre === 'cours' ? {genre:'cours',date:route.detail.id}
+      : route.detail && route.detail.genre === 'stage' ? {genre:'stage',cle:route.detail.id} : null;
+  }
+  function etatNavigation() { return history.state && history.state.avCrmNavigation; }
+  function sauvegarderPosition() {
+    if (!navigationActive) { return; }
+    var precedent = etatNavigation() || {}, actif = document.activeElement;
+    var focus = actif && actif.getAttribute ? actif.getAttribute('data-record-open') || actif.id || precedent.focus || '' : '';
+    var position = Math.max(0, window.scrollY || 0);
+    if (!navigation.detail) { positionsOnglets[navigation.onglet] = position; }
+    history.replaceState(Object.assign({}, history.state, {avCrmNavigation:{
+      route:navigation,position:position,focus:focus,profondeur:precedent.profondeur || 0
+    }}), '', hashDeRoute(navigation));
+  }
+  function restaurerPosition(position, focus) {
+    var revision = ++revisionNavigation;
+    window.requestAnimationFrame(function () {
+      if (revision !== revisionNavigation) { return; }
+      var cible = focus && (el(focus) || Array.from(document.querySelectorAll('[data-record-open]')).find(function (b) { return b.getAttribute('data-record-open') === focus; }));
+      if (!cible) { cible = el(navigation.detail ? 'crm-detail-title' : 'crm-page-title'); }
+      if (cible && cible.focus) { cible.focus({preventScroll:true}); }
+      window.scrollTo({top:Math.max(0, position || 0),left:0,behavior:'instant'});
+    });
+  }
+  function deplacerPanneau(id) {
+    var panneau = el(id), corps = el('crm-detail-body');
+    if (!panneau || !corps) { return; }
+    if (!panneauxDeplaces[id]) { panneauxDeplaces[id] = {parent:panneau.parentNode,suivant:panneau.nextSibling}; }
+    if (panneau.parentNode !== corps) { corps.appendChild(panneau); }
+    panneau.hidden = false;
+  }
+  function restaurerPanneaux() {
+    Object.keys(panneauxDeplaces).forEach(function (id) {
+      var origine = panneauxDeplaces[id], panneau = el(id);
+      if (!panneau) { return; }
+      origine.parent.insertBefore(panneau, origine.suivant && origine.suivant.parentNode === origine.parent ? origine.suivant : null);
+      panneau.hidden = true;
+    });
+    panneauxDeplaces = Object.create(null);
+  }
+  function actualiserDetail(genre) {
+    if (navigationActive && navigation.detail && navigation.detail.genre === genre) { afficherDetail(); }
+  }
+  function afficherDetail() {
+    var detail = navigation.detail, corps = el('crm-detail-body');
+    if (!detail || !corps) { return; }
+    var titre = '', ligne, donnees;
+    if (detail.genre === 'remboursement') {
+      donnees = demandes.find(function (d) { return String(d.id) === detail.id; });
+      titre = 'Remboursements · ' + (donnees ? donnees.enfant : 'Dossier');
+      deplacerPanneau('crm-refunds');
+    } else if (detail.genre === 'cours' || detail.genre === 'stage') {
+      deplacerPanneau('p-inscrits');
+      var titrePlanning = el('p-inscrits').querySelector('h3');
+      titre = titrePlanning ? titrePlanning.textContent : 'Ce créneau n’a plus d’inscrit';
+      if (!titrePlanning) { el('p-inscrits').textContent = 'Le planning a été actualisé. Revenez à la liste pour choisir un autre créneau.'; }
+    } else {
+      var focusCourant = document.activeElement;
+      var focusDansDetail = corps.contains(focusCourant);
+      var actionCourante = focusDansDetail && focusCourant.tagName === 'BUTTON' ? focusCourant.textContent : '';
+      var menuCourant = corps.querySelector('.crm-actions-menu');
+      var autresActionsOuvertes = !!(menuCourant && menuCourant.open);
+      corps.innerHTML = '';
+      if (detail.genre === 'famille') {
+        donnees = familles.find(function (f) { return String(f.user_id || f.email) === detail.id; });
+        if (donnees) { ligne = carteFamille(donnees,true); titre = ((donnees.donnees || {}).responsable || {}).nom || donnees.email || 'Famille'; }
+      } else {
+        donnees = demandes.find(function (d) { return String(d.id) === detail.id; });
+        if (donnees) {
+          titre = donnees.enfant || 'Voltigeur';
+          ligne = detail.genre === 'paiement' ? lignePaiement(donnees, donnees.annule ? 'annule' : resteAEncaisser(donnees) > 0 ? 'du' : 'regle', true) : carteDemande(donnees,true);
+        }
+      }
+      if (ligne) {
+        var table = elementFiche('table','crm-detail-table'), tbody = document.createElement('tbody');
+        table.setAttribute('aria-label','Dossier de ' + titre);
+        ligne.classList.add('crm-detail-record');
+        tbody.appendChild(ligne); table.appendChild(tbody); corps.appendChild(table);
+        var menu = ligne.querySelector('.crm-actions-menu');
+        if (menu) {
+          menu.open = autresActionsOuvertes;
+          var resume = menu.querySelector('summary');
+          if (resume) { resume.textContent = 'Autres actions'; resume.setAttribute('aria-label','Autres actions pour ' + titre); }
+        }
+      } else {
+        titre = 'Dossier';
+        corps.appendChild(elementFiche('p','aide etat-vide',chargements ? 'Chargement du dossier…' : 'Ce dossier n’est plus disponible. Revenez à la liste pour retrouver les dossiers actuels.'));
+      }
+      if (focusDansDetail) {
+        var nouveauFocus = actionCourante && Array.from(corps.querySelectorAll('button')).find(function (b) { return b.textContent === actionCourante; });
+        (nouveauFocus || el('crm-detail-title')).focus({preventScroll:true});
+      }
+    }
+    el('crm-detail-title').textContent = titre;
+    document.title = titre + ' — Espace académie';
+  }
+  function appliquerNavigation(route, position, focus) {
+    if (ui.closeDialog) { ui.closeDialog(); }
+    versionRemboursement++; dossierRemboursement = null;
+    restaurerPanneaux();
+    if (el('crm-detail-body')) { el('crm-detail-body').innerHTML = ''; }
+    navigation = route;
+    positionApresChargement = chargements ? {position:position,focus:focus} : null;
+    document.querySelectorAll('.onglets [data-onglet]').forEach(function (b) {
+      var actif = b.getAttribute('data-onglet') === route.onglet;
+      b.classList.toggle('actif-onglet', actif);
+      if (actif) { b.setAttribute('aria-current','page'); } else { b.removeAttribute('aria-current'); }
+    });
+    ONGLETS_CRM.forEach(function (onglet) { el('o-' + onglet).hidden = !!route.detail || onglet !== route.onglet; });
+    if (ui.setPage) { ui.setPage(route.onglet); }
+    document.body.classList.toggle('crm-detail-open', !!route.detail);
+    if (el('crm-detail')) { el('crm-detail').hidden = !route.detail; }
+    if (el('crm-back')) { el('crm-back').hidden = !route.detail && route.onglet === 'accueil'; }
+    caseChoisie = selectionPlanning(route);
+    if (caseChoisie) { afficherPlanning(); }
+    if (route.detail) {
+      afficherDetail();
+      if (route.detail.genre === 'remboursement') {
+        var d = demandes.find(function (x) { return String(x.id) === route.detail.id; });
+        if (d) { chargerVueRemboursements(d); }
+        else { el('crm-refunds-body').textContent = chargements ? 'Chargement du dossier…' : 'Ce dossier n’est plus disponible.'; }
+      }
+    }
+    restaurerPosition(position, focus);
+  }
+  function naviguer(route, remplacer) {
+    if (!navigationActive) { return; }
+    var identique = hashDeRoute(route) === hashDeRoute(navigation);
+    sauvegarderPosition();
+    if (identique) { restaurerPosition(0); return; }
+    var ancien = etatNavigation() || {};
+    var etat = {route:route,position:route.detail ? 0 : positionsOnglets[route.onglet] || 0,focus:'',profondeur:remplacer ? ancien.profondeur || 0 : (ancien.profondeur || 0) + 1};
+    history[remplacer ? 'replaceState' : 'pushState'](Object.assign({},history.state,{avCrmNavigation:etat}), '', hashDeRoute(route));
+    appliquerNavigation(route, etat.position);
+  }
+  function ouvrirOnglet(onglet) {
+    if (ONGLETS_CRM.indexOf(onglet) !== -1) { naviguer({onglet:onglet,detail:null}); }
+  }
+  function ouvrirDetail(genre, id) {
+    if (DETAILS_CRM.indexOf(genre) !== -1) { naviguer({onglet:navigation.onglet,detail:{genre:genre,id:String(id)}}); }
+  }
+  function retourNavigation() {
+    if (ui.closeDialog && ui.closeDialog()) { return; }
+    var etat = etatNavigation();
+    if (etat && etat.profondeur > 0) { history.back(); }
+    else { naviguer({onglet:navigation.detail ? navigation.onglet : 'accueil',detail:null}, true); }
+  }
+  function initialiserNavigation() {
+    navigationActive = true;
+    if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+    var route = routeDepuisHash(location.hash), precedent = etatNavigation();
+    var etat = precedent && hashDeRoute(precedent.route) === hashDeRoute(route) ? precedent : {route:route,position:0,focus:'',profondeur:0};
+    history.replaceState(Object.assign({},history.state,{avCrmNavigation:etat}), '', hashDeRoute(route));
+    appliquerNavigation(route, etat.position, etat.focus);
+  }
+  function ajouterOuvertureDossier(ligne, cellule, genre, id, nom) {
+    ligne.setAttribute('data-record-kind', genre); ligne.setAttribute('data-record-id', String(id));
+    var bouton = lienAction('Ouvrir le dossier', function () { ouvrirDetail(genre,id); });
+    bouton.className = 'crm-open-record';
+    bouton.setAttribute('data-record-open', genre + ':' + id);
+    bouton.setAttribute('aria-label','Ouvrir le dossier de ' + (nom || 'cette famille'));
+    cellule.appendChild(bouton);
+  }
+
+  window.addEventListener('popstate', function () {
+    if (!navigationActive) { return; }
+    var route = routeDepuisHash(location.hash), etat = etatNavigation();
+    appliquerNavigation(route, etat ? etat.position : 0, etat ? etat.focus : '');
+  });
+  var sauvegardeScrollPrevue = false;
+  window.addEventListener('scroll', function () {
+    if (!navigationActive || sauvegardeScrollPrevue || (ui.isDialogOpen && ui.isDialogOpen())) { return; }
+    sauvegardeScrollPrevue = true;
+    var revision = revisionNavigation;
+    window.requestAnimationFrame(function () {
+      sauvegardeScrollPrevue = false;
+      if (revision === revisionNavigation && !positionApresChargement) { sauvegarderPosition(); }
+    });
+  }, {passive:true});
+  if (el('crm-back')) { el('crm-back').addEventListener('click', retourNavigation); }
 
   document.querySelector('.onglets').addEventListener('click', function (ev) {
     var bouton = ev.target.closest('[data-onglet]');
     if (!bouton) { return; }
     ouvrirOnglet(bouton.getAttribute('data-onglet'));
+  });
+  document.addEventListener('click', function (ev) {
+    var bouton = ev.target.closest('[data-crm-go]');
+    if (bouton) { ouvrirOnglet(bouton.getAttribute('data-crm-go')); }
   });
 
   el('a-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerDemandes(); });
@@ -1792,9 +2032,9 @@
   if(el('f-paiement-recherche')){el('f-paiement-recherche').addEventListener('input',afficherPaiements);}
   if(el('crm-refresh')){el('crm-refresh').addEventListener('click',function(){chargerDemandes();chargerFamilles();});}
   if (el('crm-refunds-close')) { el('crm-refunds-close').addEventListener('click',function () {
-    versionRemboursement++; dossierRemboursement=null; el('crm-refunds').hidden=true; el('crm-page-title').focus();
+    retourNavigation();
   }); }
-  if (el('crm-refunds-refresh')) { el('crm-refunds-refresh').addEventListener('click',function () { if (dossierRemboursement) { ouvrirRemboursements(dossierRemboursement); } }); }
+  if (el('crm-refunds-refresh')) { el('crm-refunds-refresh').addEventListener('click',function () { if (dossierRemboursement) { chargerVueRemboursements(dossierRemboursement); } }); }
   if (!nuage.configure()) { montrer('p-refuse'); return; }
   entrer();
 })();

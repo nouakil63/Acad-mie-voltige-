@@ -2,38 +2,65 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F7F3F0">
   <title>Feuille de présence — Académie de voltige équestre</title>
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/img/favicon-32.png">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
   <style>
-    :root{--rouge:#D00828;--encre:#1D1216;--gris:#8a7f83;--trait:#e6dcd6}
+    :root{--rouge:#D00828;--encre:#1D1216;--gris:#685c61;--trait:#ded5d6;--voile:#F7F3F0}
     *{box-sizing:border-box;margin:0}
-    body{font-family:'Instrument Sans',-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--encre);background:#fff;padding:34px clamp(16px,4vw,50px)}
-    .barre{display:flex;justify-content:flex-end;margin-bottom:18px}
-    .barre button{padding:12px 24px;border-radius:999px;border:0;background:var(--rouge);color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
-    header{display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--rouge);padding-bottom:16px;margin-bottom:8px}
-    header img{width:52px;height:52px;border-radius:50%}
-    h1{font-size:24px;line-height:1.15}
-    .sous{color:var(--gris);font-size:13.5px;margin-top:3px}
-    .infos{display:flex;gap:28px;flex-wrap:wrap;margin:14px 0 20px;font-size:13px;color:var(--gris)}
+    [hidden]{display:none!important}
+    body{font-family:'Hanken Grotesk',-apple-system,'Segoe UI',sans-serif;color:var(--encre);background:var(--voile);padding:24px clamp(16px,4vw,50px) 40px;line-height:1.5}
+    :where(a,button,[tabindex]):focus-visible{outline:3px solid var(--rouge);outline-offset:3px}
+    .barre{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1140px;margin:0 auto 20px}
+    .barre a,.barre button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:11px 19px;border-radius:999px;border:1px solid var(--trait);background:#fff;color:var(--encre);font:700 14px/1.3 'Hanken Grotesk',sans-serif;cursor:pointer;text-decoration:none;touch-action:manipulation}
+    .barre button{border-color:var(--rouge);background:var(--rouge);color:#fff}
+    .barre a:hover{border-color:var(--encre)}.barre button:hover{background:#A5081F;border-color:#A5081F}
+    .barre svg{width:18px;height:18px;flex-shrink:0}
+    main{max-width:1140px;min-width:0;margin:0 auto;padding:32px;background:#fff;border:1px solid var(--trait)}
+    header{display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--rouge);padding-bottom:22px;margin-bottom:8px}
+    header>div{min-width:0}header img{width:56px;height:56px;flex-shrink:0;border-radius:50%}
+    h1{font-family:'Bricolage Grotesque','Hanken Grotesk',sans-serif;font-weight:760;font-stretch:92%;font-size:clamp(25px,3vw,34px);line-height:1.15;letter-spacing:-.02em;overflow-wrap:anywhere}
+    .sous{color:var(--gris);font-size:14px;margin-top:7px;overflow-wrap:anywhere}
+    .infos{display:flex;gap:6px 28px;flex-wrap:wrap;margin:18px 0 22px;font-size:13px;color:var(--gris)}
+    .table-guide{font-size:13px;color:var(--gris);margin:0 0 10px}
+    .table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-color:var(--gris) var(--voile);border:1px solid var(--trait)}
     table{width:100%;border-collapse:collapse;font-size:14px}
-    th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gris);text-align:left;padding:9px 10px;border-bottom:2px solid var(--encre)}
+    th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);text-align:left;padding:12px 10px;border-bottom:2px solid var(--encre);background:var(--voile)}
     td{padding:11px 10px;border-bottom:1px solid var(--trait);vertical-align:middle}
     td.num{color:var(--gris);width:34px}
-    td.nom{font-weight:700}
-    td.info{color:var(--gris);font-size:12.5px}
-    td.coche{text-align:center;width:70px}
-    td.coche::before{content:"";display:inline-block;width:18px;height:18px;border:1.6px solid var(--encre);border-radius:4px}
+    td.nom{font-weight:700;min-width:130px;overflow-wrap:anywhere}
+    td.info{color:var(--gris);font-size:12.5px;min-width:130px;overflow-wrap:anywhere}
+    td.coche{text-align:center;width:64px;min-width:48px}
+    td.coche::before{content:"";display:inline-block;width:18px;height:18px;border:1.6px solid var(--encre)}
     .pied{margin-top:34px;display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;font-size:13px;color:var(--gris)}
-    .signature{border-top:1.2px solid var(--encre);min-width:230px;padding-top:6px;margin-top:44px}
+    .signature{border-top:1.2px solid var(--encre);width:230px;max-width:100%;padding-top:6px;margin-top:44px}
     .vide{margin:40px 0;color:var(--gris)}
-    @media print{.barre{display:none}body{padding:10mm}}
+    @media(max-width:600px){
+      body{padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+      .barre{position:sticky;top:0;z-index:2;gap:8px;margin:0;padding:calc(12px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));border-bottom:1px solid var(--trait);background:var(--voile)}
+      .barre a,.barre button{padding:11px 14px;font-size:13px}
+      main{padding:24px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left));border:0}
+      header{align-items:flex-start;gap:12px}header img{width:42px;height:42px}
+      .infos{display:grid;gap:5px}.pied{gap:0}.signature{margin-top:35px}
+    }
+    @media print{
+      .barre,.table-guide{display:none!important}body{padding:10mm;background:#fff}
+      main{padding:0;max-width:none;border:0}header{padding-bottom:16px}h1{font-size:24px}
+      .table-scroll{overflow:visible;border:0;max-width:none}table{min-width:0!important;font-size:12px}
+      th,td{padding:9px 6px}td.nom,td.info,td.coche{min-width:0}td.coche{width:42px}th{background:#fff}
+      tr{break-inside:avoid}.pied{break-inside:avoid}
+    }
   </style>
 </head>
 <body>
-  <div class="barre"><button onclick="window.print()">🖨️ Imprimer</button></div>
+  <nav class="barre" aria-label="Actions de la feuille de présence">
+    <a id="f-retour" href="./#reservations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18"/></svg><span>Retour au planning</span></a>
+    <button type="button" onclick="window.print()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7z"/></svg><span>Imprimer</span></button>
+  </nav>
+  <main aria-labelledby="f-titre">
   <header>
     <img src="../assets/img/logo.jpeg" alt="">
     <div>
@@ -45,15 +72,19 @@
     <span>Académie de voltige équestre · Auberville</span>
     <span id="f-edition"></span>
   </div>
-  <table id="f-table" hidden>
-    <thead><tr id="f-entetes"></tr></thead>
-    <tbody id="f-lignes"></tbody>
-  </table>
+  <p id="f-table-guide" class="table-guide" hidden>Faites défiler le tableau horizontalement pour voir toutes les colonnes.</p>
+  <div id="f-table-scroll" class="table-scroll" role="region" aria-label="Tableau des présences" hidden>
+    <table id="f-table" aria-labelledby="f-titre" hidden>
+      <thead><tr id="f-entetes"></tr></thead>
+      <tbody id="f-lignes"></tbody>
+    </table>
+  </div>
   <p class="vide" id="f-vide" hidden>Aucun voltigeur sur cette feuille.</p>
   <div class="pied">
     <div class="signature">Signature de l'encadrant</div>
     <div class="signature">Observations</div>
   </div>
+  </main>
 <script>
 (function () {
   'use strict';
@@ -63,6 +94,9 @@
     document.getElementById('f-vide').hidden = false;
     document.getElementById('f-vide').textContent = 'Cette page s’ouvre depuis l’espace académie (bouton « Feuille de présence »).';
     return;
+  }
+  if (typeof f.retour === 'string' && /^#(?:reservations|accueil)(?:\/(?:cours|stage)\/[^\s]+)?$/.test(f.retour)) {
+    document.getElementById('f-retour').href = './' + f.retour.replace(/^#accueil/, '#reservations');
   }
   document.getElementById('f-titre').textContent = f.titre || 'Feuille de présence';
   document.getElementById('f-sous').textContent = f.sousTitre || '';
@@ -74,6 +108,7 @@
   ['#', 'Voltigeur', 'Contact'].concat(colonnes).forEach(function (c) {
     var th = document.createElement('th');
     th.textContent = c;
+    th.scope = 'col';
     entetes.appendChild(th);
   });
 
@@ -84,6 +119,10 @@
     return;
   }
   document.getElementById('f-table').hidden = false;
+  document.getElementById('f-table').style.minWidth = Math.max(520, 310 + colonnes.length * 64) + 'px';
+  var rail = document.getElementById('f-table-scroll');
+  var guide = document.getElementById('f-table-guide');
+  rail.hidden = false;
   lignes.forEach(function (l, i) {
     var tr = document.createElement('tr');
     var num = document.createElement('td'); num.className = 'num'; num.textContent = String(i + 1); tr.appendChild(num);
@@ -94,6 +133,15 @@
     });
     corps.appendChild(tr);
   });
+  function adapterDefilement() {
+    var deborde = rail.scrollWidth > rail.clientWidth + 1;
+    guide.hidden = !deborde;
+    if (deborde) { rail.tabIndex = 0; rail.setAttribute('aria-describedby', 'f-table-guide'); }
+    else { rail.removeAttribute('tabindex'); rail.removeAttribute('aria-describedby'); }
+  }
+  adapterDefilement();
+  window.addEventListener('resize', adapterDefilement);
+  if (window.ResizeObserver) { new ResizeObserver(adapterDefilement).observe(rail); }
 })();
 </script>
 </body>

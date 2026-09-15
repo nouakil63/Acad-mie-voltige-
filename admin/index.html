@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Espace académie — Académie de voltige équestre</title>
   <meta name="theme-color" content="#1D1216">
   <meta name="robots" content="noindex, nofollow">
@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="Académie CRM">
   <link rel="stylesheet" href="../assets/css/fonts.css?v=30">
   <link rel="stylesheet" href="../assets/css/style.css?v=33">
-  <link rel="stylesheet" href="../assets/css/admin.css?v=24">
+  <link rel="stylesheet" href="../assets/css/admin.css?v=25">
 </head>
 <body>
 <a class="acces-rapide" href="#crm-main">Aller au contenu</a>
@@ -52,13 +52,16 @@
       <span class="long">La base clients</span><span class="court">Familles</span>
     </button>
   </nav>
-  <div class="bas">
+  <details class="crm-account-menu">
+    <summary aria-label="Compte et liens utiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg><span>Mon compte</span></summary>
+    <div class="bas">
     <span class="crm-account-label">Compte académie</span>
     <span id="p-compte"></span>
     <a href="#" id="p-deconnexion" hidden>Se déconnecter</a>
     <a href="../index.html" target="_blank" rel="noopener">Voir le site <span aria-hidden="true">↗</span><span class="sr-only"> (nouvel onglet)</span></a>
     <a href="../planning.html" target="_blank" rel="noopener">Planning des enseignantes <span aria-hidden="true">↗</span><span class="sr-only"> (nouvel onglet)</span></a>
   </div>
+  </details>
 </aside>
 
 <main id="crm-main" tabindex="-1">
@@ -99,13 +102,14 @@
   <!-- la plateforme -->
   <div class="pas" id="p-tableau">
     <header class="crm-page-header">
+      <button type="button" id="crm-back" class="crm-back" aria-label="Retour" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span>Retour</span></button>
       <div class="crm-page-heading">
         <p class="eyebrow">Académie de voltige · Gestion</p>
         <h1 id="crm-page-title" tabindex="-1">Tableau de bord</h1>
         <p id="crm-page-description">L’essentiel de votre activité, en un regard.</p>
       </div>
       <div class="crm-sync-tools">
-        <button type="button" class="btn btn-contour" id="crm-refresh">
+        <button type="button" class="btn btn-contour" id="crm-refresh" aria-label="Actualiser les données">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 18 17"/></svg>
           <span>Actualiser</span>
         </button>
@@ -113,18 +117,22 @@
       </div>
     </header>
 
+    <section id="crm-detail" class="crm-detail" aria-labelledby="crm-detail-title" hidden>
+      <h2 id="crm-detail-title" tabindex="-1"></h2>
+      <div id="crm-detail-body"></div>
+    </section>
+
     <!-- Tableau de bord -->
     <section id="o-accueil" aria-labelledby="titre-accueil">
       <h2 class="sr-only" id="titre-accueil">Tableau de bord</h2>
 
-      <div class="chiffres" aria-label="Indicateurs d’activité">
-        <div class="chiffre"><b id="c-attente" class="alerte">—</b><span>en attente</span></div>
-        <div class="chiffre"><b id="c-demandes">—</b><span>demandes</span></div>
-        <div class="chiffre"><b id="c-familles">—</b><span>familles</span></div>
-        <div class="chiffre"><b id="c-resa">—</b><span>cours à venir</span></div>
-        <div class="chiffre"><b id="c-encaisser" class="alerte">—</b><span>à encaisser</span></div>
+      <div class="crm-home-hero">
+        <div class="crm-home-intro"><p class="eyebrow">Le fil de votre activité</p><h2>Aujourd’hui<br>à l’académie<span>.</span></h2></div>
+        <div class="crm-home-priorities">
+          <button type="button" data-crm-go="demandes"><b id="c-attente">—</b><span>Demandes en attente</span><span aria-hidden="true">↗</span></button>
+          <button type="button" data-crm-go="reservations"><b id="c-resa">—</b><span>Cours à venir</span><span aria-hidden="true">↗</span></button>
+        </div>
       </div>
-      <div class="tuiles" id="t-tuiles" aria-label="Suivi des encaissements"></div>
       <div class="crm-dashboard-grid">
       <div class="bloc-accueil" id="b-traiter" hidden>
         <h3>À traiter</h3>
@@ -138,11 +146,17 @@
         <h3>Les prochains rendez-vous</h3>
         <ul id="l-prochains"></ul>
       </div>
-      <div class="bloc-accueil" id="b-stats">
-        <h3>En chiffres</h3>
-        <ul id="l-stats"></ul>
       </div>
-      </div>
+      <details class="crm-home-figures">
+        <summary>Les chiffres en détail<span aria-hidden="true">+</span></summary>
+        <div class="chiffres" aria-label="Indicateurs d’activité">
+          <div class="chiffre"><b id="c-demandes">—</b><span>demandes</span></div>
+          <div class="chiffre"><b id="c-familles">—</b><span>familles</span></div>
+          <div class="chiffre"><b id="c-encaisser">—</b><span>dossiers à encaisser</span></div>
+        </div>
+        <div class="tuiles" id="t-tuiles" aria-label="Suivi des encaissements"></div>
+        <div class="bloc-accueil" id="b-stats"><h3>En chiffres</h3><ul id="l-stats"></ul></div>
+      </details>
     </section>
 
     <!-- Les demandes -->
@@ -155,8 +169,8 @@
           <p id="resultats-demandes" class="crm-result-count" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
         <div class="actions crm-toolbar-actions">
-          <button type="button" class="btn btn-contour crm-export" id="b-export-demandes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter (Excel)</span></button>
-          <button type="button" class="btn btn-rouge" id="b-ajout-demande"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Ajouter une demande</span></button>
+          <button type="button" class="btn btn-contour crm-export" id="b-export-demandes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter</span></button>
+          <button type="button" class="btn btn-rouge" id="b-ajout-demande"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Nouvelle demande</span></button>
         </div>
       </div>
       <div class="crm-filter-panel">
@@ -166,7 +180,7 @@
             <div class="crm-search-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="d-recherche" type="search" placeholder="Un nom, un e-mail, un stage…" autocomplete="off"></div>
           </div>
           <details class="crm-advanced-filters" open>
-          <summary>Filtres et tri <span id="crm-active-filters"></span></summary>
+          <summary>Filtrer et trier <span id="crm-active-filters"></span></summary>
           <div class="crm-advanced-fields">
           <div class="champ">
             <label for="f-type">Activité</label>
@@ -202,7 +216,7 @@
     <!-- Le planning -->
     <section id="o-reservations" aria-labelledby="titre-reservations" hidden>
       <h2 class="sr-only" id="titre-reservations">Le planning</h2>
-      <p class="sous-titre">Une case par créneau, avec sa date et son heure. Sélectionnez un cours ou un stage pour gérer les inscrits et imprimer la feuille de présence. <a href="#" id="r-rafraichir">Actualiser le planning</a></p>
+      <p class="sous-titre crm-section-intro">Choisissez une séance pour retrouver ses inscrits. <a href="#" id="r-rafraichir">Actualiser</a></p>
       <p class="message" id="m-resa" role="alert" hidden></p>
       <h3 class="crm-section-title">Les cours du samedi</h3>
       <div id="g-cours" class="grille-planning"></div>
@@ -217,7 +231,7 @@
       <section id="crm-refunds" class="crm-refund-panel" aria-labelledby="crm-refunds-title" hidden>
         <header class="crm-refund-heading">
           <div><h3 id="crm-refunds-title" tabindex="-1">Remboursements Stripe</h3><p>Vérifiez chaque paiement et son historique avant de rembourser tout ou partie du montant disponible.</p></div>
-          <div class="crm-refund-heading-actions"><button type="button" class="btn btn-contour" id="crm-refunds-refresh">Actualiser Stripe</button><button type="button" class="lien-doux" id="crm-refunds-close">Fermer le suivi</button></div>
+          <div class="crm-refund-heading-actions"><button type="button" class="btn btn-contour" id="crm-refunds-refresh">Actualiser Stripe</button><button type="button" class="lien-doux" id="crm-refunds-close">Retour</button></div>
         </header>
         <div id="crm-refunds-body"></div>
       </section>
@@ -227,11 +241,11 @@
           <span class="crm-metric-footer"><span id="pc-due-count">— dossiers</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
         </button>
         <button type="button" class="crm-payment-metric" data-payment-view="regle" aria-pressed="false" aria-controls="payment-view-regle">
-          <span class="crm-metric-label">Dossiers réglés</span><strong id="t-payes">—</strong>
+          <span class="crm-metric-label">Réglés</span><strong id="t-payes">—</strong>
           <span class="crm-metric-footer"><span id="pc-paid-count">— dossiers</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
         </button>
         <button type="button" class="crm-payment-metric" data-payment-view="annule" aria-pressed="false" aria-controls="payment-view-annule">
-          <span class="crm-metric-label">Remboursements déclarés</span><strong id="t-annules">—</strong>
+          <span class="crm-metric-label"><abbr title="Remboursements déclarés sur les inscriptions annulées">Remb. déclarés</abbr></span><strong id="t-annules">—</strong>
           <span class="crm-metric-footer"><span id="pc-cancel-count">— annulations</span><span class="crm-metric-arrow" aria-hidden="true">↗</span></span>
         </button>
       </div>
@@ -241,7 +255,7 @@
             <label for="f-paiement-recherche">Rechercher un règlement</label>
             <div class="crm-search-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="f-paiement-recherche" type="search" placeholder="Un nom, un e-mail, un stage…" autocomplete="off"></div>
           </div>
-          <button type="button" class="btn btn-contour crm-export" id="b-export-paiements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter (Excel)</span></button>
+          <button type="button" class="btn btn-contour crm-export" id="b-export-paiements" aria-label="Exporter les paiements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Exporter</span></button>
         </div>
         <p id="resultats-paiements" class="crm-payment-results" role="status" aria-live="polite" aria-atomic="true"></p>
         <section id="payment-view-du" class="crm-payment-view" aria-labelledby="payment-title-du">
@@ -273,7 +287,7 @@
     <!-- La base clients -->
     <section id="o-familles" aria-labelledby="titre-familles" hidden>
       <h2 class="sr-only" id="titre-familles">La base clients</h2>
-      <p class="sous-titre">Tous les comptes familles créés sur le site, avec leurs coordonnées, leurs voltigeurs et vos notes. <a href="#" id="f-rafraichir">Rafraîchir</a></p>
+      <p class="sous-titre crm-section-intro">Les contacts et les notes de votre académie. <a href="#" id="f-rafraichir">Actualiser</a></p>
       <div class="champ crm-search-standalone">
         <label for="f-recherche">Rechercher une famille</label>
         <input id="f-recherche" type="search" placeholder="Nom, e-mail, ville, voltigeur…">
@@ -291,7 +305,7 @@
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=3"></script>
 <script src="../assets/js/admin-core.js?v=24"></script>
-<script src="../assets/js/admin-ui.js?v=24"></script>
-<script src="../assets/js/admin.js?v=24"></script>
+<script src="../assets/js/admin-ui.js?v=25"></script>
+<script src="../assets/js/admin.js?v=25"></script>
 </body>
 </html>

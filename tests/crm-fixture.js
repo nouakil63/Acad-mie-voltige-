@@ -13,10 +13,8 @@
   document.addEventListener('DOMContentLoaded',function(){
     var badge=document.createElement('div');badge.className='crm-demo-badge';
     badge.textContent='Démonstration locale · données fictives';
-    badge.style.cssText='position:fixed;z-index:100;bottom:0;left:0;right:0;text-align:center;background:#30272b;color:#fff;font:11px sans-serif;padding:5px;pointer-events:none';
-    var style=document.createElement('style');
-    style.textContent='@media(max-width:680px){.crm-demo-badge{bottom:64px!important}}';
-    document.head.appendChild(style);
-    document.body.appendChild(badge);
+    badge.style.cssText='margin-top:24px;text-align:center;color:#6b6064;font:11px sans-serif;padding:8px;pointer-events:none';
+    document.getElementById('p-tableau').appendChild(badge);
+    document.querySelector('.marque small').textContent='Démonstration · données fictives';
   });
 }());
