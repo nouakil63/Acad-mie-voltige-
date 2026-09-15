@@ -1,6 +1,14 @@
 # CRM de l’Académie — interface 26, service 24
 
-Cette mise à jour améliore l’interface d’administration et la fiabilité du service. Elle nécessite une mise à jour coordonnée de Supabase, de Google Apps Script et du site. GitHub Pages ne publie ni le SQL ni le script Google automatiquement.
+Cette mise à jour améliore l’interface d’administration et la fiabilité du service. GitHub Pages ne publie ni le SQL ni le script Google automatiquement. La nouvelle interface peut être publiée avec le service existant en laissant les fonctions Stripe désactivées ; leur activation nécessite l’installation complète décrite ci-dessous.
+
+## Publication du 15 septembre 2026
+
+La publication de l’interface 26 utilise les migrations notes, paiements et planning. Le service public indique encore la version 22 : l’accès au projet Google de l’académie reste nécessaire pour publier le service 24. La migration `20260912_remboursements_stripe.sql` est différée pour éviter de rendre les anciens rapprochements incompatibles avant cette mise à jour.
+
+`window.AV_CRM_STRIPE_ACTIF` est absent en production, donc désactivé. Seule la valeur booléenne `true` autorise les appels Stripe du frontend. Le CRM affiche « Stripe en attente d’activation », masque les actions de remboursement, neutralise leurs liens directs et ne consulte pas les registres v24. Ce verrou concerne le CRM publié ; il ne modifie pas les éventuelles routines déjà installées dans Apps Script. Les paiements déclarés manuellement et les fonctions ordinaires du CRM restent disponibles.
+
+L’aperçu fictif active Stripe explicitement. Ajouter `?stripe=off#paiements` à son URL permet de vérifier l’état désactivé sans accès aux services réels. Les tests ne constituent pas une validation des envois Google ou des opérations Stripe de production.
 
 ## Changements
 
@@ -42,7 +50,7 @@ Les migrations sont transactionnelles et peuvent être rejouées. La migration d
 1. Vérifier que le compte Stripe choisi est bien celui des liens de paiement de l’académie. Un compte personnel ou celui d’une autre activité ne convient pas.
 2. Dans ce compte Stripe, utiliser une clé **restreinte côté serveur** : lecture des sessions Checkout, PaymentIntents, Charges et Refunds ; écriture des Refunds. Les autorisations exactes peuvent être présentées différemment dans le tableau de bord Stripe : les appels concernés sont `GET /v1/checkout/sessions`, `GET /v1/payment_intents/:id`, `GET /v1/charges/:id`, `GET /v1/refunds` et `POST /v1/refunds`. Aucun accès aux virements n’est nécessaire.
 3. Enregistrer cette clé dans la propriété de script `STRIPE_CLE`, jamais dans GitHub, le JavaScript public ou une conversation. L’ancienne clé limitée à la lecture de Checkout ne suffit plus. Stripe recommande de limiter les droits des clés et de les conserver côté serveur. [Documentation des clés Stripe](https://docs.stripe.com/keys).
-4. Vérifier d’abord la lecture depuis le CRM. Les remboursements restent désactivés tant que la propriété `STRIPE_REMBOURSEMENTS_ACTIFS` ne vaut pas exactement `true`. L’activer une fois le compte, les droits et l’installation vérifiés. Ce paramètre active la fonction ; il n’envoie aucun remboursement à lui seul.
+4. Après installation de la migration remboursements et publication du service 24, activer explicitement `window.AV_CRM_STRIPE_ACTIF = true` avant le chargement de `admin.js`, puis vérifier la lecture depuis le CRM. Les remboursements restent désactivés côté serveur tant que la propriété `STRIPE_REMBOURSEMENTS_ACTIFS` ne vaut pas exactement `true`. L’activer une fois le compte, les droits et l’installation vérifiés. Ces paramètres activent les fonctions ; ils n’envoient aucun remboursement à eux seuls.
 5. Exécuter `installerSynchronisationStripe` dans Apps Script pour installer la synchronisation horaire. Elle lit les états de Stripe et ne crée aucun remboursement. Chaque passage traite au plus 20 règlements affectés, avec un curseur conservé entre les passages ; un cycle complet peut donc prendre plusieurs heures. Les états sont aussi relus à l’ouverture d’un dossier de remboursements et avant une demande de remboursement.
 
 Pour rembourser, ouvrir **Ouvrir le dossier → Autres actions → Remboursements Stripe**, puis choisir le paiement associé et le montant. Pour un stage réglé en deux fois, chaque paiement possède son propre disponible. Vérifier le récapitulatif avant de confirmer : l’action déclenche un remboursement bancaire sur le moyen de paiement d’origine, contrairement à « déclarer un remboursement ».

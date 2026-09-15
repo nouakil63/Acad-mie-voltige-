@@ -15,6 +15,11 @@
 
   var SERVICE = window.AV_SERVICE_URL ||
     'https://script.google.com/macros/s/AKfycbyDW_h6BmR4QpKs1l_917hrml-CUjDQCb-GdyNEPfLufxDhgPwsCRP9Wxwnnk-ByZc/exec';
+  /* Activation explicite après vérification du service, des migrations et du
+     compte Stripe. L'aperçu local active ce flag avant de charger ce fichier.
+     Ce verrou de déploiement complète les contrôles du service ; il ne les remplace pas. */
+  var STRIPE_ACTIF = window.AV_CRM_STRIPE_ACTIF === true;
+  var STRIPE_EN_ATTENTE = 'Stripe est en attente d’activation. Le rapprochement et les remboursements seront disponibles une fois la connexion vérifiée.';
 
   var MOTIFS = { complet: 'Complet', age: 'Âge', gabarit: 'Gabarit', creneau: 'Créneau indisponible' };
   var VUES = ['p-attente', 'p-connexion', 'p-refuse', 'p-tableau'];
@@ -106,6 +111,7 @@
     return r.json();
   }
   async function appelService(corps, json) {
+    if (!STRIPE_ACTIF && /^stripe(?:-|$)/.test(String(corps && corps.type || ''))) { throw new Error(STRIPE_EN_ATTENTE); }
     var session = await nuage.sessionValide();
     if (!session) { throw new Error('Votre session a expiré. Reconnectez-vous.'); }
     var controle = new AbortController();
@@ -485,12 +491,16 @@
     var attenteStripe = (Number(suiviStripe.en_attente_centimes) || 0) / 100;
     var maximumDeclaration = Math.max(0,dejaEncaisse(d) - remboursementStripe - attenteStripe);
     var valeurs = await ui.form({title:'Annuler l’inscription',danger:true,submitLabel:'Enregistrer l’annulation',
-      description:'Cette action annule l’inscription de ' + d.enfant + '. Le montant ci-dessous déclare un autre remboursement déjà effectué, hors Stripe. Un remboursement bancaire Stripe se demande depuis « Remboursements Stripe ».' +
+      description:'Cette action annule l’inscription de ' + d.enfant + '. ' + (STRIPE_ACTIF
+        ? 'Le montant ci-dessous déclare un autre remboursement déjà effectué, hors Stripe. Un remboursement bancaire Stripe se demande depuis « Remboursements Stripe ».'
+        : 'Aucun remboursement bancaire n’est déclenché. Stripe n’est pas synchronisé : indiquez uniquement un remboursement déjà effectué et vérifié.') +
         (remboursementStripe || attenteStripe ? '\nStripe suit déjà ' + euros(remboursementStripe) + ' remboursés et ' + euros(attenteStripe) + ' en attente. Ne les déclarez pas une seconde fois.' : ''),
-      fields:[{name:'montant',label:'Autre remboursement déjà effectué, hors Stripe (€)',type:'number',required:true,min:0,max:maximumDeclaration,step:'0.01',value:'0'}]});
+      fields:[{name:'montant',label:STRIPE_ACTIF ? 'Autre remboursement déjà effectué, hors Stripe (€)' : 'Remboursement déjà effectué (€)',type:'number',required:true,min:0,max:maximumDeclaration,step:'0.01',value:'0'}]});
     if (!valeurs) { return; }
     var montant = Number(valeurs.montant);
-    if (!Number.isFinite(montant) || montant < 0 || montant > maximumDeclaration) { notifier('Ce remboursement déclaré dépasse le montant restant après le suivi Stripe.',true); return; }
+    if (!Number.isFinite(montant) || montant < 0 || montant > maximumDeclaration) { notifier(STRIPE_ACTIF
+      ? 'Ce remboursement déclaré dépasse le montant restant après le suivi Stripe.'
+      : 'Le remboursement déclaré doit être compris entre zéro et le montant encaissé.',true); return; }
     var ok = await patchDemande(d,{annule:true,annule_le:isoLocal(new Date()),rembourse_montant:montant + ' €'});
     if (ok && d.parent_email && await confirmer('Prévenir ' + d.parent_email + ' de cette annulation' + (montant ? ' et du remboursement déclaré de ' + montant + ' €' : '') + ' ?')) {
       await relancer(d,'annulation',montant + ' €',true);
@@ -503,7 +513,8 @@
     }
     var erreur = core.restoreError(d);
     if (erreur) { notifier(erreur, true); return; }
-    if (!await confirmer('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    if (!await confirmer('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?' + (!STRIPE_ACTIF
+      ? '\nStripe n’est pas synchronisé. Vérifiez qu’aucun remboursement bancaire n’a été effectué avant de rétablir ce dossier.' : ''))) { return; }
     patchDemande(d, { annule: false, annule_le: null, rembourse_montant: null });
   }
 
@@ -531,6 +542,7 @@
      Le service Google (qui garde la clé Stripe, secrète) renvoie les
      règlements reçus ; on les rapproche ici des demandes en attente. */
   async function verifierStripe() {
+    if (!STRIPE_ACTIF) { return; }
     var bouton = el('b-stripe'), etat = el('m-stripe');
     if (bouton.disabled) { return; }
     bouton.disabled = true; etat.textContent = 'Vérification des règlements…';
@@ -544,6 +556,7 @@
   }
 
   function rapprocherStripe(rep) {
+    if (!STRIPE_ACTIF) { return; }
     var conteneur = el('stripe-propositions');
     conteneur.innerHTML = '';
     var titre = document.createElement('h3'); titre.textContent = 'Résultats de la vérification Stripe'; conteneur.appendChild(titre);
@@ -621,6 +634,7 @@
     return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
   }
   function accepterRemboursements(d, rep) {
+    if (!STRIPE_ACTIF) { throw new Error(STRIPE_EN_ATTENTE); }
     if (!rep || !(Number(rep.version) >= 24) || !Array.isArray(rep.paiements) || !rep.resume) {
       throw new Error('La consultation des remboursements nécessite la mise à jour du service CRM. Aucun remboursement n’a été demandé.');
     }
@@ -641,6 +655,7 @@
     return rep;
   }
   async function chargerResumeRemboursements(version) {
+    if (!STRIPE_ACTIF) { return; }
     var lecture = ++versionResumeStripe;
     try {
       var resultats = await Promise.all([
@@ -691,8 +706,9 @@
     if (!acteur || identiteAdmin !== acteur) { throw new Error('Votre session a changé. Rouvrez le suivi de ce dossier.'); }
     return accepterRemboursements(d,rep);
   }
-  function ouvrirRemboursements(d) { ouvrirDetail('remboursement', d.id); }
+  function ouvrirRemboursements(d) { if (STRIPE_ACTIF) { ouvrirDetail('remboursement', d.id); } }
   async function chargerVueRemboursements(d) {
+    if (!STRIPE_ACTIF) { return; }
     var version = ++versionRemboursement;
     dossierRemboursement = d;
     var panneau = el('crm-refunds');
@@ -711,6 +727,7 @@
     }
   }
   function afficherRemboursements(d, rep) {
+    if (!STRIPE_ACTIF) { return; }
     var corps = el('crm-refunds-body');
     corps.innerHTML = '';
     var total = elementFiche('div','crm-refund-totals');
@@ -768,6 +785,7 @@
     });
   }
   async function preparerRemboursement(d, sessionId) {
+    if (!STRIPE_ACTIF) { notifier(STRIPE_EN_ATTENTE); return; }
     var version = versionRemboursement;
     return operation('preparer-remboursement:' + d.id,async function () {
       var rep = await lireRemboursements(d);
@@ -806,6 +824,7 @@
     });
   }
   async function executerRemboursement(d, paiement, op, estReprise) {
+    if (!STRIPE_ACTIF) { notifier(STRIPE_EN_ATTENTE); return; }
     var acteur = identiteAdmin;
     var cle = 'remboursement:' + d.id + ':' + paiement.session_id;
     if (operations.has(cle)) { return; }
@@ -1070,7 +1089,7 @@
     if (d.type !== 'stage' && groupe !== 'annule') {
       secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
     }
-    if (recu > 0 || d.annule) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
+    if (STRIPE_ACTIF && (recu > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
     ligne.appendChild(actions.cellule);
     if (!detail) { ajouterOuvertureDossier(ligne, actions.cellule, 'paiement', d.id, d.enfant); }
@@ -1345,7 +1364,7 @@
     else { secondaires.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
     secondaires.appendChild(actionSensible('Supprimer', function () { supprimerDemande(d); }));
     ajouterSuiviRemboursement(etatTd,d);
-    if (dejaEncaisse(d) > 0 || d.annule) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
+    if (STRIPE_ACTIF && (dejaEncaisse(d) > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
     c.appendChild(actions.cellule);
     if (!detail) { ajouterOuvertureDossier(c, actions.cellule, 'demande', d.id, d.enfant); }
@@ -1864,6 +1883,7 @@
     var morceaux = String(hash || '').replace(/^#/, '').split('/');
     var route = {onglet: ONGLETS_CRM.indexOf(morceaux[0]) !== -1 ? morceaux[0] : 'accueil', detail:null};
     if (DETAILS_CRM.indexOf(morceaux[1]) !== -1 && morceaux[2]) {
+      if (morceaux[1] === 'remboursement' && !STRIPE_ACTIF) { return route; }
       try { route.detail = {genre:morceaux[1],id:decodeURIComponent(morceaux.slice(2).join('/'))}; } catch (_) {}
     }
     return route;
@@ -2011,6 +2031,7 @@
     if (ONGLETS_CRM.indexOf(onglet) !== -1) { naviguer({onglet:onglet,detail:null}); }
   }
   function ouvrirDetail(genre, id) {
+    if (genre === 'remboursement' && !STRIPE_ACTIF) { return; }
     if (DETAILS_CRM.indexOf(genre) !== -1) { naviguer({onglet:navigation.onglet,detail:{genre:genre,id:String(id)}}); }
   }
   function retourNavigation() {
@@ -2117,6 +2138,17 @@
     retourNavigation();
   }); }
   if (el('crm-refunds-refresh')) { el('crm-refunds-refresh').addEventListener('click',function () { if (dossierRemboursement) { chargerVueRemboursements(dossierRemboursement); } }); }
+  el('b-stripe').disabled = !STRIPE_ACTIF;
+  el('b-stripe').textContent = STRIPE_ACTIF ? 'Vérifier les paiements Stripe' : 'En attente d’activation';
+  el('crm-stripe-title').textContent = STRIPE_ACTIF ? 'Rapprocher les paiements Stripe' : 'Stripe';
+  if (el('crm-stripe-description')) { el('crm-stripe-description').textContent = STRIPE_ACTIF
+    ? 'Retrouvez les règlements en ligne à associer aux inscriptions.' : STRIPE_EN_ATTENTE; }
+  if (!STRIPE_ACTIF) {
+    el('m-stripe').textContent = '';
+    el('stripe-propositions').innerHTML = '';
+    if (el('crm-refund-summary-status')) { el('crm-refund-summary-status').textContent = ''; }
+    el('crm-refunds-refresh').disabled = true;
+  }
   if (!nuage.configure()) { montrer('p-refuse'); return; }
   entrer();
 })();

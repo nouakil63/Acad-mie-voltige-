@@ -5,8 +5,9 @@ const fs = require('node:fs');
 
 // Exécute le contrôleur réel avec un DOM minimal : aucun appel réseau et
 // aucun accès aux remboursements. Les assertions portent sur le parcours.
-function application(hash = '#demandes', realPlanning = false) {
+function application(hash = '#demandes', realPlanning = false, deployment = {stripeActif:true}) {
   const ids = new Map(), callbacks = {}, frames = [], tabs = [];
+  const calls = [];
   let document;
   class Element {
     constructor(tag = 'div') {
@@ -59,13 +60,23 @@ function application(hash = '#demandes', realPlanning = false) {
     forward() { if (this.index<entries.length-1) { this.index++; location.hash=entries[this.index].hash; callbacks.popstate(); } }
   };
   const ui={notices:[],toast(text){this.notices.push(text);},setPage(){},closeDialog(){const result=this.dialog; this.dialog=false; return !!result;}};
-  const window={AVNuage:{configure:()=>false},AVCrmCore:{},AVCrmUI:ui,scrollY:0,
+  const window={AVNuage:{configure:()=>false,
+    sessionValide:async()=>{calls.push('session'); return {jeton:'test-only'};},
+    requeteAuth:async()=>{calls.push('database'); throw new Error('Unexpected database access');}},AVCrmCore:{},AVCrmUI:ui,scrollY:0,
     addEventListener:(name,fn)=>callbacks[name]=fn, requestAnimationFrame:fn=>frames.push(fn), scrollTo:({top})=>window.scrollY=top};
-  const context = {window,document,location,history,Intl,Set,Map,AbortController,console,setTimeout,clearTimeout};
+  // Les parcours Stripe du harnais optent explicitement pour l'activation.
+  // Passer {} reproduit la production, où ce flag n'est jamais défini.
+  if (Object.hasOwn(deployment,'stripeActif')) { window.AV_CRM_STRIPE_ACTIF=deployment.stripeActif; }
+  const fetch=async(_,options)=>{calls.push(JSON.parse(options.body).type); return {ok:true,text:async()=> 'ok relance;parent@example.test'};};
+  const context = {window,document,location,history,Intl,Set,Map,AbortController,console,setTimeout,clearTimeout,fetch};
   vm.createContext(context);
   const source=fs.readFileSync(require.resolve('../assets/js/admin.js'),'utf8').replace("  if (!nuage.configure())", `
     window.testNavigation = {initialiserNavigation,ouvrirOnglet,ouvrirDetail,retourNavigation,
       routeDepuisHash,hashDeRoute,sauvegarderPosition,preparerRemboursement,
+      stripe:{appelService,chargerResumeRemboursements,verifierStripe,rapprocherStripe,
+        ouvrirRemboursements,chargerVueRemboursements,executerRemboursement},
+      manual:{annulerDemande,retablirDemande},
+      setPatch:function (patch) { patchDemande=patch; },
       setRefundRead:function (read) { lireRemboursements=read; },
       setup:function (realPlanning) {
         demandes=realPlanning ? [] : [{id:42,enfant:'Camille'}];
@@ -82,7 +93,7 @@ function application(hash = '#demandes', realPlanning = false) {
   const app=window.testNavigation; app.setup(realPlanning);
   const flush=()=>{while(frames.length) frames.shift()();};
   app.initialiserNavigation(); flush();
-  return {app,window,document,history,location,el,ui,flush,Element};
+  return {app,window,document,history,location,el,ui,flush,Element,calls};
 }
 
 test('ouvrir un dossier puis Retour conserve la rubrique, la position et le bouton source',()=>{
@@ -183,4 +194,71 @@ test('quitter un remboursement pendant la vérification n’ouvre pas de formula
   finishRead({remboursements_actifs:true,paiements:[{session_id:'cs_42',disponible_centimes:2500}]});
   await pending;
   assert.equal(forms,0); assert.deepEqual(ui.notices,[]);
+});
+
+test('production : Stripe absent ou désactivé interdit tout appel réseau et formulaire financier',async()=>{
+  for (const deployment of [{},{stripeActif:false},{stripeActif:'true'}]) {
+    const {app,calls,el,location,ui}=application('#demandes',false,deployment);
+    let forms=0;
+    ui.form=async()=>{forms++; return null;};
+    await app.stripe.chargerResumeRemboursements(0);
+    await app.stripe.verifierStripe();
+    app.stripe.rapprocherStripe({paiements:[{statut:'propose',session_id:'cs_test',demande_id:42}]});
+    await app.stripe.chargerVueRemboursements({id:42});
+    await app.preparerRemboursement({id:42},'cs_test');
+    await app.stripe.executerRemboursement({id:42},{session_id:'cs_test'},{operation_id:'test'},false);
+    for (const type of ['stripe','stripe-rapprocher','stripe-remboursements','stripe-rembourser']) {
+      await assert.rejects(app.stripe.appelService({type},true),/en attente d’activation/);
+    }
+    app.stripe.ouvrirRemboursements({id:42});
+    app.ouvrirDetail('remboursement',42);
+    assert.equal(location.hash,'#demandes');
+    assert.equal(el('b-stripe').disabled,true);
+    assert.match(el('crm-stripe-description').textContent,/en attente d’activation/);
+    assert.deepEqual(calls,[]);
+    assert.equal(forms,0);
+  }
+});
+
+test('production : un ancien lien de remboursement revient à sa rubrique sans consultation Stripe',()=>{
+  const {app,calls,location,el}=application('#paiements/remboursement/42',false,{});
+  assert.equal(location.hash,'#paiements');
+  assert.equal(app.getNavigation().detail,null);
+  assert.equal(el('crm-detail').hidden,true);
+  assert.deepEqual(calls,[]);
+});
+
+test('le verrou Stripe conserve les appels de messagerie et l’activation explicite des essais',async()=>{
+  const production=application('#demandes',false,{});
+  assert.equal(await production.app.stripe.appelService({type:'relance'},false),'ok relance;parent@example.test');
+  assert.deepEqual(production.calls,['session','relance']);
+  const preview=application('#demandes',false,{stripeActif:true});
+  assert.equal(preview.el('b-stripe').disabled,false);
+  assert.match(preview.el('b-stripe').textContent,/Vérifier les paiements/);
+  assert.ok(preview.app.routeDepuisHash('#paiements/remboursement/42').detail);
+  await preview.app.stripe.appelService({type:'stripe'},false);
+  assert.deepEqual(preview.calls,['session','stripe']);
+});
+
+test('sans Stripe, annuler reste une déclaration vérifiée et un remboursement déclaré empêche le rétablissement',async()=>{
+  const {app,window,ui,calls}=application('#demandes',false,{});
+  Object.assign(window.AVCrmCore,require('../assets/js/admin-core.js'));
+  const patches=[],forms=[],confirmations=[];
+  app.setPatch(async(_,patch)=>{patches.push(patch); return true;});
+  ui.form=async options=>{forms.push(options); return {montant:'10'};};
+  ui.confirm=async options=>{confirmations.push(options.description); return true;};
+  const dossier={id:42,enfant:'Camille',type:'cours',tarif:'25 €',paye:true,paye_montant:'25 €',statut:'validée'};
+  await app.manual.annulerDemande(dossier);
+  assert.equal(patches[0].annule,true);
+  assert.equal(patches[0].rembourse_montant,'10 €');
+  assert.equal(forms[0].fields[0].max,25);
+  assert.match(forms[0].description,/Stripe n’est pas synchronisé/);
+  assert.doesNotMatch(forms[0].description,/depuis « Remboursements Stripe »/);
+  await app.manual.retablirDemande({...dossier,annule:true,rembourse_montant:'10 €'});
+  assert.equal(patches.length,1);
+  assert.match(ui.notices.at(-1),/remboursement est déclaré/);
+  await app.manual.retablirDemande({...dossier,annule:true,rembourse_montant:'0 €'});
+  assert.equal(patches[1].annule,false);
+  assert.match(confirmations[0],/Vérifiez qu’aucun remboursement bancaire n’a été effectué/);
+  assert.deepEqual(calls,[]);
 });

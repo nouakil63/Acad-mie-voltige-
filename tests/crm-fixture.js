@@ -2,6 +2,8 @@
 (function () {
   var session = { user_id:'00000000-0000-0000-0000-000000000001', email:'equipe@example.test', jeton:'fixture-only' };
   window.AV_SERVICE_URL = '/__crm/service';
+  // ?stripe=off permet aussi de vérifier le verrou livré en production.
+  window.AV_CRM_STRIPE_ACTIF = new URLSearchParams(location.search).get('stripe') !== 'off';
   window.AVNuage = {
     configure:function(){return true;},
     retrouverEmail:async function(){return session;},
