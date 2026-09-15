@@ -241,9 +241,12 @@
 
     /* « À traiter » : tout ce qui attend un clic, avec les actions directes. */
     function tacheAccueil(d, detail) {
-      var li = document.createElement('li');
-      li.appendChild(elementFiche('span','crm-task-title',d.enfant || 'Voltigeur'));
-      li.appendChild(elementFiche('span','crm-task-meta',detail));
+      var li = elementFiche('li','crm-task-item');
+      li.appendChild(avatarFiche(d.enfant || 'Voltigeur'));
+      var contenu = elementFiche('div','crm-task-content');
+      contenu.appendChild(elementFiche('span','crm-task-title',d.enfant || 'Voltigeur'));
+      contenu.appendChild(elementFiche('span','crm-task-meta',detail));
+      li.appendChild(contenu);
       var actions = elementFiche('div','crm-task-actions');
       li.appendChild(actions);
       return {ligne:li,actions:actions};
@@ -298,18 +301,19 @@
     var lProchains = el('l-prochains');
     lProchains.innerHTML = '';
     var parJour = {};
-    coursAVenir().forEach(function (d) { (parJour[d.cours_date] = parJour[d.cours_date] || []).push(d); });
+    coursAVenir().forEach(function (d) { var cle = core.scheduleKey(d); (parJour[cle] = parJour[cle] || []).push(d); });
     var joursPlanifies = Object.keys(parJour).sort();
     if (!joursPlanifies.length) {
       var liAucun = document.createElement('li');
-      liAucun.textContent = 'Aucun cours planifié pour l’instant (les cours apparaissent ici dès que Fleur note la date après son appel).';
+      liAucun.className = 'crm-agenda-empty';
+      liAucun.textContent = 'Aucun cours à venir. Les prochains créneaux apparaîtront ici.';
       lProchains.appendChild(liAucun);
     }
-    joursPlanifies.slice(0, 4).forEach(function (date) {
-      var n = parJour[date].length;
-      var li = document.createElement('li');
-      li.textContent = 'Cours du ' + jourLisible(date) + ' : ' + n + (n > 1 ? ' inscrits' : ' inscrit');
-      lProchains.appendChild(li);
+    joursPlanifies.slice(0, 4).forEach(function (cle) {
+      var inscrits = parJour[cle], premier = inscrits[0], n = inscrits.length;
+      lProchains.appendChild(ligneAgenda(premier.cours_date, 'Cours de voltige',
+        (core.time(premier.cours_heure) || premier.cours_heure || 'Horaire à préciser') + ' · ' + n + (n > 1 ? ' inscrits' : ' inscrit'),
+        'cours', cle));
     });
     var parStage = {};
     demandes.forEach(function (d) {
@@ -319,9 +323,9 @@
       }
     });
     Object.keys(parStage).sort().forEach(function (cle) {
-      var li = document.createElement('li');
-      li.textContent = cle + ' : ' + parStage[cle] + (parStage[cle] > 1 ? ' inscrits' : ' inscrit');
-      lProchains.appendChild(li);
+      var debut = debutStageDetail(cle);
+      lProchains.appendChild(ligneAgenda(debut ? isoLocal(debut) : '', cle,
+        parStage[cle] + (parStage[cle] > 1 ? ' inscrits' : ' inscrit'), 'stage', cle));
     });
 
     var lStats = el('l-stats');
@@ -902,6 +906,44 @@
     if (texte != null) { element.textContent = String(texte); }
     return element;
   }
+  function avatarFiche(nom) {
+    var initiales = String(nom || '').trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
+    var avatar = elementFiche('span', 'crm-avatar', initiales || 'A');
+    avatar.setAttribute('aria-hidden', 'true');
+    return avatar;
+  }
+  function etiquetteDetail(conteneur, texte, detail) {
+    if (detail) { conteneur.appendChild(elementFiche('span', 'crm-detail-label', texte)); }
+  }
+  function vignetteDate(iso) {
+    var vignette = elementFiche('span', 'crm-date-tile');
+    var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+    if (date) {
+      vignette.setAttribute('aria-label', jourLisible(iso));
+      vignette.appendChild(elementFiche('span', 'crm-date-day', date.getDate()));
+      vignette.appendChild(elementFiche('span', 'crm-date-month', date.toLocaleDateString('fr-FR', {month:'short'})));
+    } else {
+      vignette.classList.add('crm-date-undated');
+      vignette.appendChild(elementFiche('span', 'crm-date-day', '—'));
+      vignette.appendChild(elementFiche('span', 'crm-date-month', 'Stage'));
+    }
+    return vignette;
+  }
+  function ligneAgenda(date, titre, contexte, genre, cle) {
+    var ligne = elementFiche('li', 'crm-agenda-item');
+    ligne.appendChild(vignetteDate(date));
+    var copie = elementFiche('div', 'crm-agenda-copy');
+    copie.appendChild(elementFiche('span', 'crm-task-title', genre === 'stage' ? titre.replace(/\s*\([^)]*\)\s*$/, '') : titre));
+    copie.appendChild(elementFiche('span', 'crm-task-meta', contexte));
+    ligne.appendChild(copie);
+    var ouvrir = lienAction('Voir', function () { ouvrirDetail(genre, cle); });
+    ouvrir.classList.add('crm-agenda-open');
+    ouvrir.setAttribute('aria-label', 'Voir les inscrits : ' + titre + (date ? ' du ' + jourLisible(date) : ''));
+    ouvrir.setAttribute('data-record-open', 'accueil-' + genre + ':' + cle);
+    ligne.appendChild(ouvrir);
+    return ligne;
+  }
   function actionSensible(texte, surClic) {
     var bouton = lienAction(texte, surClic);
     bouton.classList.add('crm-action-danger');
@@ -910,32 +952,35 @@
   function badgeActivite(d) {
     return elementFiche('span', 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours'), d.type === 'stage' ? 'Stage' : 'Cours');
   }
-  function identiteFiche(d, avecInscription) {
+  function identiteFiche(d, avecInscription, detail) {
     var celluleIdentite = elementFiche('td', 'crm-record-person');
     var personne = elementFiche('div', 'crm-person');
     var nom = d.enfant || 'Voltigeur';
-    var initiales = nom.trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
-    var avatar = elementFiche('span', 'crm-avatar', initiales);
-    avatar.setAttribute('aria-hidden', 'true');
     var copie = elementFiche('div', 'crm-person-copy');
     copie.appendChild(elementFiche('span', 'nom', nom));
+    etiquetteDetail(copie, 'Contact', detail);
     copie.appendChild(elementFiche('span', 'crm-record-meta', d.parent_nom || 'Parent non renseigné'));
-    copie.appendChild(elementFiche('span', 'crm-record-meta crm-record-email', d.parent_email || 'E-mail non renseigné'));
+    var email = elementFiche(detail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.parent_email || '') ? 'a' : 'span',
+      'crm-record-meta crm-record-email' + (detail ? ' crm-contact-link' : ''), d.parent_email || 'E-mail non renseigné');
+    if (email.tagName === 'A') { email.setAttribute('href', 'mailto:' + encodeURIComponent(d.parent_email)); }
+    copie.appendChild(email);
     if (avecInscription) {
       var inscription = elementFiche('div', 'crm-person-offer');
+      etiquetteDetail(inscription, 'Inscription', detail);
       inscription.appendChild(badgeActivite(d));
-      inscription.appendChild(elementFiche('span', 'crm-record-detail', detailCourt(d) || 'Inscription'));
+      inscription.appendChild(elementFiche('span', 'crm-record-detail', (detail ? d.detail : detailCourt(d)) || 'Inscription'));
       copie.appendChild(inscription);
     } else if (d.cree) {
       copie.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', 'Reçue le ' + quandLisible(d.cree)));
     }
-    personne.appendChild(avatar);
+    personne.appendChild(avatarFiche(nom));
     personne.appendChild(copie);
     celluleIdentite.appendChild(personne);
     return celluleIdentite;
   }
-  function actionsFiche(d) {
+  function actionsFiche(d, detail) {
     var celluleActions = elementFiche('td', 'crm-record-actions');
+    etiquetteDetail(celluleActions, 'Actions', detail);
     var contenu = elementFiche('div', 'crm-row-actions');
     var menu = elementFiche('details', 'crm-actions-menu');
     var resume = elementFiche('summary', '', 'Gérer');
@@ -958,12 +1003,13 @@
 
   function lignePaiement(d, groupe, detail) {
     var ligne = elementFiche('tr', 'carte-demande crm-record-row st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente'));
-    ligne.appendChild(identiteFiche(d, true));
+    ligne.appendChild(identiteFiche(d, true, detail));
 
     var reste = resteAEncaisser(d);
     var recu = dejaEncaisse(d);
     var remboursement = montantNumerique(d.rembourse_montant);
     var montant = elementFiche('td', 'crm-record-amount');
+    etiquetteDetail(montant, 'Règlement', detail);
     montant.appendChild(elementFiche('span', 'crm-money', euros(groupe === 'du' ? reste : groupe === 'annule' ? remboursement : recu)));
     montant.appendChild(elementFiche('span', 'crm-record-meta', groupe === 'du' ? 'Reste à encaisser' : groupe === 'annule' ? 'Remboursement déclaré' : 'Montant encaissé'));
     montant.appendChild(elementFiche('span', 'crm-record-meta', 'Tarif total : ' + euros(core.total(d))));
@@ -973,6 +1019,7 @@
     ligne.appendChild(montant);
 
     var etat = elementFiche('td', 'crm-record-status');
+    etiquetteDetail(etat, 'Suivi', detail);
     var badges = elementFiche('div', 'crm-status-badges');
     if (groupe === 'annule') {
       badges.appendChild(elementFiche('span', 'pastille refusee', 'Inscription annulée'));
@@ -995,7 +1042,7 @@
     ajouterSuiviRemboursement(etat,d);
     ligne.appendChild(etat);
 
-    var actions = actionsFiche(d);
+    var actions = actionsFiche(d, detail);
     var secondaires = actions.secondaires;
     if (groupe === 'annule') {
       actions.principale(lienAction('Rétablir l’inscription', function () { retablirDemande(d); }));
@@ -1206,20 +1253,22 @@
 
   function carteDemande(d, detail) {
     var c = elementFiche('tr', 'carte-demande crm-record-row st-' + classeStatut(d.statut));
-    c.appendChild(identiteFiche(d, false));
+    c.appendChild(identiteFiche(d, false, detail));
 
     var demande = elementFiche('td', 'crm-record-offer');
+    etiquetteDetail(demande, 'Inscription', detail);
     demande.appendChild(badgeActivite(d));
-    demande.appendChild(elementFiche('span', 'crm-record-detail', detailCourt(d) || 'Inscription'));
+    demande.appendChild(elementFiche('span', 'crm-record-detail', (detail ? d.detail : detailCourt(d)) || 'Inscription'));
     if (d.tarif) { demande.appendChild(elementFiche('span', 'crm-record-price', d.tarif)); }
     c.appendChild(demande);
 
     var etatTd = elementFiche('td', 'crm-record-status');
+    etiquetteDetail(etatTd, 'Suivi', detail);
     var badges = elementFiche('div', 'crm-status-badges');
     badges.appendChild(elementFiche('span', 'pastille ' + classeStatut(d.statut), d.statut || 'en attente'));
     etatTd.appendChild(badges);
     c.appendChild(etatTd);
-    var actions = actionsFiche(d);
+    var actions = actionsFiche(d, detail);
     var secondaires = actions.secondaires;
     var paiementCours;
 
@@ -1394,12 +1443,22 @@
     b.type = 'button';
     b.className = 'case-planning' + (stage ? ' case-stage' : '') + (actif ? ' actif' : '');
     if (cle) { b.setAttribute('data-record-open', (stage ? 'stage:' : 'cours:') + cle); }
-    var t = document.createElement('b');
-    t.textContent = titre;
-    b.appendChild(t);
-    var sous = document.createElement('span');
-    sous.textContent = sousTitre;
-    b.appendChild(sous);
+    var debut = stage ? debutStageDetail(cle || titre) : null;
+    var date = stage ? (debut ? isoLocal(debut) : '') : String(cle || '').split('|')[0];
+    b.setAttribute('aria-label', titre + ' · ' + sousTitre);
+    b.appendChild(vignetteDate(date));
+    var copie = elementFiche('span', 'crm-planning-copy');
+    copie.appendChild(elementFiche('span', 'crm-planning-type', stage ? 'Stage de voltige' : 'Cours de voltige'));
+    var horaire = !stage && String(cle || '').split('|')[1];
+    var titreCourt = stage ? titre.replace(/\s*\([^)]*\)\s*$/, '') : horaire ? horaire.replace(':', 'h') : titre;
+    copie.appendChild(elementFiche('b', '', titreCourt));
+    var periode = stage && titre.match(/\(([^)]+)\)/);
+    if (periode) { copie.appendChild(elementFiche('span', 'crm-planning-period', periode[1])); }
+    copie.appendChild(elementFiche('span', 'crm-planning-count', sousTitre));
+    b.appendChild(copie);
+    var fleche = elementFiche('span', 'crm-planning-arrow', '↗');
+    fleche.setAttribute('aria-hidden', 'true');
+    b.appendChild(fleche);
     b.addEventListener('click', surClic);
     return b;
   }
@@ -1418,7 +1477,7 @@
     if (!jours.length) {
       var videCours = document.createElement('p');
       videCours.className = 'aide';
-      videCours.textContent = 'Aucun cours planifié pour l’instant : validez une demande de cours, appelez la famille, puis cliquez « Appelé : envoyer date, heure et paiement ».';
+      videCours.textContent = 'Aucun cours à venir. Ouvrez une demande validée pour planifier un créneau.';
       gCours.appendChild(videCours);
     }
     jours.forEach(function (date) {
@@ -1440,7 +1499,7 @@
     if (!cles.length) {
       var vide = document.createElement('p');
       vide.className = 'aide';
-      vide.textContent = 'Aucun stage avec des inscrits pour l’instant (les demandes de stage validées apparaissent ici).';
+      vide.textContent = 'Aucun stage avec des inscrits. Les inscriptions validées apparaîtront ici.';
       gStages.appendChild(vide);
     }
     cles.forEach(function (cle) {
@@ -1465,8 +1524,24 @@
 
     var titre = document.createElement('h3');
     var liste = document.createElement('ul');
+    liste.className = 'crm-attendees';
     var actions = document.createElement('div');
-    actions.className = 'actions';
+    actions.className = 'actions crm-planning-actions';
+
+    function inscrit(d) {
+      var li = elementFiche('li', 'crm-attendee');
+      var personne = elementFiche('div', 'crm-attendee-person');
+      personne.appendChild(avatarFiche(d.enfant || 'Voltigeur'));
+      var copie = elementFiche('div', 'crm-attendee-copy');
+      copie.appendChild(elementFiche('span', 'crm-task-title', d.enfant || 'Voltigeur'));
+      copie.appendChild(elementFiche('span', 'crm-task-meta', d.parent_nom || d.parent_email || 'Parent non renseigné'));
+      if (d.parent_nom && d.parent_email) { copie.appendChild(elementFiche('span', 'crm-task-meta', d.parent_email)); }
+      personne.appendChild(copie);
+      li.appendChild(personne);
+      var controles = elementFiche('div', 'crm-attendee-actions');
+      li.appendChild(controles);
+      return {ligne:li,actions:controles};
+    }
 
     function boutonAjout(surClic) {
       var b = document.createElement('button');
@@ -1482,13 +1557,12 @@
       var date = inscrits[0].cours_date, heure = core.time(inscrits[0].cours_heure) || inscrits[0].cours_heure || '';
       titre.textContent = 'Cours du ' + jourLisible(date) + (heure ? ' · ' + heure : '');
       inscrits.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + (d.cours_heure ? ' · ' + d.cours_heure : '') + (d.parent_email ? ' · ' + d.parent_email : '');
-        li.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
-        li.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
-        li.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
-        li.appendChild(lienAction('Retirer', function () { retirerDuPlanning(d); }));
-        liste.appendChild(li);
+        var fiche = inscrit(d);
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
+        fiche.actions.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
+        fiche.actions.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { retirerDuPlanning(d); }));
+        liste.appendChild(fiche.ligne);
       });
       if (!inscrits.length) {
         var aucun = document.createElement('li');
@@ -1509,11 +1583,10 @@
       var lesInscrits = parStage[cle] || [];
       titre.textContent = cle;
       lesInscrits.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
-        li.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
-        li.appendChild(lienAction('Retirer', function () { supprimerDemande(d); }));
-        liste.appendChild(li);
+        var fiche = inscrit(d);
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { supprimerDemande(d); }));
+        liste.appendChild(fiche.ligne);
       });
       actions.appendChild(boutonAjout(function () { ajouterInscritStage(cle); }));
       actions.appendChild(lienAction('Feuille de présence de la semaine', function () {
@@ -1555,18 +1628,20 @@
   function carteFamille(f, detail) {
     var d = f.donnees || {};
     var r = d.responsable || {};
+    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
     var c = document.createElement('tr');
     c.className = 'carte-famille';
 
     var qui = document.createElement('td');
+    qui.className = 'crm-family-person';
     var ident = document.createElement('div');
     ident.className = 'identite';
     var nomComplet = r.nom || f.email || 'Famille';
-    var initiales = document.createElement('span');
-    initiales.className = 'initiales';
-    initiales.textContent = nomComplet.trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
+    var initiales = avatarFiche(nomComplet);
+    initiales.className += ' initiales';
     ident.appendChild(initiales);
     var bloc = document.createElement('div');
+    bloc.className = 'crm-person-copy';
     var nom = document.createElement('span');
     nom.className = 'nom';
     nom.textContent = nomComplet;
@@ -1577,12 +1652,20 @@
       q.textContent = r.qualite;
       bloc.appendChild(q);
     }
+    if (!detail) {
+      var prenoms = enfants.slice(0, 2).map(function (e) { return e.prenom || e.nom; }).join(', ');
+      var autres = enfants.length > 2 ? ' +' + (enfants.length - 2) : '';
+      bloc.appendChild(elementFiche('span', 'crm-family-summary', enfants.length
+        ? enfants.length + (enfants.length > 1 ? ' voltigeurs · ' : ' voltigeur · ') + prenoms + autres
+        : 'Aucun voltigeur renseigné'));
+    }
     ident.appendChild(bloc);
     qui.appendChild(ident);
     c.appendChild(qui);
 
     var contact = document.createElement('td');
     contact.className = 'crm-family-contact';
+    etiquetteDetail(contact, 'Contact', detail);
     var contacts = [f.email, r.tel, [r.cp, r.ville].filter(Boolean).join(' ')].filter(Boolean);
     if (contacts.length) {
       contacts.forEach(function (ligne) {
@@ -1602,25 +1685,25 @@
         contact.appendChild(l);
       });
     } else {
-      contact.textContent = 'Aucune coordonnée renseignée.';
+      contact.appendChild(elementFiche('p', 'crm-record-meta', 'Aucune coordonnée renseignée.'));
     }
     c.appendChild(contact);
 
     var voltigeurs = document.createElement('td');
     voltigeurs.className = 'crm-family-children';
-    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
+    etiquetteDetail(voltigeurs, 'Voltigeurs', detail);
     enfants.forEach(function (e) {
-      var puce = document.createElement('div');
-      var morceaux = [(e.prenom + ' ' + (e.nom || '')).trim()];
-      if (e.naissance) { morceaux.push('né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR')); }
-      puce.textContent = morceaux.join(' · ');
+      var puce = elementFiche('div', 'crm-child-item');
+      puce.appendChild(elementFiche('span', 'crm-child-name', ((e.prenom || '') + ' ' + (e.nom || '')).trim()));
+      if (e.naissance) { puce.appendChild(elementFiche('span', 'crm-child-meta', 'Né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR'))); }
       voltigeurs.appendChild(puce);
     });
-    if (!enfants.length) { voltigeurs.textContent = '—'; }
+    if (!enfants.length) { voltigeurs.appendChild(elementFiche('p', 'crm-record-meta', 'Aucun voltigeur renseigné.')); }
     c.appendChild(voltigeurs);
 
     var suivi = document.createElement('td');
     suivi.className = 'crm-family-followup';
+    etiquetteDetail(suivi, 'Suivi de la famille', detail);
     var nbDemandes = (d.demandes || []).length;
     if (nbDemandes) {
       var lDemandes = document.createElement('div');
@@ -1635,10 +1718,9 @@
       suivi.appendChild(maj);
     }
     if (f.note_admin) {
-      var note = document.createElement('div');
-      note.className = 'corps';
-      note.style.fontStyle = 'italic';
-      note.textContent = 'Note : ' + f.note_admin;
+      var note = elementFiche('div', 'corps crm-private-note');
+      note.appendChild(elementFiche('span', 'crm-detail-label', 'Note privée'));
+      note.appendChild(elementFiche('p', '', f.note_admin));
       suivi.appendChild(note);
     }
     c.appendChild(suivi);

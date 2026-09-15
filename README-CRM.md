@@ -1,10 +1,11 @@
-# CRM de l’Académie — interface 25, service 24
+# CRM de l’Académie — interface 26, service 24
 
 Cette mise à jour améliore l’interface d’administration et la fiabilité du service. Elle nécessite une mise à jour coordonnée de Supabase, de Google Apps Script et du site. GitHub Pages ne publie ni le SQL ni le script Google automatiquement.
 
 ## Changements
 
-- Interface repensée autour du rouge, de l’ivoire et des typographies de l’académie. Sur mobile : cinq rubriques fixées en bas, accueil centré sur les tâches du jour, statistiques secondaires repliées et cartes de dossiers allégées.
+- Interface entièrement recomposée : seule la palette rouge/ivoire/encre et les typographies Hanken/Bricolage sont reprises du site. La feuille `admin.css` est autonome et remplace les anciens styles : surfaces blanches arrondies, espaces de 20 à 32 px, hiérarchie de titres et boutons homogènes. Les cinq rubriques partagent une navigation blanche flottante sur mobile et une barre latérale claire sur ordinateur.
+- Accueil éditorial, cartes de priorités, tâches avec identité et agenda daté. Dossiers présentés en cartes sur tous les écrans, fiches découpées en Contact/Inscription/Suivi/Actions. Le planning distingue la date, l’horaire et les inscrits. Les montants restent lisibles dans des cartes défilantes sur mobile ; seuls les filtres, les indicateurs de paiement et les tableaux qui le nécessitent défilent horizontalement.
 - Dossiers, séances et remboursements s’ouvrent dans des écrans dédiés. Le bouton Retour et le retour du navigateur restaurent les filtres et la position de lecture. Les formulaires occupent l’écran mobile, avec un en-tête et des boutons fixes, un contenu défilant et une adaptation à la hauteur du clavier.
 - Recherche sans accents, filtres combinables par activité/statut/suivi, tri et nombre de résultats. Les exports respectent les recherches/filtres de leur écran.
 - Pages demandes et paiements : identité regroupée, montants mis en évidence et bouton « Ouvrir le dossier ». Le dossier garde l’action principale visible et regroupe les autres dans « Autres actions ». Les cartes des paiements sélectionnent la liste à encaisser, réglée ou annulée ; leurs montants et compteurs suivent la recherche. Les compteurs de statut des demandes suivent recherche/activité/suivi, indépendamment du statut sélectionné. Les filtres défilent horizontalement dans leur zone ; la page reste verticale.
