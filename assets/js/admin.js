@@ -977,6 +977,8 @@
     var nom = d.enfant || 'Voltigeur';
     var copie = elementFiche('div', 'crm-person-copy');
     copie.appendChild(elementFiche('span', 'nom', nom));
+    var age = ageEnfant(d);
+    if (age !== '') { copie.appendChild(elementFiche('span', 'crm-record-meta', libelleAge(age) + ' à l’inscription')); }
     etiquetteDetail(copie, 'Contact', detail);
     copie.appendChild(elementFiche('span', 'crm-record-meta', d.parent_nom || 'Parent non renseigné'));
     var email = elementFiche(detail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.parent_email || '') ? 'a' : 'span',
@@ -1178,6 +1180,7 @@
       enfantPrenom: morceauxNom.shift() || '',
       enfantNom: morceauxNom.join(' '),
       enfantNaissance: champs['Date de naissance'] || '',
+      enfantAge: ageEnfant(d),
       enfantLieu: champs['Né(e) à'] || '',
       nationalite: champs['Nationalité'] || '',
       sexe: champs['Sexe'] || '',
@@ -1208,10 +1211,29 @@
   }
 
   /* ================= Les demandes ================= */
+  function ageEnfant(d) {
+    var trouve = String(d.lignes || '').match(/^Âge : (\d{1,3}) ans?\r?$/m);
+    return trouve && Number(trouve[1]) <= 120 ? String(Number(trouve[1])) : '';
+  }
+  function libelleAge(age) { return age + (Number(age) > 1 ? ' ans' : ' an'); }
+  function erreurAge(age) {
+    if (age == null || String(age).trim() === '') { return ''; }
+    var nombre = Number(age);
+    return Number.isInteger(nombre) && nombre >= 0 && nombre <= 120 ? '' : 'Indiquez un âge entier entre 0 et 120 ans, ou laissez ce champ vide.';
+  }
+  function champAge(age) {
+    return {name:'age',label:'Âge de l’enfant (ans)',type:'number',min:'0',max:'120',step:'1',value:age || '',placeholder:'Ex. : 10',help:'Facultatif · âge au moment de l’inscription.'};
+  }
+  function lignesAvecAge(lignes, age) {
+    var texte = String(lignes || '').split('\n').filter(function (ligne) { return !/^Âge : \d{1,3} ans?\r?$/.test(ligne); }).join('\n');
+    if (age == null || String(age).trim() === '') { return texte; }
+    return texte + (texte && !/\n$/.test(texte) ? '\n' : '') + 'Âge : ' + libelleAge(String(Number(age)));
+  }
   /* Ajouter, corriger ou supprimer une demande a la main. */
   async function ajouterDemande(options) {
     options = options && (options.type === 'cours' || options.type === 'stage') ? options : {};
     var valeurs = await ui.form({title:'Nouvelle demande',description:'Ajoutez un dossier reçu par téléphone ou sur place. Aucun e-mail ne part à cette étape.',submitLabel:'Créer la demande',
+      validate:function (v) { return erreurAge(v.age); },
       onChange:function (name, value, controls) {
         if (name !== 'type') { return; }
         var ancienTarif = value === 'stage' ? '25' : '840';
@@ -1222,6 +1244,7 @@
       },fields:[
       {name:'type',label:'Activité',type:'select',value:options.type || 'cours',options:[{value:'cours',label:'Cours'},{value:'stage',label:'Stage'}]},
       {name:'enfant',label:'Nom du voltigeur',required:true},
+      champAge(''),
       {name:'parent_nom',label:'Nom du parent'},
       {name:'parent_email',label:'E-mail du parent',type:'email'},
       {name:'detail',label:'Formule ou stage et dates',required:true,value:options.detail || (options.type === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité')},
@@ -1231,7 +1254,7 @@
     if (!valeurs) { return; }
     await operation('nouvelle-demande',async function () {
       var ligne = {type:valeurs.type,enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),
-        detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €',statut:valeurs.statut,lignes:'Ajoutée à la main depuis l’espace académie.'};
+        detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €',statut:valeurs.statut,lignes:lignesAvecAge('Ajoutée à la main depuis l’espace académie.',valeurs.age)};
       if (ligne.statut === 'validée') { ligne.decide = new Date().toISOString(); }
       var d = await creerDemande(ligne); allerDemande(d);
     });
@@ -1239,15 +1262,19 @@
 
   async function modifierDemande(d) {
     var valeurs = await ui.form({title:'Modifier la demande',description:d.enfant,submitLabel:'Enregistrer les modifications',
-      validate:function (v) { return core.validateTariff(d, v.tarif); },fields:[
+      validate:function (v) { return erreurAge(v.age) || core.validateTariff(d, v.tarif); },fields:[
       {name:'enfant',label:'Nom du voltigeur',required:true,value:d.enfant || ''},
+      champAge(ageEnfant(d)),
       {name:'parent_nom',label:'Nom du parent',value:d.parent_nom || ''},
       {name:'parent_email',label:'E-mail du parent',type:'email',value:d.parent_email || ''},
       {name:'detail',label:'Formule ou stage et dates',required:true,value:d.detail || ''},
       {name:'tarif',label:'Tarif total (€)',type:'number',min:'0.01',step:'0.01',required:true,value:String(core.total(d))}
     ]});
     if (!valeurs) { return; }
-    return patchDemande(d,{enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €'});
+    var changements = {enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €'};
+    var ageSaisi = valeurs.age == null || String(valeurs.age).trim() === '' ? '' : String(Number(valeurs.age));
+    if (ageSaisi !== ageEnfant(d)) { changements.lignes = lignesAvecAge(d.lignes,ageSaisi); }
+    return patchDemande(d,changements);
   }
 
   async function supprimerDemande(d) {
@@ -1626,12 +1653,12 @@
   /* ---- inscrire ou retirer un voltigeur a la main ---- */
   async function ajouterInscritCours(date, heureInitiale) {
     var valeurs = await ui.form({title:'Ajouter un inscrit au cours',description:jourLisible(date),submitLabel:'Ajouter au créneau',
-      validate:function (v) { return erreurCreneau(date, v.heure); },fields:[
-      {name:'enfant',label:'Nom du voltigeur',required:true},{name:'email',label:'E-mail du parent',type:'email'},
+      validate:function (v) { return erreurAge(v.age) || erreurCreneau(date, v.heure); },fields:[
+      {name:'enfant',label:'Nom du voltigeur',required:true},champAge(''),{name:'email',label:'E-mail du parent',type:'email'},
       {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(heureInitiale) || '10:00'}]});
     if (!valeurs) { return; }
     await operation('nouvel-inscrit',async function () {
-      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'25 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:'Ajoutée à la main depuis l’espace académie.',cours_date:date,cours_heure:valeurs.heure});
+      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'25 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:lignesAvecAge('Ajoutée à la main depuis l’espace académie.',valeurs.age),cours_date:date,cours_heure:valeurs.heure});
       if (d.parent_email && await confirmer('Inscrit ajouté. Envoyer les informations du cours à '+d.parent_email+' ?')) { await envoyerInfosCours(d,true); }
     });
   }

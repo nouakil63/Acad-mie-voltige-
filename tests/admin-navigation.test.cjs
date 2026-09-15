@@ -75,8 +75,10 @@ function application(hash = '#demandes', realPlanning = false, deployment = {str
       routeDepuisHash,hashDeRoute,sauvegarderPosition,preparerRemboursement,
       stripe:{appelService,chargerResumeRemboursements,verifierStripe,rapprocherStripe,
         ouvrirRemboursements,chargerVueRemboursements,executerRemboursement},
-      manual:{annulerDemande,retablirDemande},
+      manual:{annulerDemande,retablirDemande,ajouterDemande,ajouterInscritCours,ajouterInscritStage,
+        modifierDemande,dossierDepuisLignes,identiteFiche},
       setPatch:function (patch) { patchDemande=patch; },
+      setRefresh:function (refresh) { rafraichirAffichage=refresh; },
       setRefundRead:function (read) { lireRemboursements=read; },
       setup:function (realPlanning) {
         demandes=realPlanning ? [] : [{id:42,enfant:'Camille'}];
@@ -261,4 +263,156 @@ test('sans Stripe, annuler reste une déclaration vérifiée et un remboursement
   assert.equal(patches[1].annule,false);
   assert.match(confirmations[0],/Vérifiez qu’aucun remboursement bancaire n’a été effectué/);
   assert.deepEqual(calls,[]);
+});
+
+// Les mutations restent les vraies fonctions du contrôleur : seule la réponse
+// Supabase et le rendu global sont simulés, sans accès à une base ni aux mails.
+function manualApplication(seed) {
+  const harness=application('#demandes',false,{});
+  const requests=[], forms=[];
+  Object.assign(harness.window.AVCrmCore,require('../assets/js/admin-core.js'));
+  harness.app.setRefresh(()=>{});
+  harness.window.AVNuage.requeteAuth=async(path,options)=>{
+    const body=JSON.parse(options.body);
+    requests.push({path,method:options.method,body});
+    return {ok:true,json:async()=>[{id:71,...seed,...body}]};
+  };
+  harness.ui.confirm=async()=>false;
+  function answer(values) {
+    harness.ui.form=async options=>{
+      forms.push(options);
+      assert.equal(options.validate(values),'');
+      return values;
+    };
+  }
+  return {...harness,requests,forms,answer};
+}
+const manualValues={type:'cours',enfant:'Camille Martin',age:'10',parent_nom:'Alex Martin',parent_email:'',detail:'Cours à l’unité',tarif:'25',statut:'en attente'};
+
+test('ajouter un cours conserve l’âge dans le dossier enregistré et imprimable sans inventer une naissance',async()=>{
+  const {app,requests,forms,answer,location,calls}=manualApplication();
+  answer({...manualValues});
+  await app.manual.ajouterDemande();
+  assert.equal(requests.length,1);
+  const request=requests[0];
+  assert.equal(request.method,'POST');
+  assert.equal(request.path,'/rest/v1/demandes');
+  assert.equal(request.body.lignes,'Ajoutée à la main depuis l’espace académie.\nÂge : 10 ans');
+  assert.equal(request.body.detail,manualValues.detail);
+  assert.equal(request.body.enfant,manualValues.enfant);
+  assert.equal(Object.hasOwn(request.body,'age'),false);
+  assert.equal(Object.hasOwn(request.body,'enfantNaissance'),false);
+  assert.equal(forms[0].fields.find(field=>field.name==='age').required,undefined);
+  const print=app.manual.dossierDepuisLignes(request.body);
+  assert.equal(print.enfantAge,'10');
+  assert.equal(print.enfantNaissance,'');
+  const identity=app.manual.identiteFiche(request.body,false,true);
+  assert.ok(identity.querySelectorAll('.crm-record-meta').some(node=>node.textContent==='10 ans à l’inscription'));
+  assert.equal(location.hash,'#demandes/demande/71');
+  assert.deepEqual(calls,[]);
+});
+
+test('un stage ajouté depuis Demandes ou son planning conserve le même âge et la semaine choisie',async()=>{
+  const stage='Stage découverte (du 13 au 18 juillet 2099)';
+  for (const fromPlanning of [false,true]) {
+    const {app,requests,forms,answer,calls}=manualApplication();
+    answer({...manualValues,type:'stage',age:'12',detail:stage,tarif:'840'});
+    if (fromPlanning) { await app.manual.ajouterInscritStage(stage); }
+    else { await app.manual.ajouterDemande(); }
+    assert.equal(requests.length,1);
+    assert.equal(requests[0].body.type,'stage');
+    assert.equal(requests[0].body.detail,stage);
+    assert.match(requests[0].body.lignes,/^Âge : 12 ans$/m);
+    if (fromPlanning) {
+      assert.equal(forms[0].fields.find(field=>field.name==='type').value,'stage');
+      assert.equal(forms[0].fields.find(field=>field.name==='detail').value,stage);
+    }
+    assert.deepEqual(calls,[]);
+  }
+});
+
+test('ajouter au planning enregistre aussi l’âge tout en conservant le créneau et la validation',async()=>{
+  const {app,requests,forms,answer,calls}=manualApplication();
+  const saturday=new Date('2099-09-01T12:00:00');
+  saturday.setDate(saturday.getDate()+(6-saturday.getDay()+7)%7);
+  const date=saturday.toISOString().slice(0,10);
+  answer({enfant:'Camille Martin',age:'8',email:'',heure:'10:00'});
+  await app.manual.ajouterInscritCours(date,'10:00');
+  assert.equal(requests.length,1);
+  assert.match(requests[0].body.lignes,/^Âge : 8 ans$/m);
+  assert.equal(requests[0].body.cours_date,date);
+  assert.equal(requests[0].body.cours_heure,'10:00');
+  assert.equal(requests[0].body.statut,'validée');
+  assert.ok(requests[0].body.decide);
+  assert.equal(forms[0].fields.find(field=>field.name==='age').type,'number');
+  assert.deepEqual(calls,[]);
+});
+
+test('corriger un âge préremplit sa valeur et préserve la naissance et toutes les autres lignes du dossier',async()=>{
+  const otherLines='Voltigeur : Camille Martin\r\nDate de naissance : 2016-02-29\r\nTéléphone : 0102030405\r\nSanté / remarques : Rien à signaler\r\n';
+  const dossier={id:71,...manualValues,lignes:otherLines+'Âge : 9 ans\r\nSigné en ligne : 2026-09-15'};
+  const {app,requests,forms,answer}=manualApplication(dossier);
+  answer({...manualValues,age:'10'});
+  await app.manual.modifierDemande(dossier);
+  assert.equal(forms[0].fields.find(field=>field.name==='age').value,'9');
+  assert.equal(requests[0].method,'PATCH');
+  assert.equal(requests[0].path,'/rest/v1/demandes?id=eq.71');
+  const expected=otherLines+'Signé en ligne : 2026-09-15\nÂge : 10 ans';
+  assert.equal(requests[0].body.lignes,expected);
+  assert.equal(dossier.lignes,expected);
+  const print=app.manual.dossierDepuisLignes(dossier);
+  assert.equal(print.enfantAge,'10');
+  assert.equal(print.enfantNaissance,'2016-02-29');
+  assert.equal(print.parentTel,'0102030405');
+  assert.equal(print.signeLe,'2026-09-15');
+});
+
+test('modifier sans changer l’âge évite de réécrire le dossier ; l’effacer conserve les autres informations',async()=>{
+  const original='Texte libre historique\r\nDate de naissance : 2016-02-29\r\nÂge : 10 ans\r\nSanté / remarques : —';
+  const dossier={id:71,...manualValues,lignes:original};
+  const {app,requests,answer}=manualApplication(dossier);
+  answer({...manualValues,age:'010',parent_nom:'Alex Modifié'});
+  await app.manual.modifierDemande(dossier);
+  assert.equal(Object.hasOwn(requests[0].body,'lignes'),false);
+  assert.equal(dossier.lignes,original);
+  answer({...manualValues,age:''});
+  await app.manual.modifierDemande(dossier);
+  assert.equal(requests[1].body.lignes,'Texte libre historique\r\nDate de naissance : 2016-02-29\r\nSanté / remarques : —');
+  assert.equal(app.manual.dossierDepuisLignes(dossier).enfantAge,'');
+  assert.equal(app.manual.dossierDepuisLignes(dossier).enfantNaissance,'2016-02-29');
+});
+
+test('l’âge reste facultatif, y compris pour une ancienne demande sans date de naissance',async()=>{
+  const {app,requests,answer}=manualApplication();
+  answer({...manualValues,age:''});
+  await app.manual.ajouterDemande();
+  assert.equal(requests[0].body.lignes,'Ajoutée à la main depuis l’espace académie.');
+  const dossier={id:71,...manualValues,lignes:'Ancienne inscription prise par téléphone.'};
+  answer({...manualValues,age:'0'});
+  await app.manual.modifierDemande(dossier);
+  assert.equal(requests[1].body.lignes,'Ancienne inscription prise par téléphone.\nÂge : 0 an');
+  assert.equal(app.manual.dossierDepuisLignes(dossier).enfantAge,'0');
+});
+
+test('tous les formulaires contrôlent les âges entiers et gardent les validations de tarif et de créneau',async()=>{
+  const {app,ui,requests}=manualApplication();
+  const forms=[];
+  ui.form=async options=>{forms.push(options);return null;};
+  await app.manual.ajouterDemande();
+  await app.manual.ajouterInscritStage('Stage — semaine test');
+  await app.manual.modifierDemande({id:71,...manualValues,tarif:'25 €',paye:true,paye_montant:'25 €'});
+  const saturday=new Date('2099-09-01T12:00:00');
+  saturday.setDate(saturday.getDate()+(6-saturday.getDay()+7)%7);
+  await app.manual.ajouterInscritCours(saturday.toISOString().slice(0,10),'10:00');
+  for (const form of forms) {
+    for (const age of ['',undefined,'0','1','10','120']) {
+      assert.equal(form.validate({...manualValues,age,heure:'10:00'}),'');
+    }
+    for (const age of ['-1','121','10.5','dix','Infinity']) {
+      assert.match(form.validate({...manualValues,age,heure:'10:00'}),/âge entier entre 0 et 120/);
+    }
+  }
+  assert.match(forms[2].validate({...manualValues,age:'10',tarif:'20'}),/inférieur/);
+  assert.match(forms[3].validate({...manualValues,age:'10',heure:'25:00'}),/heure/);
+  assert.deepEqual(requests,[]);
 });
