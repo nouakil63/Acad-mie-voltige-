@@ -138,9 +138,20 @@
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
   var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbyDW_h6BmR4QpKs1l_917hrml-CUjDQCb-GdyNEPfLufxDhgPwsCRP9Wxwnnk-ByZc/exec';
 
+  /* les cases cochées d'un groupe (maladies, autres pratiques…) */
+  function coches(nom) {
+    var v = [];
+    form.querySelectorAll('input[name="' + nom + '"]:checked').forEach(function (c) { v.push(c.value); });
+    return v.join(', ');
+  }
+
   /* ---- le dossier rempli, gardé dans ce navigateur pour le téléchargement ---- */
   function donneesDossier(s) {
     var maintenant = new Date();
+    var pratiques = [coches('pratiques'),
+      texte('pratique-instrument') ? 'instrument : ' + texte('pratique-instrument') : '',
+      texte('pratique-depuis') ? 'depuis ' + texte('pratique-depuis') : '']
+      .filter(function (x) { return x; }).join(' · ');
     return {
       type: 'stage',
       annee: '2026/2027',
@@ -150,11 +161,24 @@
       nationalite: texte('enfant-nationalite'), sexe: texte('enfant-sexe'),
       gabarit: texte('enfant-gabarit'),
       niveau: document.getElementById('enfant-niveau').value,
+      dernierStage: texte('enfant-dernier-stage'),
+      autresPratiques: pratiques,
+      connuAcademie: texte('connu-academie'),
       qualite: texte('parent-qualite'), parentNom: texte('parent-nom'),
       adresse: texte('parent-adresse'), cp: texte('parent-cp'), ville: texte('parent-ville'),
       parentTel: texte('parent-tel'), telDomicile: texte('parent-tel-domicile'),
+      telProPere: texte('parent-tel-pro-pere'), telProMere: texte('parent-tel-pro-mere'),
+      professionPere: texte('profession-pere'), professionMere: texte('profession-mere'),
       parentEmail: texte('parent-email'),
+      urgenceNom: texte('urgence-nom'), urgenceTel: texte('urgence-tel'),
+      sejourAdresse: [texte('sejour-adresse'), texte('sejour-cp-ville'), texte('sejour-tel')]
+        .filter(function (x) { return x; }).join(' · '),
+      factureCE: [texte('ce-nom'), texte('ce-adresse')].filter(function (x) { return x; }).join(' · '),
       secuCaisse: texte('secu-caisse'), secuNumero: texte('secu-numero'),
+      groupeSanguin: texte('groupe-sanguin'),
+      maladies: coches('maladies'),
+      vaccinsAJour: texte('vaccins-a-jour'), vaccinsPourquoi: texte('vaccins-pourquoi'),
+      serum: texte('serum'), baignade: texte('baignade'),
       licence: texte('licence-ffe'), recommandations: texte('enfant-sante'),
       faitA: texte('parent-ville'),
       signeLe: maintenant.toLocaleDateString('fr-FR'),
@@ -203,6 +227,9 @@
           sexe: dossier.sexe === 'F' ? 'Fille' : dossier.sexe === 'M' ? 'Garçon' : dossier.sexe,
           gabaritDetail: dossier.gabarit,
           niveau: dossier.niveau,
+          dernierStage: dossier.dernierStage,
+          autresPratiques: dossier.autresPratiques,
+          connuAcademie: dossier.connuAcademie,
           sante: dossier.recommandations,
           qualite: dossier.qualite,
           parentNom: dossier.parentNom,
@@ -211,9 +238,23 @@
           ville: dossier.ville,
           parentTel: dossier.parentTel,
           telDomicile: dossier.telDomicile,
+          telProPere: dossier.telProPere,
+          telProMere: dossier.telProMere,
+          professionPere: dossier.professionPere,
+          professionMere: dossier.professionMere,
           parentEmail: dossier.parentEmail,
+          urgenceNom: dossier.urgenceNom,
+          urgenceTel: dossier.urgenceTel,
+          sejourAdresse: dossier.sejourAdresse,
+          factureCE: dossier.factureCE,
           secuCaisse: dossier.secuCaisse,
           secuNumero: dossier.secuNumero,
+          groupeSanguin: dossier.groupeSanguin,
+          maladies: dossier.maladies,
+          vaccinsAJour: dossier.vaccinsAJour,
+          vaccinsPourquoi: dossier.vaccinsPourquoi,
+          serum: dossier.serum,
+          baignade: dossier.baignade,
           licence: dossier.licence,
           droitImage: 'Accepté en ligne',
           autorisationMedicale: 'Acceptée en ligne',
@@ -239,14 +280,31 @@
       'Date de naissance : ' + dossier.enfantNaissance + (dossier.enfantLieu ? ' à ' + dossier.enfantLieu : ''),
       'Sexe : ' + dossier.sexe + ' · Gabarit : ' + dossier.gabarit,
       'Niveau : ' + dossier.niveau,
+      dossier.dernierStage ? 'Dernier stage au club : ' + dossier.dernierStage : '',
+      dossier.autresPratiques ? 'Autres pratiques : ' + dossier.autresPratiques : '',
+      dossier.connuAcademie ? 'A connu l\'académie par : ' + dossier.connuAcademie : '',
+      '',
+      'Fiche sanitaire :',
+      dossier.groupeSanguin ? 'Groupe sanguin : ' + dossier.groupeSanguin : '',
+      dossier.maladies ? 'Maladies déjà eues : ' + dossier.maladies : '',
+      'Vaccinations à jour : ' + (dossier.vaccinsAJour || '—') + (dossier.vaccinsPourquoi ? ' (si non : ' + dossier.vaccinsPourquoi + ')' : ''),
+      dossier.serum ? 'Injections de sérum : ' + dossier.serum : '',
+      'Autorisation de baignade : ' + (dossier.baignade || '—'),
       'Santé / remarques : ' + (dossier.recommandations || '—'),
       '',
       'Responsable légal (' + dossier.qualite + ') : ' + dossier.parentNom,
       'Adresse : ' + dossier.adresse + ', ' + dossier.cp + ' ' + dossier.ville,
       'Téléphone : ' + dossier.parentTel + (dossier.telDomicile ? ' / ' + dossier.telDomicile : ''),
+      dossier.telProPere ? 'Tél. professionnel père : ' + dossier.telProPere : '',
+      dossier.telProMere ? 'Tél. professionnel mère : ' + dossier.telProMere : '',
+      dossier.professionPere ? 'Profession du père : ' + dossier.professionPere : '',
+      dossier.professionMere ? 'Profession de la mère : ' + dossier.professionMere : '',
       'E-mail : ' + dossier.parentEmail,
+      dossier.urgenceNom ? 'Personne à contacter en cas d\'absence : ' + dossier.urgenceNom + (dossier.urgenceTel ? ' · ' + dossier.urgenceTel : '') : '',
+      dossier.sejourAdresse ? 'Adresse durant le séjour : ' + dossier.sejourAdresse : '',
       dossier.secuCaisse || dossier.secuNumero ? 'Sécurité sociale : ' + dossier.secuCaisse + ' ' + dossier.secuNumero : '',
       dossier.licence ? 'Licence FFE : ' + dossier.licence : '',
+      dossier.factureCE ? 'Facture comité d\'entreprise : ' + dossier.factureCE : '',
       '',
       'Droit à l\'image et autorisation médicale acceptés, signé en ligne le ' + dossier.signeLe + '.',
       'Merci de me confirmer la disponibilité.',

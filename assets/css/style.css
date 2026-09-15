@@ -862,6 +862,14 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .pas-nav .jalon.actif span:not(.rond){color:var(--texte)}
 .pas-nav .lien-jalon{flex:1;height:1px;background:var(--trait);margin:0 14px;min-width:16px}
 @media (max-width:640px){.pas-nav .jalon span:not(.rond){display:none}.pas-nav .jalon.actif span:not(.rond){display:inline}}
+/* le fil à cinq jalons de la réservation de stage : plus compact pour tenir dans la colonne */
+#form-resa .pas-nav .jalon{gap:8px}
+#form-resa .pas-nav .jalon span:not(.rond){font-size:11px;letter-spacing:.07em}
+#form-resa .pas-nav .lien-jalon{margin:0 9px;min-width:10px}
+@media (max-width:1200px){
+  #form-resa .pas-nav .jalon span:not(.rond){display:none}
+  #form-resa .pas-nav .jalon.actif span:not(.rond){display:inline}
+}
 @media (max-width:560px){
   .choix-stage .boite{grid-template-columns:auto 1fr}
   .choix-stage .prix-stage{grid-row:auto;grid-column:2;font-size:19px;white-space:normal}

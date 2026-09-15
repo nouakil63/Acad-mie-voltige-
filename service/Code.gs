@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '24';
+var VERSION_SCRIPT = '25';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -347,18 +347,33 @@ function texteEnHtml(corps) {
   return enEntites('<div dir="ltr">' + t + '</div>');
 }
 
-/* ============ Champs du dossier d'inscription (cours) ============ */
-/* Le formulaire du site envoie aussi les questions du dossier papier :
-   on les ajoute au mail de demande seulement quand elles sont remplies. */
+/* ============ Champs du dossier d'inscription (cours et stages) ============ */
+/* Le formulaire du site envoie aussi les questions du dossier papier
+   (dont la fiche sanitaire des stages) : on les ajoute au mail de
+   demande seulement quand elles sont remplies. */
 function lignesDossier(d) {
   var extras = [
     ['Qualité', d.qualite], ['Adresse', d.adresse],
     ['Code postal / ville', (nettoyer(d.cp) + ' ' + nettoyer(d.ville)).trim()],
     ['Tél. domicile', d.telDomicile],
+    ['Tél. professionnel père', d.telProPere], ['Tél. professionnel mère', d.telProMere],
+    ['Profession du père', d.professionPere], ['Profession de la mère', d.professionMere],
+    ['Personne à contacter (absence)', (nettoyer(d.urgenceNom) + ' ' + nettoyer(d.urgenceTel)).trim()],
+    ['Adresse durant le séjour', d.sejourAdresse],
     ['Né(e) à', d.enfantLieuNaissance], ['Nationalité', d.nationalite],
     ['Sexe', d.sexe], ['Gabarit', d.gabaritDetail],
+    ['Dernier stage au club', d.dernierStage],
+    ['Autres pratiques', d.autresPratiques],
+    ['A connu l’académie par', d.connuAcademie],
+    ['Groupe sanguin', d.groupeSanguin],
+    ['Maladies déjà eues', d.maladies],
+    ['Vaccinations à jour', d.vaccinsAJour],
+    ['Si non vacciné, pourquoi', d.vaccinsPourquoi],
+    ['Injections de sérum', d.serum],
+    ['Autorisation de baignade', d.baignade],
     ['Sécurité sociale (caisse)', d.secuCaisse], ['N° couvrant l’enfant', d.secuNumero],
     ['Licence FFE', d.licence],
+    ['Facture comité d’entreprise', d.factureCE],
     ['Recommandations (allergies…)', d.recommandations],
     ['Droit à l’image', d.droitImage],
     ['Autorisation médicale', d.autorisationMedicale],
