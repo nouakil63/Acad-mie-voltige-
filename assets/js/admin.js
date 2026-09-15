@@ -314,7 +314,7 @@
       }).then(function (r) { return r.text(); }).then(function (rep) {
         var morceaux = rep.trim().split(';');
         if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
+        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 22 ?'); }
       });
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
   }
@@ -378,7 +378,7 @@
             alert('C’est parti : les infos du cours et le lien de paiement viennent d’être envoyés à ' + d.parent_email + '.');
           });
         } else {
-          alert('Le service a répondu : « ' + t.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?');
+          alert('Le service a répondu : « ' + t.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 22 ?');
         }
       });
     }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
@@ -474,7 +474,7 @@
           if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
           else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
           else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
-          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
+          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 22 ?'); }
           return;
         }
         rapprocherStripe(rep.paiements || []);
@@ -845,6 +845,23 @@
       ville: cpVille.join(' '),
       parentTel: champs['Téléphone'] || '',
       telDomicile: champs['Tél. domicile'] || '',
+      telProPere: champs['Tél. professionnel père'] || '',
+      telProMere: champs['Tél. professionnel mère'] || '',
+      professionPere: champs['Profession du père'] || '',
+      professionMere: champs['Profession de la mère'] || '',
+      urgenceNom: champs['Personne à contacter (absence)'] || '',
+      urgenceTel: '',
+      sejourAdresse: champs['Adresse durant le séjour'] || '',
+      dernierStage: champs['Dernier stage au club'] || '',
+      autresPratiques: champs['Autres pratiques'] || '',
+      connuAcademie: champs['A connu l’académie par'] || '',
+      groupeSanguin: champs['Groupe sanguin'] || '',
+      maladies: champs['Maladies déjà eues'] || '',
+      vaccinsAJour: champs['Vaccinations à jour'] || '',
+      vaccinsPourquoi: champs['Si non vacciné, pourquoi'] || '',
+      serum: champs['Injections de sérum'] || '',
+      baignade: champs['Autorisation de baignade'] || '',
+      factureCE: champs['Facture comité d’entreprise'] || '',
       parentEmail: champs['E-mail'] || d.parent_email || '',
       secuCaisse: champs['Sécurité sociale (caisse)'] || '',
       secuNumero: champs['N° couvrant l’enfant'] || champs["N° couvrant l'enfant"] || '',

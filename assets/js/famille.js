@@ -32,6 +32,9 @@
     met('parent-qualite', r.qualite); met('parent-nom', r.nom);
     met('parent-adresse', r.adresse); met('parent-cp', r.cp); met('parent-ville', r.ville);
     met('parent-tel', r.tel); met('parent-tel-domicile', r.telDomicile);
+    met('parent-tel-pro-pere', r.telProPere); met('parent-tel-pro-mere', r.telProMere);
+    met('profession-pere', r.professionPere); met('profession-mere', r.professionMere);
+    met('urgence-nom', r.urgenceNom); met('urgence-tel', r.urgenceTel);
     met('parent-email', r.email);
     met('secu-caisse', r.secuCaisse); met('secu-numero', r.secuNumero);
   }
@@ -174,6 +177,9 @@
       qualite: val('parent-qualite'), nom: val('parent-nom'),
       adresse: val('parent-adresse'), cp: val('parent-cp'), ville: val('parent-ville'),
       tel: val('parent-tel'), telDomicile: val('parent-tel-domicile'),
+      telProPere: val('parent-tel-pro-pere'), telProMere: val('parent-tel-pro-mere'),
+      professionPere: val('profession-pere'), professionMere: val('profession-mere'),
+      urgenceNom: val('urgence-nom'), urgenceTel: val('urgence-tel'),
       email: val('parent-email'),
       secuCaisse: val('secu-caisse'), secuNumero: val('secu-numero')
     }, f.responsable);

@@ -99,6 +99,21 @@
     <div class="champ"><b>Autre téléphone :</b><span id="d-tel2"></span></div>
   </div>
   <div class="champ"><b>E-mail :</b><span id="d-email"></span></div>
+  <div id="bloc-famille-stage">
+    <div class="rang">
+      <div class="champ"><b>Tél. professionnel père :</b><span id="d-tel-pro-pere"></span></div>
+      <div class="champ"><b>Tél. professionnel mère :</b><span id="d-tel-pro-mere"></span></div>
+    </div>
+    <div class="rang">
+      <div class="champ"><b>Profession du père :</b><span id="d-profession-pere"></span></div>
+      <div class="champ"><b>Profession de la mère :</b><span id="d-profession-mere"></span></div>
+    </div>
+    <div class="rang">
+      <div class="champ"><b>Personne à contacter en cas d'absence :</b><span id="d-urgence-nom"></span></div>
+      <div class="champ"><b>Tél. :</b><span id="d-urgence-tel"></span></div>
+    </div>
+    <div class="champ"><b>Adresse durant le séjour (si différente) :</b><span id="d-sejour-adresse"></span></div>
+  </div>
   <div class="rang">
     <div class="champ"><b>Sécurité sociale, caisse :</b><span id="d-secu-caisse"></span></div>
     <div class="champ"><b>N° couvrant l'enfant :</b><span id="d-secu-num"></span></div>
@@ -119,6 +134,28 @@
     <div class="champ"><b>Gabarit :</b><span id="d-gabarit"></span></div>
   </div>
   <div class="champ"><b>Niveau d'équitation :</b><span id="d-niveau"></span></div>
+  <div id="bloc-enfant-stage">
+    <div class="rang">
+      <div class="champ"><b>Dernier stage au club :</b><span id="d-dernier-stage"></span></div>
+      <div class="champ"><b>A connu l'académie par :</b><span id="d-connu"></span></div>
+    </div>
+    <div class="champ"><b>Autres pratiques (chant, théâtre, musique…) :</b><span id="d-pratiques"></span></div>
+  </div>
+
+  <div id="bloc-sanitaire">
+  <h2>Fiche sanitaire</h2>
+  <div class="rang">
+    <div class="champ"><b>Groupe sanguin, rhésus :</b><span id="d-groupe-sanguin"></span></div>
+    <div class="champ"><b>Vaccinations à jour :</b><span id="d-vaccins"></span></div>
+  </div>
+  <div class="champ"><b>Maladies déjà eues :</b><span id="d-maladies"></span></div>
+  <div class="rang">
+    <div class="champ"><b>Si non vacciné, pourquoi :</b><span id="d-vaccins-pourquoi"></span></div>
+    <div class="champ"><b>Injections de sérum :</b><span id="d-serum"></span></div>
+  </div>
+  <div class="champ"><b>Autorisation de baignade :</b><span id="d-baignade"></span></div>
+  <p class="juridique">Obligatoire : joindre une photocopie du carnet de vaccinations de l'enfant.</p>
+  </div>
 
   <h2>Assurance</h2>
   <div class="champ"><b>N° de licence Assurance Fédérale :</b><span id="d-licence"></span></div>
@@ -133,6 +170,7 @@
     <div class="champ"><b id="d-etiq-creneau">Créneau :</b><span id="d-creneau"></span></div>
   </div>
   <div class="champ"><b>Tarif :</b><span id="d-tarif"></span></div>
+  <div class="champ" id="ligne-facture-ce" hidden><b>Facture pour le comité d'entreprise :</b><span id="d-facture-ce"></span></div>
   <p class="juridique">Demande envoyée depuis le site : après validation par l'académie, le règlement se fait par le lien de paiement sécurisé reçu par e-mail.</p>
 
   <div id="bloc-consentements">
@@ -189,6 +227,31 @@
     met('d-titre-formule', 'Stage choisi');
     met('d-etiq-formule', 'Stage :');
     met('d-etiq-creneau', 'Dates :');
+    met('d-tel-pro-pere', d.telProPere);
+    met('d-tel-pro-mere', d.telProMere);
+    met('d-profession-pere', d.professionPere);
+    met('d-profession-mere', d.professionMere);
+    met('d-urgence-nom', d.urgenceNom);
+    met('d-urgence-tel', d.urgenceTel);
+    met('d-sejour-adresse', d.sejourAdresse || 'Identique à l\'adresse permanente');
+    met('d-dernier-stage', d.dernierStage || 'Jamais');
+    met('d-connu', d.connuAcademie);
+    met('d-pratiques', d.autresPratiques || 'Aucune');
+    met('d-groupe-sanguin', d.groupeSanguin || 'Ne sait pas');
+    met('d-vaccins', d.vaccinsAJour);
+    met('d-maladies', d.maladies || 'Aucune');
+    met('d-vaccins-pourquoi', d.vaccinsPourquoi);
+    met('d-serum', d.serum || 'Aucune');
+    met('d-baignade', d.baignade);
+    if (d.factureCE) {
+      document.getElementById('ligne-facture-ce').hidden = false;
+      met('d-facture-ce', d.factureCE);
+    }
+  } else {
+    /* le dossier des cours ne comporte pas ces rubriques de la fiche de stage */
+    document.getElementById('bloc-famille-stage').remove();
+    document.getElementById('bloc-enfant-stage').remove();
+    document.getElementById('bloc-sanitaire').remove();
   }
   met('d-qualite', d.qualite);
   met('d-parent', d.parentNom);

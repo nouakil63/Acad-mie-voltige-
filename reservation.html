@@ -20,7 +20,7 @@
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="assets/css/fonts.css?v=30">
-  <link rel="stylesheet" href="assets/css/style.css?v=33">
+  <link rel="stylesheet" href="assets/css/style.css?v=34">
 </head>
 <body class="nav-toujours-blanche">
 
@@ -77,7 +77,7 @@
         <span class="ligne"><span>Réserver</span></span>
         <span class="ligne"><span>un <em>stage</em>.</span></span>
       </h1>
-      <p class="sous-titre">Trois étapes, deux minutes. Nous confirmons chaque inscription sous 48&nbsp;h.</p>
+      <p class="sous-titre">Cinq étapes, trois minutes — tout le dossier papier, en ligne. Nous confirmons chaque inscription sous 48&nbsp;h.</p>
     </div>
   </div>
 </header>
@@ -94,13 +94,15 @@
           <div class="lien-jalon" aria-hidden="true"></div>
           <div class="jalon" data-jalon="2"><span class="rond">2</span><span>La famille</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>Le stage</span></div>
+          <div class="jalon" data-jalon="3"><span class="rond">3</span><span>La santé</span></div>
           <div class="lien-jalon" aria-hidden="true"></div>
-          <div class="jalon" data-jalon="4"><span class="rond">4</span><span>Signature</span></div>
+          <div class="jalon" data-jalon="4"><span class="rond">4</span><span>Le stage</span></div>
+          <div class="lien-jalon" aria-hidden="true"></div>
+          <div class="jalon" data-jalon="5"><span class="rond">5</span><span>Signature</span></div>
         </div>
 
-        <!-- Étape 3 : le stage -->
-        <fieldset class="pas" data-pas="3">
+        <!-- Étape 4 : le stage -->
+        <fieldset class="pas" data-pas="4">
           <h2>Choisissez votre semaine.</h2>
           <p class="aide">Deux semaines au choix pendant les vacances de la Toussaint — même programme, mêmes horaires.</p>
           <div class="choix-stages">
@@ -174,9 +176,21 @@
                 </select>
               </div>
             </div>
+            <div class="rang">
+              <div class="champ"><label for="enfant-dernier-stage">Dernier stage au club</label><input id="enfant-dernier-stage" name="enfant-dernier-stage" placeholder="Par exemple : août 2025 — ou jamais"></div>
+              <div class="champ"><label for="connu-academie">Comment avez-vous connu l'académie ?</label><input id="connu-academie" name="connu-academie" placeholder="Bouche à oreille, internet, salon…"></div>
+            </div>
             <div class="champ">
-              <label for="enfant-sante">Vos recommandations : allergies, santé, choses à savoir</label>
-              <textarea id="enfant-sante" name="enfant-sante" placeholder="Allergies alimentaires, traitement, contre-indications, appréhensions…"></textarea>
+              <label>Autres pratiques de l'enfant</label>
+              <div style="display:flex;flex-wrap:wrap;gap:10px 24px;padding:4px 0">
+                <label class="case" style="align-items:center"><input type="checkbox" name="pratiques" value="Chant"><span>Chant</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="pratiques" value="Théâtre"><span>Théâtre</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="pratiques" value="Musique"><span>Musique</span></label>
+              </div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="pratique-instrument">Musique : quel instrument ?</label><input id="pratique-instrument" name="pratique-instrument"></div>
+              <div class="champ"><label for="pratique-depuis">Depuis combien de temps ?</label><input id="pratique-depuis" name="pratique-depuis"></div>
             </div>
           </div>
           <div class="btns-pas">
@@ -211,6 +225,14 @@
               <div class="champ"><label for="parent-tel">Votre mobile <b>*</b></label><input id="parent-tel" name="parent-tel" type="tel" autocomplete="tel" required=""></div>
               <div class="champ"><label for="parent-tel-domicile">Autre téléphone</label><input id="parent-tel-domicile" name="parent-tel-domicile" type="tel"></div>
             </div>
+            <div class="rang">
+              <div class="champ"><label for="parent-tel-pro-pere">Tél. professionnel du père</label><input id="parent-tel-pro-pere" name="parent-tel-pro-pere" type="tel"></div>
+              <div class="champ"><label for="parent-tel-pro-mere">Tél. professionnel de la mère</label><input id="parent-tel-pro-mere" name="parent-tel-pro-mere" type="tel"></div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="profession-pere">Profession du père</label><input id="profession-pere" name="profession-pere"></div>
+              <div class="champ"><label for="profession-mere">Profession de la mère</label><input id="profession-mere" name="profession-mere"></div>
+            </div>
             <div class="champ">
               <label for="parent-email" class="">Votre e-mail <b>*</b></label>
               <input id="parent-email" name="parent-email" type="email" autocomplete="email" required="">
@@ -225,6 +247,86 @@
               <input id="licence-ffe" name="licence-ffe">
               <span class="indice">Sans licence, joignez à l'arrivée un certificat médical d'aptitude à l'équitation de moins d'un an.</span>
             </div>
+            <div class="rang">
+              <div class="champ"><label for="urgence-nom">Autre personne à contacter en cas d'absence <b>*</b></label><input id="urgence-nom" name="urgence-nom" placeholder="Nom et lien (grand-mère, oncle…)" required></div>
+              <div class="champ"><label for="urgence-tel">Son téléphone <b>*</b></label><input id="urgence-tel" name="urgence-tel" type="tel" required></div>
+            </div>
+            <div class="champ">
+              <label for="sejour-adresse">Votre adresse durant le séjour <small>(si différente de l'adresse permanente)</small></label>
+              <input id="sejour-adresse" name="sejour-adresse">
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="sejour-cp-ville">Code postal et ville (séjour)</label><input id="sejour-cp-ville" name="sejour-cp-ville"></div>
+              <div class="champ"><label for="sejour-tel">Téléphone durant le séjour</label><input id="sejour-tel" name="sejour-tel" type="tel"></div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="ce-nom">Facture pour votre comité d'entreprise <small>(facultatif)</small></label><input id="ce-nom" name="ce-nom" placeholder="Nom du comité d'entreprise"></div>
+              <div class="champ"><label for="ce-adresse">Son adresse</label><input id="ce-adresse" name="ce-adresse" placeholder="Adresse, code postal, ville"></div>
+            </div>
+          </div>
+          <div class="btns-pas">
+            <button type="button" class="btn btn-contour btn-retour" data-retour=""><span>← Retour</span></button>
+            <button type="button" class="btn btn-rouge" data-suivant=""><span>La fiche sanitaire →</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Étape 3 : la fiche sanitaire -->
+        <fieldset class="pas" data-pas="3">
+          <h2>La fiche sanitaire.</h2>
+          <p class="aide">Comme sur la fiche sanitaire papier : ces informations restent confidentielles et aident l'équipe à bien veiller sur votre enfant pendant le séjour.</p>
+          <div class="champs">
+            <div class="rang">
+              <div class="champ">
+                <label for="groupe-sanguin">Groupe sanguin et rhésus</label>
+                <select id="groupe-sanguin" name="groupe-sanguin">
+                  <option value="">Ne sait pas</option>
+                  <option>A+</option><option>A−</option>
+                  <option>B+</option><option>B−</option>
+                  <option>AB+</option><option>AB−</option>
+                  <option>O+</option><option>O−</option>
+                </select>
+              </div>
+              <div class="champ">
+                <label for="vaccins-a-jour">Les vaccinations sont-elles à jour ? <b>*</b></label>
+                <select id="vaccins-a-jour" name="vaccins-a-jour" required>
+                  <option value="">Choisir…</option>
+                  <option>Oui</option>
+                  <option>Non</option>
+                </select>
+                <span class="indice">Obligatoire : joignez une photocopie du carnet de vaccinations de l'enfant.</span>
+              </div>
+            </div>
+            <div class="champ">
+              <label>L'enfant a-t-il déjà eu les maladies suivantes ?</label>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px 18px;padding:4px 0">
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Rubéole"><span>Rubéole</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Coqueluche"><span>Coqueluche</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Varicelle"><span>Varicelle</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Otites"><span>Otites</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Angines"><span>Angines</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Asthme"><span>Asthme</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Rhumatismes"><span>Rhumatismes</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Rougeole"><span>Rougeole</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Scarlatine"><span>Scarlatine</span></label>
+                <label class="case" style="align-items:center"><input type="checkbox" name="maladies" value="Oreillons"><span>Oreillons</span></label>
+              </div>
+            </div>
+            <div class="rang">
+              <div class="champ"><label for="vaccins-pourquoi">Si l'enfant n'est pas vacciné, pourquoi ?</label><input id="vaccins-pourquoi" name="vaccins-pourquoi"></div>
+              <div class="champ"><label for="serum">Injections de sérum <small>(nature et dates, s'il y a lieu)</small></label><input id="serum" name="serum"></div>
+            </div>
+            <div class="champ">
+              <label for="enfant-sante">Vos recommandations : allergies, interdictions, contre-indications médicales</label>
+              <textarea id="enfant-sante" name="enfant-sante" placeholder="Allergies alimentaires, traitement, contre-indications, appréhensions…"></textarea>
+            </div>
+            <div class="champ">
+              <label for="baignade">Autorisation de baignade <b>*</b></label>
+              <select id="baignade" name="baignade" required>
+                <option value="">Choisir…</option>
+                <option>Oui</option>
+                <option>Non</option>
+              </select>
+            </div>
           </div>
           <div class="btns-pas">
             <button type="button" class="btn btn-contour btn-retour" data-retour=""><span>← Retour</span></button>
@@ -232,8 +334,8 @@
           </div>
         </fieldset>
 
-        <!-- Étape 4 : signature et envoi -->
-        <fieldset class="pas" data-pas="4">
+        <!-- Étape 5 : signature et envoi -->
+        <fieldset class="pas" data-pas="5">
           <h2>Lu, approuvé, signé.</h2>
           <p class="aide">Vérifiez le récapitulatif ci-contre, signez ci-dessous (au doigt ou à la souris), puis envoyez votre demande — nous revenons vers vous sous 48&nbsp;h pour la confirmer.</p>
           <div class="champs">
@@ -324,8 +426,8 @@
 <script src="assets/js/main.js?v=35"></script>
 <script src="assets/js/compte-config.js?v=2"></script>
 <script src="assets/js/nuage.js?v=2"></script>
-<script src="assets/js/famille.js?v=4"></script>
-<script src="assets/js/reservation.js?v=54"></script>
+<script src="assets/js/famille.js?v=5"></script>
+<script src="assets/js/reservation.js?v=55"></script>
 
 
 
