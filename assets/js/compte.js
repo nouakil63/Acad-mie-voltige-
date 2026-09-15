@@ -8,7 +8,6 @@
   var nuage = window.AVNuage;
   if (!nuage) { return; }
 
-  var CLE_FAMILLE = 'av:famille';
   var VUES = ['v-attente', 'v-indisponible', 'f-connexion', 'f-creation', 'f-oubli', 'f-nouveau', 'v-famille'];
 
   function el(id) { return document.getElementById(id); }
@@ -31,11 +30,11 @@
     m.hidden = false;
   }
 
-  function lireFamilleLocale() {
-    try { return JSON.parse(localStorage.getItem(CLE_FAMILLE)) || null; } catch (e) { return null; }
+  function lireFamilleLocale(session) {
+    return nuage.lireFamilleLocale(session);
   }
   function ecrireFamilleLocale(f) {
-    try { localStorage.setItem(CLE_FAMILLE, JSON.stringify(f)); } catch (e) { /* navigation privée */ }
+    nuage.ecrireFamilleLocale(f, sessionCourante);
   }
 
   /* liens « Créer mon compte », « Se connecter », « Mot de passe oublié ? » */
@@ -197,25 +196,40 @@
     };
   }
 
-  /* Une fois connecté : charger la famille du compte. S'il n'y en a pas
-     encore mais que cet appareil en a une (anciennes inscriptions), elle
-     est adoptée et envoyée dans le compte. */
+  /* Une absence confirmée peut restaurer le cache DU compte. Un carnet
+     invité n'est importé qu'après accord ; une erreur ne vaut jamais absence. */
   function entrer(motBienvenue) {
     montrer('v-attente');
     nuage.retrouverEmail().then(function (session) {
       if (!session) { montrer('f-connexion'); return; }
-      nuage.chargerFamille().then(function (famille) {
-        var locale = lireFamilleLocale();
-        if (!famille && locale && locale.responsable && locale.responsable.nom) {
-          famille = locale;
-          nuage.enregistrerFamille(famille);
+      return nuage.chargerFamille().then(function (famille) {
+        var locale = lireFamilleLocale(session);
+        var invitee = lireFamilleLocale(null);
+        if (!famille && !locale && invitee && invitee.responsable && invitee.responsable.nom &&
+            confirm('Importer dans ce compte le carnet invité retenu sur cet appareil ? Confirmez uniquement s’il s’agit de votre famille.')) {
+          locale = invitee;
         }
-        if (famille) { ecrireFamilleLocale(famille); }
+        if (!famille && locale && locale.responsable && locale.responsable.nom) {
+          return nuage.enregistrerFamille(locale, session.user_id).then(function (ok) {
+            if (!ok) { throw new Error('Le carnet local n’a pas pu être enregistré dans votre compte. Réessayez.'); }
+            return locale;
+          });
+        }
+        return famille;
+      }).then(function (famille) {
+        var actuelle = nuage.lireSession();
+        if (!actuelle || actuelle.user_id !== session.user_id) { throw new Error('Le compte a changé. Rechargez la page.'); }
         sessionCourante = session;
+        if (famille) { ecrireFamilleLocale(famille); }
         afficherFamille(famille, session);
         if (motBienvenue) { message('m-famille', motBienvenue, true); }
         chargerTrimestre();
       });
+    }).catch(function () {
+      sessionCourante = null;
+      familleChargee = null;
+      montrer('f-connexion');
+      message('m-connexion', 'Votre carnet n’a pas pu être chargé. Aucune information n’a été remplacée. Réessayez de vous connecter.');
     });
   }
 
@@ -505,7 +519,8 @@
     ev.preventDefault();
     var famille = ramasserFamille();
     message('m-famille', 'Enregistrement…', true);
-    nuage.enregistrerFamille(famille).then(function (ok) {
+    if (!sessionCourante) { message('m-famille', 'Reconnectez-vous avant d’enregistrer votre famille.'); return; }
+    nuage.enregistrerFamille(famille, sessionCourante.user_id).then(function (ok) {
       if (!ok) { message('m-famille', 'L’enregistrement n’a pas abouti. Vérifiez votre connexion internet et réessayez.'); return; }
       familleChargee = famille;
       ecrireFamilleLocale(famille);
@@ -515,11 +530,29 @@
 
   el('fa-deconnexion').addEventListener('click', function (ev) {
     ev.preventDefault();
-    nuage.deconnexion();
-    if (confirm('Faut-il aussi effacer les informations de famille retenues sur cet appareil ? (conseillé sur un ordinateur partagé)')) {
-      try { localStorage.removeItem(CLE_FAMILLE); localStorage.removeItem('av:dossier-inscription'); } catch (e) { /* rien */ }
-    }
+    var conserver = confirm('Conserver une copie de votre carnet sur cet appareil personnel ? Annuler l’efface de cet appareil. La copie conservée restera liée à votre compte.');
+    nuage.deconnexion({ conserverFamille: conserver });
+    sessionCourante = null;
+    familleChargee = null;
+    liste.innerHTML = '';
+    el('liste-demandes').innerHTML = '';
+    el('v-famille').querySelectorAll('input, textarea').forEach(function (champ) { champ.value = ''; });
     montrer('f-connexion');
+  });
+
+  /* Une déconnexion ou un changement de compte dans un autre onglet
+     retire aussitôt les données de famille de cette page. */
+  window.addEventListener('storage', function (ev) {
+    if (ev.key !== 'av:session' && ev.key !== null) { return; }
+    var actuelle = nuage.lireSession();
+    if (!sessionCourante || (actuelle && actuelle.user_id === sessionCourante.user_id)) { return; }
+    sessionCourante = null;
+    familleChargee = null;
+    liste.innerHTML = '';
+    el('liste-demandes').innerHTML = '';
+    el('v-famille').querySelectorAll('input, textarea').forEach(function (champ) { champ.value = ''; });
+    montrer('f-connexion');
+    message('m-connexion', 'Le compte a changé dans un autre onglet. Reconnectez-vous pour retrouver votre famille.');
   });
 
   /* ---------- Au chargement ---------- */

@@ -8,18 +8,18 @@
      reçoit automatiquement le mail de validation avec le lien de
      paiement, aux couleurs du site.
 
-   MISE EN PLACE (une seule fois, ~5 minutes) :
-   1. Ouvrir https://script.google.com en étant connecté au compte
-      academiedevoltige@gmail.com
-   2. « Nouveau projet », effacer le contenu, coller TOUT ce fichier
-   3. Renommer le projet : « Inscriptions académie »
-   4. En haut à droite : Déployer → Nouveau déploiement →
-      type « Application Web » →
-      Exécuter en tant que : Moi ·
-      Qui a accès : Tout le monde → Déployer
-   5. Autoriser l'accès quand Google le demande (compte académie)
-   6. Copier l'URL qui se termine par /exec et la donner à Claude
-      pour qu'il la branche sur le site.
+   MISE À JOUR v24 — voir README-CRM.md :
+   1. Installer les migrations SQL dans l'ordre indiqué par le README.
+   2. Ouvrir le projet Google Apps Script EXISTANT de l'académie.
+      Sauvegarder son code et sa configuration avant remplacement.
+   3. Conserver impérativement la propriété « secret » des anciens liens.
+      Préférer les propriétés du script SUPABASE_URL,
+      SUPABASE_CLE_SERVICE et STRIPE_CLE aux constantes de repli.
+   4. Remplacer le code, puis publier une nouvelle version du déploiement
+      existant pour conserver son URL /exec. Ne pas créer un autre projet.
+   5. STRIPE_REMBOURSEMENTS_ACTIFS reste désactivé tant que sa propriété
+      n'est pas exactement « true ». La synchronisation horaire s'installe
+      séparément avec installerSynchronisationStripe ; elle ne rembourse pas.
    ============================================================ */
 
 var ADRESSE_ACADEMIE = 'academiedevoltige@gmail.com';
@@ -27,13 +27,13 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '21';
+var VERSION_SCRIPT = '24';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
    l'académie : la page admin.html du site les affiche toutes et permet
    de valider ou refuser en un clic.
-   REMPLACEZ la ligne COLLEZ-ICI... par la clé « service_role » de
+   Configurer la propriété SUPABASE_CLE_SERVICE avec la clé « service_role » de
    Supabase (menu Project Settings → API Keys → service_role → Reveal).
    ⚠️ Cette clé est SECRÈTE : elle ne se colle QUE dans cet éditeur,
    jamais sur le site, jamais dans un mail ou une discussion.
@@ -42,8 +42,17 @@ var VERSION_SCRIPT = '21';
 var SUPABASE_URL = 'https://vtrmohmupfvxzbsnubye.supabase.co';
 var SUPABASE_CLE_SERVICE = 'COLLEZ-ICI-LA-CLE-SERVICE-ROLE';
 
+/* Préférer Paramètres du projet → Propriétés du script pour les secrets.
+   Les valeurs de l'ancien déploiement restent compatibles si absentes. */
+function configuration(nom, secours) {
+  return PropertiesService.getScriptProperties().getProperty(nom) || secours;
+}
+function urlSupabase() { return String(configuration('SUPABASE_URL', SUPABASE_URL)).replace(/\/$/, ''); }
+function cleSupabase() { return configuration('SUPABASE_CLE_SERVICE', SUPABASE_CLE_SERVICE); }
+function cleStripe() { return configuration('STRIPE_CLE', STRIPE_CLE); }
+
 function supabasePret() {
-  return SUPABASE_URL && SUPABASE_CLE_SERVICE && SUPABASE_CLE_SERVICE.indexOf('COLLEZ') !== 0;
+  return urlSupabase() && cleSupabase() && cleSupabase().indexOf('COLLEZ') !== 0;
 }
 
 /* Range une demande dans la base (silencieux : un souci ici n'empêche
@@ -51,12 +60,12 @@ function supabasePret() {
 function enregistrerDemande(ligne) {
   if (!supabasePret()) { return; }
   try {
-    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/demandes', {
+    UrlFetchApp.fetch(urlSupabase() + '/rest/v1/demandes', {
       method: 'post',
       contentType: 'application/json',
       headers: {
-        apikey: SUPABASE_CLE_SERVICE,
-        Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE,
+        apikey: cleSupabase(),
+        Authorization: 'Bearer ' + cleSupabase(),
         Prefer: 'return=minimal'
       },
       payload: JSON.stringify(ligne),
@@ -69,19 +78,8 @@ function enregistrerDemande(ligne) {
    vienne du mail ou de la page admin du site. */
 function majStatutDemande(dTok, statut) {
   if (!supabasePret() || !dTok) { return; }
-  try {
-    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/demandes?jeton_d=eq.' + encodeURIComponent(dTok), {
-      method: 'patch',
-      contentType: 'application/json',
-      headers: {
-        apikey: SUPABASE_CLE_SERVICE,
-        Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE,
-        Prefer: 'return=minimal'
-      },
-      payload: JSON.stringify({ statut: statut, decide: new Date().toISOString() }),
-      muteHttpExceptions: true
-    });
-  } catch (e) { /* rien */ }
+  return supabaseEcrire('demandes?jeton_d=eq.' + encodeURIComponent(dTok),
+    { statut: statut, decide: new Date().toISOString() });
 }
 
 /* Texte brut, sans les protections HTML des mails. */
@@ -118,8 +116,8 @@ var PAIEMENTS = {
      (300 € et 540 €) et collez-les ici à la place de COLLEZ-ICI…
      Tant qu'ils n'y sont pas, le mail de validation garde l'ancien
      paiement en une fois (840 €). */
-  stage_acompte:   { libelle: 'Payer l’acompte du stage (300 €)', url: 'COLLEZ-ICI-LE-LIEN-STRIPE-ACOMPTE-300' },
-  stage_solde:     { libelle: 'Payer le solde du stage (540 €)',  url: 'COLLEZ-ICI-LE-LIEN-STRIPE-SOLDE-540' }
+  stage_acompte:   { libelle: 'Payer l’acompte du stage (300 €)', url: 'https://buy.stripe.com/cNiaEX1d7ab42M8bY64ow05' },
+  stage_solde:     { libelle: 'Payer le solde du stage (540 €)',  url: 'https://buy.stripe.com/dRmbJ19JD970euQ1js4ow06' }
 };
 
 function lienPret(p) {
@@ -131,10 +129,10 @@ function lienPret(p) {
    demande à ce script la liste des règlements reçus, pour les
    rapprocher des inscriptions en un clic.
    CRÉEZ une clé RESTREINTE dans Stripe : Développeurs → Clés API →
-   Créer une clé restreinte → nommez-la « lecture academie » → mettez
-   « Sessions Checkout » sur « Lecture » et laissez tout le reste sur
-   « Aucune » → Créer la clé → copiez-la et collez-la ci-dessous à la
-   place de COLLEZ-ICI…
+   Créer une clé restreinte : lecture de Sessions Checkout,
+   PaymentIntents, Charges et Refunds. Pour autoriser les remboursements
+   confirmés dans le CRM, accorder aussi l'écriture de Refunds.
+   Placer la clé dans la propriété du script STRIPE_CLE.
    ⚠️ Cette clé est SECRÈTE : elle ne se colle QUE dans cet éditeur,
    jamais sur le site, jamais dans un mail ou une discussion.
    Tant qu'elle n'est pas collée, le bouton explique simplement que la
@@ -189,6 +187,9 @@ function doPost(e) {
   if (d && d.type === 'decision') { return traiterDecisionPost(d); }
   if (d && d.type === 'relance') { return traiterRelance(d); }
   if (d && d.type === 'stripe') { return traiterStripe(d); }
+  if (d && d.type === 'stripe-rapprocher') { return traiterRapprochementStripe(d); }
+  if (d && d.type === 'stripe-remboursements') { return traiterEtatRemboursementsStripe(d); }
+  if (d && d.type === 'stripe-rembourser') { return traiterRemboursementStripe(d); }
   if (d && d.type === 'confirmation-resa') { return traiterConfirmationResa(d); }
   if (d && d.type === 'place-libre') { return traiterPlaceLibre(d); }
   if (d && d.type === 'infos-cours') { return traiterInfosCours(d); }
@@ -288,10 +289,11 @@ function doPost(e) {
 
 /* ============ Envoi d'un mail de prospection depuis le builder ============ */
 function envoyerProspection(d) {
-  if (!CLE_PROSPECTION || CLE_PROSPECTION === 'CHANGEZ-MOI') {
+  var cleProspection = configuration('CLE_PROSPECTION', CLE_PROSPECTION);
+  if (!cleProspection || cleProspection === 'CHANGEZ-MOI') {
     return reponseTexte('cle non configuree dans le script');
   }
-  if (String(d.cle || '') !== CLE_PROSPECTION) { return reponseTexte('cle incorrecte'); }
+  if (String(d.cle || '') !== cleProspection) { return reponseTexte('cle incorrecte'); }
 
   var dest = String(d.destinataire || '').trim();
   if (!/^[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+$/.test(dest) || dest.length > 200) {
@@ -376,6 +378,58 @@ function lignesDossier(d) {
 function executerDecision(action, motifCle, dTok, sTok) {
   var donnees = verifierJeton(String(dTok || ''), String(sTok || ''));
   if (!donnees) { return { code: 'lien invalide' }; }
+  if (action !== 'valider' && action !== 'refuser') { return { code: 'action inconnue' }; }
+  if (action === 'refuser' && !MOTIFS_REFUS[motifCle]) { return { code: 'motif inconnu' }; }
+  var verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) {
+    return { code: 'decision en cours', titre: 'Décision en cours', texte: 'Une décision est déjà en cours. Patientez puis actualisez le dossier.' };
+  }
+  try {
+    var cible = action === 'valider' ? 'validée' : 'refusée (' + MOTIFS_REFUS[motifCle].bouton + ')';
+    var chemin = 'crm_decisions?jeton_signature=eq.' + encodeURIComponent(sTok);
+    var existante = supabaseLire(chemin + '&select=*')[0];
+    if (existante) {
+      if (existante.etat === 'envoye') {
+        supabaseEcrire(chemin, { etat: 'termine', termine_le: new Date().toISOString() });
+      }
+      return { code: existante.etat === 'reserve' ? 'decision a verifier' : 'decision deja traitee',
+        titre: 'Décision déjà enregistrée', texte: existante.etat === 'reserve'
+          ? 'L’envoi a été réservé mais sa fin n’est pas confirmée. Vérifiez les messages envoyés dans Gmail et le dossier avant toute nouvelle action.'
+          : 'Ce lien a déjà été utilisé. Aucun nouvel e-mail n’a été envoyé. Consultez le dossier dans le CRM.' };
+    }
+    var lignes = supabaseLire('demandes?select=id,statut,annule&jeton_d=eq.' + encodeURIComponent(dTok));
+    if (lignes.length > 1) { throw erreurService('decision_ambigue', 'Plusieurs dossiers utilisent cet ancien lien. Décidez depuis le CRM.'); }
+    if (lignes.length && (lignes[0].annule || lignes[0].statut !== 'en attente')) {
+      return { code: 'decision deja traitee', titre: 'Dossier déjà traité', texte: 'Le dossier a déjà été traité ou annulé. Aucun nouvel e-mail n’a été envoyé.' };
+    }
+    // Les anciens liens sans ligne Supabase restent utilisables. Le journal
+    // assure aussi leur unicité, sans expiration imposée aux familles.
+    var reservation = supabaseRequete('crm_decisions?on_conflict=jeton_signature', 'post', {
+      jeton_signature: sTok, action: action, statut_cible: cible
+    }, 'resolution=ignore-duplicates,return=representation');
+    if (!Array.isArray(reservation) || reservation.length !== 1) {
+      return { code: 'decision en cours', titre: 'Décision en cours', texte: 'Ce lien est déjà en cours de traitement. Consultez le dossier avant de réessayer.' };
+    }
+    if (lignes.length) {
+      // Compare-and-set : une décision concurrente / annulation dans le CRM
+      // empêche l'envoi, même après la lecture de l'état initial.
+      supabaseEcrire('demandes?id=eq.' + encodeURIComponent(lignes[0].id) + '&statut=eq.' +
+        encodeURIComponent('en attente') + '&annule=eq.false', { statut: cible, decide: new Date().toISOString() });
+    }
+    var resultat = envoyerDecision(action, motifCle, dTok, sTok);
+    supabaseEcrire(chemin, { etat: 'envoye', envoye_le: new Date().toISOString() });
+    supabaseEcrire(chemin, { etat: 'termine', termine_le: new Date().toISOString() });
+    return resultat;
+  } catch (e) {
+    return { code: 'erreur decision', titre: 'Décision à vérifier',
+      texte: e && e.code ? nettoyer(e.message) : 'Le traitement n’a pas pu être confirmé. Vérifiez le dossier et les messages envoyés dans Gmail avant de réessayer.' };
+  } finally { verrou.releaseLock(); }
+}
+
+/* Appelée uniquement après réservation persistante dans executerDecision. */
+function envoyerDecision(action, motifCle, dTok, sTok) {
+  var donnees = verifierJeton(String(dTok || ''), String(sTok || ''));
+  if (!donnees) { return { code: 'lien invalide' }; }
 
   if (action === 'refuser') {
     var motif = MOTIFS_REFUS[motifCle];
@@ -397,7 +451,6 @@ function executerDecision(action, motifCle, dTok, sTok) {
       replyTo: ADRESSE_ACADEMIE,
       name: 'Académie de voltige équestre'
     });
-    majStatutDemande(String(dTok || ''), 'refusée (' + motif.bouton + ')');
     return { code: 'ok refuse', titre: 'Refus envoyé',
       texte: 'Le message de refus (motif : ' + motif.bouton + ') vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.' +
         '<br><br>Vous pouvez fermer cette page.',
@@ -457,7 +510,6 @@ function executerDecision(action, motifCle, dTok, sTok) {
     name: 'Académie de voltige équestre'
   });
 
-  majStatutDemande(String(dTok || ''), 'validée');
   return { code: 'ok valide', titre: 'C’est validé ✅',
     texte: (donnees.type === 'cours'
       ? 'Le mail de validation vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>. ' +
@@ -532,7 +584,7 @@ function contenusRelance(donnees, sous, montant) {
     titre = 'Au sujet du stage de ' + donnees.enfant;
     intro = 'L’inscription de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est annulée. ' +
       (montant && montant !== '0' && montant !== '0 €'
-        ? 'Un remboursement de <b>' + montant + '</b> va vous être adressé.'
+        ? 'Un remboursement de <b>' + montant + '</b> a été déclaré par l’académie.'
         : 'Conformément à nos conditions, les sommes déjà versées restent acquises à l’académie.');
     pied = 'Nous espérons accueillir ' + donnees.enfant + ' à une prochaine occasion. N’hésitez pas à répondre à ce message.<br>' +
       'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
@@ -545,85 +597,678 @@ function contenusRelance(donnees, sous, montant) {
 /* ============ Qui est derriere un jeton de session Supabase ============ */
 function emailDepuisJeton(jeton) {
   if (!supabasePret() || !jeton) { return null; }
-  try {
-    var qui = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user', {
-      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + jeton },
-      muteHttpExceptions: true
-    });
-    if (qui.getResponseCode() !== 200) { return null; }
-    return String((JSON.parse(qui.getContentText()) || {}).email || '').toLowerCase() || null;
-  } catch (e) { return null; }
+  var qui = UrlFetchApp.fetch(urlSupabase() + '/auth/v1/user', {
+    headers: { apikey: cleSupabase(), Authorization: 'Bearer ' + jeton },
+    muteHttpExceptions: true
+  });
+  if (qui.getResponseCode() === 401 || qui.getResponseCode() === 403) { return null; }
+  var utilisateur = lireReponseJson(qui, 'auth');
+  return String(utilisateur.email || '').trim().toLowerCase() || null;
 }
 
 /* Renvoie l'adresse si (et seulement si) c'est un compte admin. */
 function adminDepuisJeton(jeton) {
   var email = emailDepuisJeton(jeton);
   if (!email) { return null; }
-  try {
-    var admin = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/admins?select=email&email=eq.' + encodeURIComponent(email), {
-      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE },
-      muteHttpExceptions: true
-    });
-    if (admin.getResponseCode() !== 200 || !JSON.parse(admin.getContentText()).length) { return null; }
-    return email;
-  } catch (e) { return null; }
+  var admin = supabaseLire('admins?select=email&email=eq.' + encodeURIComponent(email));
+  return admin.length ? email : null;
 }
 
 /* ============ Lire et ecrire dans la base (cle service) ============ */
+function erreurService(code, message) {
+  var e = new Error(message);
+  e.code = code;
+  return e;
+}
+
+function lireReponseJson(r, service) {
+  var statut = r.getResponseCode(), resultat;
+  try { resultat = JSON.parse(r.getContentText() || 'null'); }
+  catch (e) { throw erreurService(service + '_reponse_invalide', 'Réponse illisible du service ' + service + '.'); }
+  if (statut < 200 || statut >= 300) {
+    var code = resultat && typeof resultat.message === 'string' && /^[a-z_]+$/.test(resultat.message)
+      ? resultat.message : service + '_http_' + statut;
+    throw erreurService(code, service === 'supabase' && (statut === 404 || code === 'PGRST202')
+      ? 'Les migrations CRM v22 et v24 doivent être installées dans Supabase.'
+      : 'Le service ' + service + ' a refusé la requête (HTTP ' + statut + ').');
+  }
+  return resultat;
+}
+
+function supabaseRequete(chemin, methode, corps, preference) {
+  if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'La connexion Supabase n’est pas configurée.'); }
+  var options = { method: methode || 'get', muteHttpExceptions: true,
+    headers: { apikey: cleSupabase(), Authorization: 'Bearer ' + cleSupabase() } };
+  if (corps !== undefined) { options.contentType = 'application/json'; options.payload = JSON.stringify(corps); }
+  if (preference) { options.headers.Prefer = preference; }
+  return lireReponseJson(UrlFetchApp.fetch(urlSupabase() + '/rest/v1/' + chemin, options), 'supabase');
+}
+
 function supabaseLire(chemin) {
-  try {
-    var r = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/' + chemin, {
-      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE },
+  var resultat = supabaseRequete(chemin, 'get');
+  if (!Array.isArray(resultat)) { throw erreurService('supabase_reponse_invalide', 'La base n’a pas renvoyé une liste.'); }
+  return resultat;
+}
+
+/* Suivre Content-Range, y compris si le serveur impose moins de 500 lignes. */
+function supabaseLireTout(chemin) {
+  if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'La connexion Supabase n’est pas configurée.'); }
+  if (/[?&](limit|offset)=/.test(chemin)) { throw erreurService('pagination_invalide', 'Ne pas limiter une lecture paginée.'); }
+  var lignes = [], offset = 0;
+  for (var page = 0; page < 1000; page++) {
+    var rep = UrlFetchApp.fetch(urlSupabase() + '/rest/v1/' + chemin, {
+      headers: { apikey: cleSupabase(), Authorization: 'Bearer ' + cleSupabase(),
+        'Range-Unit': 'items', Range: offset + '-' + (offset + 499), Prefer: 'count=exact' },
       muteHttpExceptions: true
     });
-    if (r.getResponseCode() !== 200) { return null; }
-    return JSON.parse(r.getContentText());
-  } catch (e) { return null; }
+    var lot = lireReponseJson(rep, 'supabase');
+    if (!Array.isArray(lot)) { throw erreurService('supabase_reponse_invalide', 'Pagination Supabase illisible.'); }
+    var entetes = rep.getAllHeaders(), plage = '';
+    Object.keys(entetes).forEach(function (cle) { if (cle.toLowerCase() === 'content-range') { plage = String(entetes[cle]); } });
+    var total = /\/(\d+)$/.exec(plage);
+    lignes = lignes.concat(lot);
+    offset += lot.length;
+    if (total && offset >= Number(total[1])) { return lignes; }
+    if (!lot.length) {
+      if (total && offset < Number(total[1])) { throw erreurService('pagination_incomplete', 'La lecture de la base est incomplète.'); }
+      return lignes;
+    }
+    // Sans total, une dernière page vide est nécessaire : une page courte
+    // peut simplement venir de la limite configurée sur le serveur.
+  }
+  throw erreurService('pagination_limite', 'Trop de pages Supabase ; aucune vérification partielle n’a été appliquée.');
 }
 
 function supabaseEcrire(chemin, corps) {
-  try {
-    UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/' + chemin, {
-      method: 'patch',
-      contentType: 'application/json',
-      headers: { apikey: SUPABASE_CLE_SERVICE, Authorization: 'Bearer ' + SUPABASE_CLE_SERVICE, Prefer: 'return=minimal' },
-      payload: JSON.stringify(corps),
-      muteHttpExceptions: true
-    });
-  } catch (e) { /* rien */ }
+  var lignes = supabaseRequete(chemin, 'patch', corps, 'return=representation');
+  if (!Array.isArray(lignes) || !lignes.length) { throw erreurService('mise_a_jour_vide', 'La demande n’a pas été mise à jour. Rechargez le CRM.'); }
+  return lignes;
 }
 
 /* ============ Les paiements recus sur Stripe ============ */
-function paiementsStripe() {
-  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return null; }
-  try {
-    var depuis = Math.floor(Date.now() / 1000) - 120 * 24 * 3600; /* les 4 derniers mois */
-    var rep = UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions?limit=100&created%5Bgte%5D=' + depuis, {
-      headers: { Authorization: 'Bearer ' + STRIPE_CLE },
-      muteHttpExceptions: true
-    });
-    if (rep.getResponseCode() !== 200) { return null; }
-    var paiements = [];
-    (JSON.parse(rep.getContentText()).data || []).forEach(function (sess) {
-      if (sess.payment_status !== 'paid') { return; }
-      paiements.push({
-        email: String((sess.customer_details && sess.customer_details.email) || sess.customer_email || '').toLowerCase(),
-        montant: Math.round((sess.amount_total || 0) / 100),
-        quand: new Date(sess.created * 1000).toISOString().slice(0, 10)
-      });
-    });
-    return paiements;
-  } catch (e) { return null; }
+/* v24 : Checkout + PaymentIntents + Charges + Refunds en lecture ; Refunds
+   en écriture seulement pour les remboursements explicitement confirmés.
+   La propriété STRIPE_REMBOURSEMENTS_ACTIFS doit être exactement "true".
+   Ne jamais mettre une clé secrète dans le site. Aucune tâche planifiée
+   ne crée de remboursement. recu_le reste la création de la session. */
+function stripeRequete(chemin) {
+  return stripeApi('/checkout/sessions' + chemin);
 }
 
-/* Le bouton « Verifier les paiements Stripe » de l'espace academie. */
-function traiterStripe(d) {
-  if (!STRIPE_CLE || STRIPE_CLE.indexOf('COLLEZ') === 0) { return reponseTexte('stripe non configuree'); }
-  if (!supabasePret()) { return reponseTexte('supabase non configuree'); }
-  if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
+function stripeApi(chemin, methode, parametres, idempotence) {
+  var cle = cleStripe();
+  if (!cle || cle.indexOf('COLLEZ') === 0) { throw erreurService('stripe_non_configuree', 'La clé Stripe n’est pas configurée.'); }
+  var options = { method: methode || 'get', headers: { Authorization: 'Bearer ' + cle }, muteHttpExceptions: true };
+  if (methode === 'post') {
+    if (chemin !== '/refunds' || !idempotence || !remboursementsStripeActifs()) {
+      throw erreurService('remboursements_desactives', 'Les remboursements Stripe ne sont pas activés dans le service.');
+    }
+    options.contentType = 'application/x-www-form-urlencoded';
+    options.headers['Idempotency-Key'] = idempotence;
+    options.payload = Object.keys(parametres).sort().map(function (cleParam) {
+      return encodeURIComponent(cleParam) + '=' + encodeURIComponent(String(parametres[cleParam]));
+    }).join('&');
+  }
+  return lireReponseJson(UrlFetchApp.fetch('https://api.stripe.com/v1' + chemin, options), 'stripe');
+}
+
+function paiementDepuisSession(sess) {
+  if (!sess || sess.payment_status !== 'paid' || sess.status !== 'complete' || sess.livemode !== true ||
+      sess.mode !== 'payment' || String(sess.currency).toLowerCase() !== 'eur' ||
+      !Number.isSafeInteger(sess.amount_total) || sess.amount_total <= 0) { return null; }
+  if (!/^cs_[A-Za-z0-9_]+$/.test(String(sess.id || '')) || !Number.isFinite(sess.created) || sess.created <= 0) {
+    throw erreurService('stripe_reponse_invalide', 'Identifiant ou date Stripe manquant.');
+  }
+  var email = String((sess.customer_details && sess.customer_details.email) || sess.customer_email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { return null; }
+  var recu = new Date(sess.created * 1000);
+  return { session_id: sess.id, email: email, montant: sess.amount_total / 100,
+    montant_centimes: sess.amount_total, devise: 'eur', recu_le: recu.toISOString(),
+    quand: Utilities.formatDate(recu, 'Europe/Paris', 'yyyy-MM-dd') };
+}
+
+function paiementsStripe() {
+  var depuis = Math.floor(Date.now() / 1000) - 120 * 24 * 3600;
+  var paiements = [], curseur = '', vus = {};
+  for (var page = 0; page < 1000; page++) {
+    var rep = stripeRequete('?limit=100&created%5Bgte%5D=' + depuis +
+      (curseur ? '&starting_after=' + encodeURIComponent(curseur) : ''));
+    if (!rep || !Array.isArray(rep.data) || typeof rep.has_more !== 'boolean') {
+      throw erreurService('stripe_reponse_invalide', 'La liste des paiements Stripe est illisible.');
+    }
+    rep.data.forEach(function (sess) {
+      var p = paiementDepuisSession(sess);
+      if (p && !vus[p.session_id]) { paiements.push(p); vus[p.session_id] = true; }
+    });
+    if (!rep.has_more) { return paiements; }
+    var dernier = rep.data.length ? rep.data[rep.data.length - 1].id : '';
+    if (!dernier || dernier === curseur) { throw erreurService('stripe_pagination_incomplete', 'Stripe n’a pas fourni la page suivante.'); }
+    curseur = dernier;
+  }
+  throw erreurService('stripe_pagination_limite', 'Trop de pages Stripe ; aucun rapprochement partiel n’a été effectué.');
+}
+
+function reponseErreurCRM(e) {
+  var code = e && e.code || 'service_indisponible';
+  var messages = {
+    paiement_deja_affecte: 'Ce règlement Stripe est déjà affecté à un autre dossier. Actualisez les paiements.',
+    demande_annulee: 'Le dossier a été annulé. Aucun paiement n’a été affecté.',
+    demande_non_validee: 'Validez le dossier avant de rapprocher un paiement.',
+    demande_deja_payee: 'Le dossier est déjà réglé. Aucun paiement supplémentaire n’a été affecté.',
+    demande_introuvable: 'Le dossier n’existe plus. Actualisez le CRM.',
+    paiement_introuvable: 'Le paiement n’est pas encore enregistré. Relancez la vérification Stripe.',
+    email_incompatible: 'L’adresse du règlement ne correspond pas à celle du dossier.',
+    paiement_anterieur_demande: 'Le règlement est antérieur à la création du dossier.',
+    montant_ou_etat_incompatible: 'Le montant ou l’état du dossier a changé. Vérifiez les règlements avant de réessayer.',
+    paiement_etat_registre_incompatible: 'Le registre contient déjà un règlement pour ce dossier. Vérifiez les paiements enregistrés.',
+    paiement_depasse_tarif: 'Ce rapprochement dépasserait le montant dû pour le dossier.'
+  };
+  // Ne jamais renvoyer un message brut d'UrlFetchApp (URL / informations internes).
+  var message = messages[code] || (e && e.code ? e.message : 'Le service n’a pas pu terminer l’opération. Réessayez après vérification.');
+  return reponseTexte(JSON.stringify({ ok: false, code: code, message: message }));
+}
+
+function importerPaiementsStripe(paiements) {
+  for (var i = 0; i < paiements.length; i += 100) {
+    var lot = paiements.slice(i, i + 100).map(function (p) {
+      return { session_id: p.session_id, email: p.email, montant_centimes: p.montant_centimes,
+        devise: p.devise, recu_le: p.recu_le };
+    });
+    supabaseRequete('crm_paiements_stripe?on_conflict=session_id', 'post', lot,
+      'resolution=ignore-duplicates,return=minimal');
+  }
+}
+
+function centimesDe(texte) {
+  var m = String(texte || '').replace(/[\s\u00a0\u202f]/g, '').match(/\d+(?:[.,]\d{1,2})?/);
+  return m ? Math.round(Number(m[0].replace(',', '.')) * 100) : 0;
+}
+
+function naturePaiement(d, p) {
+  if (d.annule || d.statut !== 'validée' || d.paye ||
+      String(d.parent_email || '').trim().toLowerCase() !== p.email ||
+      !d.cree || Math.floor(new Date(d.cree).getTime() / 1000) > new Date(p.recu_le).getTime() / 1000) { return ''; }
+  var total = centimesDe(d.tarif) || (d.type === 'stage' ? 84000 : 0);
+  if (total <= 0 || p.devise !== 'eur') { return ''; }
+  if (d.type === 'cours') { return p.montant_centimes === total ? 'total' : ''; }
+  if (d.type !== 'stage') { return ''; }
+  if (!d.acompte_paye && !d.solde_paye && p.montant_centimes === total) { return 'total'; }
+  if (!d.acompte_paye && !d.solde_paye && total > 30000 && p.montant_centimes === 30000) { return 'acompte'; }
+  if (d.acompte_paye && !d.solde_paye && total > 30000 && p.montant_centimes === total - 30000) { return 'solde'; }
+  return '';
+}
+
+/* Avant v22, les cases payé n'avaient aucun identifiant Stripe. Si une
+   ancienne ligne pourrait déjà expliquer le règlement, ne pas le réutiliser. */
+function paiementHistoriquePossible(d, p, registre) {
+  if (String(d.parent_email || '').trim().toLowerCase() !== p.email ||
+      !d.cree || Math.floor(new Date(d.cree).getTime() / 1000) > new Date(p.recu_le).getTime() / 1000) { return false; }
+  var total = centimesDe(d.tarif) || (d.type === 'stage' ? 84000 : 0);
+  var nature = p.montant_centimes === total && d.paye ? 'total' :
+    d.type === 'stage' && p.montant_centimes === 30000 && d.acompte_paye ? 'acompte' :
+    d.type === 'stage' && p.montant_centimes === total - 30000 && d.solde_paye ? 'solde' : '';
+  if (!nature) { return false; }
+  var date = nature === 'acompte' ? d.acompte_le : nature === 'solde' ? d.solde_le : d.paye_le;
+  if (date && String(date) < p.quand) { return false; }
+  var affectes = registre.filter(function (r) { return r.demande_id === d.id; });
+  if (nature === 'total') {
+    return affectes.reduce(function (somme, r) { return somme + Number(r.montant_centimes || 0); }, 0) < total;
+  }
+  return !affectes.some(function (r) { return r.nature === nature || r.nature === 'total'; });
+}
+
+function preparerRapprochements(paiements, demandes, registre) {
+  var connus = {}, utilisations = {};
+  registre.forEach(function (r) { connus[r.session_id] = r; });
+  var lignes = paiements.map(function (p) {
+    var ligne = Object.assign({}, p, { candidats: [] });
+    var connu = connus[p.session_id];
+    if (connu && connu.demande_id) {
+      ligne.statut = 'deja_rapproche'; ligne.demande_id = connu.demande_id; ligne.nature = connu.nature;
+      return ligne;
+    }
+    demandes.forEach(function (d) {
+      var nature = naturePaiement(d, p), historique = paiementHistoriquePossible(d, p, registre);
+      if (nature && registre.some(function (r) {
+        return r.demande_id === d.id && (nature !== 'solde' || r.nature !== 'acompte');
+      })) { nature = ''; }
+      if (!nature && !historique) { return; }
+      ligne.candidats.push({ demande_id: d.id, enfant: d.enfant, detail: d.detail,
+        nature: nature || 'historique', historique: historique });
+    });
+    ligne.statut = !ligne.candidats.length ? 'sans_correspondance' :
+      ligne.candidats.length === 1 && !ligne.candidats[0].historique ? 'propose' : 'ambigu';
+    if (ligne.statut === 'propose') {
+      ligne.demande_id = ligne.candidats[0].demande_id; ligne.nature = ligne.candidats[0].nature;
+      var cle = ligne.demande_id;
+      utilisations[cle] = (utilisations[cle] || 0) + 1;
+    }
+    return ligne;
+  });
+  var bilan = { proposes: 0, ambigus: 0, sans_correspondance: 0, deja_rapproches: 0 };
+  lignes.forEach(function (p) {
+    if (p.statut === 'propose' && utilisations[p.demande_id] > 1) {
+      p.statut = 'ambigu'; p.raison = 'Plusieurs paiements correspondent au même règlement.';
+      delete p.demande_id; delete p.nature;
+    }
+    bilan[p.statut === 'propose' ? 'proposes' : p.statut === 'ambigu' ? 'ambigus' :
+      p.statut === 'deja_rapproche' ? 'deja_rapproches' : 'sans_correspondance']++;
+  });
+  return { ok: true, version: 24, paiements: lignes,
+    propositions: lignes.filter(function (p) { return p.statut === 'propose'; }), bilan: bilan, periode_jours: 120 };
+}
+
+function chargerRapprochementsStripe() {
   var paiements = paiementsStripe();
-  if (!paiements) { return reponseTexte('cle stripe refusee'); }
-  return reponseTexte(JSON.stringify({ ok: true, paiements: paiements }));
+  importerPaiementsStripe(paiements);
+  // Les anciens règlements associés sont aussi revérifiés, par lots repris à
+  // l'appel suivant ou par le déclencheur horaire, sans limite d'ancienneté.
+  var synchronisation = synchroniserStripeLot();
+  var demandes = supabaseLireTout('demandes?select=*&order=id.asc');
+  var registre = supabaseLireTout('crm_paiements_stripe?select=*&order=session_id.asc');
+  var liste = preparerRapprochements(paiements, demandes, registre);
+  liste.paiements.forEach(function (p) {
+    if (p.statut !== 'propose' && p.statut !== 'ambigu') { return; }
+    var etat = actualiserPaiementStripe(p).snapshot;
+    p.rembourse_centimes = etat.rembourse_centimes;
+    p.en_attente_centimes = etat.en_attente_centimes;
+    p.conteste = etat.conteste;
+    if (etat.rembourse_centimes || etat.en_attente_centimes || etat.conteste) {
+      liste.bilan[p.statut === 'propose' ? 'proposes' : 'ambigus']--;
+      liste.bilan.sans_correspondance++;
+      p.statut = 'sans_correspondance';
+      p.raison = 'Paiement remboursé, en cours de remboursement ou contesté dans Stripe.';
+      delete p.demande_id; delete p.nature;
+    }
+  });
+  liste.propositions = liste.paiements.filter(function (p) { return p.statut === 'propose'; });
+  liste.synchronisation = synchronisation;
+  return liste;
+}
+
+function appliquerPaiementStripe(demandeId, sessionId, acteur) {
+  var paiement = paiementDepuisSession(stripeRequete('/' + encodeURIComponent(sessionId)));
+  if (!paiement || paiement.session_id !== sessionId) {
+    throw erreurService('paiement_non_eligible', 'Ce paiement Stripe n’est pas un règlement EUR encaissé en production.');
+  }
+  importerPaiementsStripe([paiement]);
+  var etat = actualiserPaiementStripe(paiement).snapshot;
+  if (etat.rembourse_centimes || etat.en_attente_centimes || etat.conteste) {
+    throw erreurService('paiement_rembourse_ou_conteste', 'Ce règlement est remboursé, en attente de remboursement ou contesté. Aucun rapprochement n’a été effectué.');
+  }
+  var resultat = supabaseRequete('rpc/crm_appliquer_paiement_stripe', 'post', {
+    p_demande_id: demandeId, p_session_id: sessionId, p_acteur: acteur
+  });
+  if (!resultat || resultat.ok !== true || !resultat.demande || !resultat.paiement) {
+    throw erreurService('rapprochement_non_confirme', 'La base n’a pas confirmé le rapprochement. Rechargez les paiements.');
+  }
+  return resultat;
+}
+
+/* Le navigateur choisit un couple proposé ; le serveur relit Stripe et la
+   base, puis la RPC contrôle à nouveau l'état sous verrou transactionnel. */
+function traiterStripe(d) {
+  try {
+    if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'La connexion Supabase n’est pas configurée.'); }
+    if (!adminDepuisJeton(String(d.jeton || ''))) { throw erreurService('acces_refuse', 'Reconnectez-vous avec un compte académie.'); }
+    return reponseTexte(JSON.stringify(chargerRapprochementsStripe()));
+  } catch (e) { return reponseErreurCRM(e); }
+}
+
+function traiterRapprochementStripe(d) {
+  try {
+    if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'La connexion Supabase n’est pas configurée.'); }
+    var admin = adminDepuisJeton(String(d.jeton || ''));
+    if (!admin) { throw erreurService('acces_refuse', 'Reconnectez-vous avec un compte académie.'); }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(d.demande_id || '')) ||
+        !/^cs_[A-Za-z0-9_]+$/.test(String(d.session_id || ''))) {
+      throw erreurService('identifiants_invalides', 'L’identifiant du dossier ou du paiement est invalide.');
+    }
+    var propositions = chargerRapprochementsStripe();
+    var candidat = propositions.paiements.filter(function (p) { return p.session_id === d.session_id; })[0];
+    if (!candidat || candidat.demande_id !== d.demande_id ||
+        (candidat.statut !== 'propose' && candidat.statut !== 'deja_rapproche')) {
+      throw erreurService('rapprochement_ambigu', 'Le rapprochement n’est plus certain. Actualisez puis vérifiez les dossiers et Stripe.');
+    }
+    return reponseTexte(JSON.stringify(appliquerPaiementStripe(d.demande_id, d.session_id, admin)));
+  } catch (e) { return reponseErreurCRM(e); }
+}
+
+/* ============ Remboursements Stripe réels (CRM v24) ============ */
+function remboursementsStripeActifs() {
+  return PropertiesService.getScriptProperties().getProperty('STRIPE_REMBOURSEMENTS_ACTIFS') === 'true';
+}
+
+function uuidCRM(v) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+}
+
+function idStripe(objet) { return typeof objet === 'string' ? objet : objet && objet.id || ''; }
+
+function verifierIdentifiantStripe(valeur, prefixe) {
+  if (!new RegExp('^' + prefixe + '_[A-Za-z0-9_]+$').test(String(valeur || ''))) {
+    throw erreurService('stripe_identifiant_invalide', 'Un identifiant Stripe est absent ou invalide.');
+  }
+  return valeur;
+}
+
+function remboursementsDeChargeStripe(chargeId) {
+  var lignes = [], vus = {}, curseurs = {}, curseur = '';
+  for (var page = 0; page < 1000; page++) {
+    var rep = stripeApi('/refunds?charge=' + encodeURIComponent(chargeId) + '&limit=100' +
+      (curseur ? '&starting_after=' + encodeURIComponent(curseur) : ''));
+    if (!rep || !Array.isArray(rep.data) || typeof rep.has_more !== 'boolean') {
+      throw erreurService('stripe_reponse_invalide', 'La liste des remboursements est illisible.');
+    }
+    rep.data.forEach(function (r) {
+      verifierIdentifiantStripe(r && r.id, 're');
+      var empreinte = JSON.stringify([r.amount, r.status, r.created, r.currency,
+        idStripe(r.charge), idStripe(r.payment_intent), r.reason || null,
+        r.metadata && r.metadata.crm_operation_id || null, r.metadata && r.metadata.crm_session_id || null]);
+      if (vus[r.id] && vus[r.id] !== empreinte) {
+        throw erreurService('stripe_remboursement_modifie', 'Un remboursement a changé pendant la lecture. Actualisez avant toute opération.');
+      }
+      if (!vus[r.id]) { lignes.push(r); vus[r.id] = empreinte; }
+    });
+    if (!rep.has_more) { return lignes; }
+    var dernier = rep.data.length ? rep.data[rep.data.length - 1].id : '';
+    if (!dernier || curseurs[dernier]) { throw erreurService('stripe_pagination_incomplete', 'La liste des remboursements est incomplète.'); }
+    curseurs[dernier] = true; curseur = dernier;
+  }
+  throw erreurService('stripe_pagination_limite', 'La liste des remboursements dépasse la limite de lecture. Aucun remboursement n’a été demandé.');
+}
+
+function normaliserRemboursementStripe(r, sessionId, paymentIntentId, chargeId) {
+  var statuts = ['succeeded', 'pending', 'requires_action', 'failed', 'canceled'];
+  if (!r || idStripe(r.charge) !== chargeId || idStripe(r.payment_intent) !== paymentIntentId ||
+      r.currency !== 'eur' || !Number.isSafeInteger(r.amount) || r.amount <= 0 ||
+      statuts.indexOf(r.status) === -1 || !Number.isFinite(r.created) || r.created <= 0) {
+    throw erreurService('stripe_remboursement_incoherent', 'Stripe a renvoyé un remboursement qui ne correspond pas au paiement vérifié.');
+  }
+  verifierIdentifiantStripe(r.id, 're');
+  var operationId = r.metadata && r.metadata.crm_operation_id;
+  var sessionMeta = r.metadata && r.metadata.crm_session_id;
+  return { id: r.id, montant_centimes: r.amount, statut: r.status,
+    cree_le: new Date(r.created * 1000).toISOString(), motif: r.reason || null,
+    payment_intent_id: paymentIntentId, charge_id: chargeId,
+    operation_id: uuidCRM(operationId) && sessionMeta === sessionId ? operationId : null };
+}
+
+function verifierChargeStripe(charge, paymentIntentId, chargeId, montant) {
+  if (!charge || charge.id !== chargeId || idStripe(charge.payment_intent) !== paymentIntentId ||
+      charge.livemode !== true || charge.currency !== 'eur' || charge.paid !== true ||
+      charge.captured !== true || charge.status !== 'succeeded' ||
+      charge.amount !== montant || charge.amount_captured !== montant ||
+      !Number.isSafeInteger(charge.amount_refunded) || charge.amount_refunded < 0 || charge.amount_refunded > montant ||
+      typeof charge.disputed !== 'boolean') {
+    throw erreurService('stripe_charge_incompatible', 'La charge Stripe ne correspond pas au montant encaissé du registre.');
+  }
+}
+
+/* Une relation session → PaymentIntent → charge est relue directement chez
+   Stripe. L'adresse e-mail n'est jamais utilisée pour autoriser un remboursement.
+   Les deux lectures de charge détectent un remboursement/dispute intervenu
+   pendant la pagination ; une incohérence bloque les nouvelles opérations. */
+function lireSnapshotStripe(paiement) {
+  var debutLecture = new Date().toISOString();
+  verifierIdentifiantStripe(paiement.session_id, 'cs');
+  var sess = stripeRequete('/' + encodeURIComponent(paiement.session_id));
+  if (!sess || sess.id !== paiement.session_id || sess.livemode !== true || sess.mode !== 'payment' ||
+      sess.status !== 'complete' || sess.payment_status !== 'paid' || sess.currency !== 'eur' ||
+      sess.amount_total !== Number(paiement.montant_centimes)) {
+    throw erreurService('stripe_session_incompatible', 'La session Stripe ne correspond pas au règlement enregistré.');
+  }
+  var piId = verifierIdentifiantStripe(idStripe(sess.payment_intent), 'pi');
+  var pi = stripeApi('/payment_intents/' + encodeURIComponent(piId));
+  if (!pi || pi.id !== piId || pi.livemode !== true || pi.currency !== 'eur' || pi.status !== 'succeeded' ||
+      pi.amount !== sess.amount_total || pi.amount_received !== sess.amount_total) {
+    throw erreurService('stripe_intent_incompatible', 'Le paiement Stripe n’est pas intégralement encaissé en euros.');
+  }
+  var chargeId = verifierIdentifiantStripe(idStripe(pi.latest_charge), 'ch');
+  var charge = stripeApi('/charges/' + encodeURIComponent(chargeId));
+  verifierChargeStripe(charge, piId, chargeId, sess.amount_total);
+  var remboursements = remboursementsDeChargeStripe(chargeId).map(function (r) {
+    return normaliserRemboursementStripe(r, paiement.session_id, piId, chargeId);
+  });
+  var actuelle = stripeApi('/charges/' + encodeURIComponent(chargeId));
+  verifierChargeStripe(actuelle, piId, chargeId, sess.amount_total);
+  if (charge.amount_refunded !== actuelle.amount_refunded || charge.disputed !== actuelle.disputed) {
+    throw erreurService('stripe_etat_modifie', 'Le paiement vient de changer dans Stripe. Actualisez avant toute opération.');
+  }
+  var rembourse = 0, enAttente = 0;
+  remboursements.forEach(function (r) {
+    if (r.statut === 'succeeded') { rembourse += r.montant_centimes; }
+    if (r.statut === 'pending' || r.statut === 'requires_action') { enAttente += r.montant_centimes; }
+  });
+  if (rembourse + enAttente > sess.amount_total || actuelle.amount_refunded < rembourse ||
+      actuelle.amount_refunded > rembourse + enAttente) {
+    throw erreurService('stripe_solde_incoherent', 'Le détail Stripe et le total remboursé ne concordent pas. Aucun nouveau remboursement n’est autorisé.');
+  }
+  return { payment_intent_id: piId, charge_id: chargeId, montant_centimes: sess.amount_total,
+    rembourse_centimes: rembourse, en_attente_centimes: enAttente, conteste: actuelle.disputed,
+    devise: 'eur', livemode: true, verifie_le: debutLecture, fetched_at: debutLecture,
+    remboursements: remboursements };
+}
+
+function enregistrerSnapshotStripe(paiement, snapshot) {
+  var resultat = supabaseRequete('rpc/crm_enregistrer_snapshot_stripe', 'post', {
+    p_session_id: paiement.session_id, p_snapshot: snapshot
+  });
+  if (!resultat || resultat.ok !== true) { throw erreurService('stripe_sync_non_confirmee', 'La base n’a pas confirmé la synchronisation Stripe.'); }
+  return resultat;
+}
+
+function actualiserPaiementStripe(paiement) {
+  var snapshot = lireSnapshotStripe(paiement);
+  var resultat = enregistrerSnapshotStripe(paiement, snapshot);
+  return { snapshot: snapshot, resultat: resultat };
+}
+
+function exigerAdminStripe(jeton) {
+  if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'La connexion Supabase n’est pas configurée.'); }
+  var admin = adminDepuisJeton(String(jeton || ''));
+  if (!admin) { throw erreurService('acces_refuse', 'Reconnectez-vous avec un compte académie.'); }
+  return admin;
+}
+
+function paiementsDuDossierStripe(demandeId) {
+  if (!uuidCRM(demandeId)) { throw erreurService('identifiants_invalides', 'L’identifiant du dossier est invalide.'); }
+  return supabaseLireTout('crm_paiements_stripe?select=*&demande_id=eq.' + encodeURIComponent(demandeId) + '&order=session_id.asc');
+}
+
+function operationReprenableStripe(op) {
+  var age = Date.now() - new Date(op && op.cree_le).getTime();
+  return !!op && !op.stripe_refund_id && ['reserve', 'incertain'].indexOf(op.statut) !== -1 &&
+    Number.isFinite(age) && age >= -5 * 60 * 1000 && age < 23 * 3600 * 1000;
+}
+
+function presenterPaiementStripe(paiement, actualisation) {
+  var resultat = actualisation.resultat, s = actualisation.snapshot;
+  var remboursements = (resultat.remboursements || s.remboursements).map(function (r) {
+    return { id: r.id || r.refund_id, montant_centimes: Number(r.montant_centimes), statut: r.statut,
+      cree_le: r.cree_le, motif: r.motif || null, operation_id: r.operation_id || null };
+  });
+  var enCours = (resultat.operations || []).filter(function (o) {
+    return ['reserve', 'incertain', 'pending', 'requires_action'].indexOf(o.statut) !== -1;
+  });
+  enCours.sort(function (a, b) {
+    var ordreA = ['reserve', 'incertain'].indexOf(a.statut) !== -1 ? 0 : 1;
+    var ordreB = ['reserve', 'incertain'].indexOf(b.statut) !== -1 ? 0 : 1;
+    return ordreA - ordreB || String(a.cree_le).localeCompare(String(b.cree_le));
+  });
+  var operation = enCours[0];
+  var presentation = { session_id: paiement.session_id, nature: paiement.nature,
+    payment_intent_id: s.payment_intent_id, montant_centimes: s.montant_centimes,
+    rembourse_centimes: s.rembourse_centimes, en_attente_centimes: s.en_attente_centimes,
+    disponible_centimes: Number(resultat.disponible_centimes || 0), conteste: s.conteste,
+    verifie_le: s.verifie_le, remboursements: remboursements };
+  if (operation) {
+    presentation.operation_en_cours = { operation_id: operation.operation_id, montant_centimes: Number(operation.montant_centimes),
+      motif: operation.motif, statut: operation.statut, cree_le: operation.cree_le,
+      reprise_possible: operationReprenableStripe(operation) && !s.conteste && !s.en_attente_centimes && remboursementsStripeActifs() };
+  }
+  return presentation;
+}
+
+function chargerEtatRemboursementsStripe(demandeId) {
+  var paiements = paiementsDuDossierStripe(demandeId).map(function (p) {
+    return presenterPaiementStripe(p, actualiserPaiementStripe(p));
+  });
+  var resume = { rembourse_centimes: 0, en_attente_centimes: 0 };
+  paiements.forEach(function (p) { resume.rembourse_centimes += p.rembourse_centimes; resume.en_attente_centimes += p.en_attente_centimes; });
+  return { ok: true, version: 24, remboursements_actifs: remboursementsStripeActifs(), paiements: paiements, resume: resume };
+}
+
+function verrouillerStripe() {
+  var verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) { throw erreurService('stripe_operation_en_cours', 'Une opération Stripe est déjà en cours. Actualisez dans un instant.'); }
+  return verrou;
+}
+
+function traiterEtatRemboursementsStripe(d) {
+  var verrou;
+  try {
+    exigerAdminStripe(d.jeton);
+    verrou = verrouillerStripe();
+    return reponseTexte(JSON.stringify(chargerEtatRemboursementsStripe(d.demande_id)));
+  } catch (e) { return reponseErreurCRM(e); }
+  finally { if (verrou) { verrou.releaseLock(); } }
+}
+
+function resultatRemboursementStripe(demandeId, operation, remboursement) {
+  var resultat;
+  try { resultat = chargerEtatRemboursementsStripe(demandeId); }
+  catch (e) { resultat = { version: 24, remboursements_actifs: remboursementsStripeActifs(), actualisation_incomplete: true }; }
+  resultat.ok = remboursement.statut === 'succeeded';
+  resultat.operation_id = operation.operation_id;
+  resultat.operation = operation;
+  resultat.operation_statut = remboursement.statut;
+  resultat.operation_reservee = true;
+  resultat.remboursement = { id: remboursement.id || remboursement.refund_id,
+    montant_centimes: Number(remboursement.montant_centimes), statut: remboursement.statut };
+  if (!resultat.ok) {
+    resultat.code = remboursement.statut === 'failed' ? 'remboursement_echoue' : remboursement.statut === 'canceled'
+      ? 'remboursement_annule' : remboursement.statut === 'requires_action' ? 'remboursement_action_requise' : 'remboursement_en_attente';
+    resultat.message = remboursement.statut === 'failed' ? 'Stripe indique que le remboursement a échoué. Aucun succès n’est confirmé.' :
+      remboursement.statut === 'canceled' ? 'Ce remboursement a été annulé dans Stripe.' :
+      'Le remboursement est enregistré dans Stripe mais n’est pas encore terminé. Actualisez son état, sans créer une nouvelle opération.';
+  }
+  return reponseTexte(JSON.stringify(resultat));
+}
+
+function traiterRemboursementStripe(d) {
+  var verrou, operation, tentativeReservation = false, postTente = false, avantPost;
+  try {
+    var admin = exigerAdminStripe(d.jeton);
+    if (!uuidCRM(d.demande_id) || !uuidCRM(d.operation_id) ||
+        !/^cs_[A-Za-z0-9_]+$/.test(String(d.session_id || '')) ||
+        !Number.isSafeInteger(d.montant_centimes) || d.montant_centimes <= 0 ||
+        ['requested_by_customer', 'duplicate', 'fraudulent'].indexOf(d.motif) === -1) {
+      throw erreurService('remboursement_invalide', 'Vérifiez le dossier, le règlement, le montant en centimes et le motif.');
+    }
+    if (!remboursementsStripeActifs()) { throw erreurService('remboursements_desactives', 'Les remboursements Stripe ne sont pas activés dans le service.'); }
+    verrou = verrouillerStripe();
+    var paiement = paiementsDuDossierStripe(d.demande_id).filter(function (p) { return p.session_id === d.session_id; })[0];
+    if (!paiement) { throw erreurService('paiement_non_associe', 'Ce paiement Stripe n’est pas affecté à ce dossier.'); }
+    var actualisation = actualiserPaiementStripe(paiement), snapshot = actualisation.snapshot;
+    tentativeReservation = true;
+    var reservation = supabaseRequete('rpc/crm_reserver_remboursement_stripe', 'post', {
+      p_operation_id: d.operation_id, p_demande_id: d.demande_id, p_session_id: d.session_id,
+      p_montant_centimes: d.montant_centimes, p_motif: d.motif, p_acteur: admin
+    });
+    operation = reservation && reservation.operation;
+    if (!reservation || reservation.ok !== true || !operation || operation.operation_id !== d.operation_id ||
+        operation.session_id !== d.session_id || operation.demande_id !== d.demande_id ||
+        Number(operation.montant_centimes) !== d.montant_centimes || operation.motif !== d.motif) {
+      throw erreurService('reservation_non_confirmee', 'La réservation du remboursement n’a pas été confirmée. Conservez le même identifiant d’opération.');
+    }
+    var connu = snapshot.remboursements.filter(function (r) {
+      return r.operation_id === d.operation_id || (operation.stripe_refund_id && r.id === operation.stripe_refund_id);
+    });
+    if (connu.length > 1) { throw erreurService('remboursement_incoherent', 'Plusieurs remboursements portent cet identifiant d’opération. Vérifiez Stripe.'); }
+    if (connu.length) {
+      if (connu[0].montant_centimes !== d.montant_centimes || connu[0].motif !== d.motif) {
+        throw erreurService('remboursement_incoherent', 'Le remboursement retrouvé ne correspond pas à l’opération réservée.');
+      }
+      return resultatRemboursementStripe(d.demande_id, operation, connu[0]);
+    }
+    if (operation.stripe_refund_id || !operationReprenableStripe(operation) || reservation.execution_autorisee !== true) {
+      throw erreurService('remboursement_verification_manuelle', 'Cette opération ne peut plus être relancée automatiquement. Vérifiez le remboursement dans Stripe ; aucune nouvelle demande n’a été envoyée.');
+    }
+    if (snapshot.conteste || snapshot.en_attente_centimes > 0) {
+      throw erreurService('remboursement_paiement_bloque', 'Un litige ou un remboursement en attente bloque ce règlement.');
+    }
+    // Une même UUID produit toujours exactement la même requête et la même clé.
+    // Passé 23 h, seule la recherche par metadata est autorisée : la clé Stripe
+    // pourrait expirer au bout de 24 h et ne protégerait plus un second POST.
+    avantPost = new Date().toISOString();
+    postTente = true;
+    var brutRefund = stripeApi('/refunds', 'post', { charge: snapshot.charge_id,
+      amount: d.montant_centimes, reason: d.motif,
+      'metadata[crm_operation_id]': d.operation_id, 'metadata[crm_session_id]': d.session_id
+    }, 'av-crm-refund-' + d.operation_id);
+    var remboursement = normaliserRemboursementStripe(brutRefund, d.session_id, snapshot.payment_intent_id, snapshot.charge_id);
+    if (remboursement.operation_id !== d.operation_id || remboursement.montant_centimes !== d.montant_centimes || remboursement.motif !== d.motif) {
+      throw erreurService('remboursement_incoherent', 'La réponse Stripe ne correspond pas au remboursement demandé.');
+    }
+    remboursement.verifie_le = avantPost;
+    var finalisation = supabaseRequete('rpc/crm_terminer_remboursement_stripe', 'post', {
+      p_operation_id: d.operation_id, p_refund: remboursement
+    });
+    if (!finalisation || finalisation.ok !== true) { throw erreurService('remboursement_non_confirme', 'Stripe a répondu mais le registre n’a pas confirmé l’opération.'); }
+    operation = finalisation.operation || Object.assign({}, operation, { statut: remboursement.statut, stripe_refund_id: remboursement.id });
+    return resultatRemboursementStripe(d.demande_id, operation, remboursement);
+  } catch (e) {
+    if (postTente) {
+      try {
+        var suivi = supabaseRequete('rpc/crm_terminer_remboursement_stripe', 'post', {
+          p_operation_id: d.operation_id, p_refund: { statut: 'incertain', verifie_le: avantPost }
+        });
+        if (suivi && suivi.operation) { operation = suivi.operation; }
+      } catch (ignore) { /* La réservation persistante continue à bloquer toute nouvelle UUID. */ }
+      e = erreurService('remboursement_incertain', 'La réponse du remboursement n’est pas confirmée. Actualisez Stripe et conservez le même identifiant d’opération ; ne créez pas un second remboursement.');
+    }
+    var erreur = { ok: false, code: e && e.code || 'service_indisponible', message: e && e.code ? e.message : 'Le service n’a pas pu confirmer l’opération.' };
+    if (uuidCRM(d.operation_id)) { erreur.operation_id = d.operation_id; }
+    erreur.operation_reservee = tentativeReservation;
+    if (operation) { erreur.operation = operation; erreur.operation_statut = operation.statut; }
+    return reponseTexte(JSON.stringify(erreur));
+  } finally { if (verrou) { verrou.releaseLock(); } }
+}
+
+/* Synchronisation horaire par lots : inclut les règlements associés anciens,
+   même hors fenêtre de 120 jours. Le curseur est enregistré après chaque succès.
+   Une session en erreur bloque le lot et sera reprise au prochain passage ;
+   vérifier l'échec Google avant de considérer le cycle complet.
+   Cette fonction ne contient jamais de création de remboursement. */
+function synchroniserStripeLot() {
+  var proprietes = PropertiesService.getScriptProperties();
+  var curseur = proprietes.getProperty('STRIPE_SYNC_CURSOR') || '';
+  if (curseur) { verifierIdentifiantStripe(curseur, 'cs'); }
+  var lignes = supabaseLire('crm_paiements_stripe?select=*&demande_id=not.is.null&order=session_id.asc&limit=20' +
+    (curseur ? '&session_id=gt.' + encodeURIComponent(curseur) : ''));
+  var fin = Date.now() + 4 * 60 * 1000, traites = 0;
+  for (var i = 0; i < lignes.length && Date.now() < fin; i++) {
+    actualiserPaiementStripe(lignes[i]);
+    proprietes.setProperty('STRIPE_SYNC_CURSOR', lignes[i].session_id);
+    traites++;
+  }
+  if (traites === lignes.length && lignes.length < 20) { proprietes.setProperty('STRIPE_SYNC_CURSOR', ''); }
+  return { synchronises: traites, cycle_termine: traites === lignes.length && lignes.length < 20 };
+}
+
+function synchroniserStripe() {
+  var verrou = verrouillerStripe();
+  try { var resultat = synchroniserStripeLot(); Logger.log(JSON.stringify(resultat)); return resultat; }
+  finally { verrou.releaseLock(); }
+}
+
+function installerSynchronisationStripe() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'synchroniserStripe') { ScriptApp.deleteTrigger(t); }
+  });
+  ScriptApp.newTrigger('synchroniserStripe').timeBased().everyHours(1).create();
+  Logger.log('Synchronisation Stripe horaire installée. Aucun remboursement automatique.');
 }
 
 /* ============ La confirmation d'une reservation de cours ============
@@ -711,55 +1356,39 @@ function installerRoutine() {
 }
 
 function routineQuotidienne() {
-  if (!supabasePret()) { return; }
-  try { rapprocherStripeAuto(); } catch (e) { /* silencieux */ }
-  try { relancesAuto(); } catch (e) { /* silencieux */ }
-  try { rappelsVeille(); } catch (e) { /* silencieux */ }
+  if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'Configurer Supabase avant la routine.'); }
+  // Si Stripe échoue, ne pas relancer des familles dont le paiement pourrait
+  // être reçu mais non synchronisé. L'échec apparaît dans les exécutions Google.
+  var bilan = rapprocherStripeAuto();
+  relancesAuto(bilan.demandes_a_verifier);
+  rappelsVeille();
+  Logger.log('Routine terminée : ' + JSON.stringify(bilan));
+  return bilan;
 }
 
 function montantDe(texte) {
-  var m = String(texte || '').replace(',', '.').match(/\d+(?:\.\d+)?/);
-  return m ? Number(m[0]) : 0;
+  return centimesDe(texte) / 100;
 }
 
 function isoDe(d) {
   return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
 }
 
-/* 1. Noter tout seul les paiements Stripe (memes regles que le bouton
-   de la plateforme : e-mail + montant : totalite, acompte 300, solde). */
+/* 1. Même registre et même RPC que le bouton du CRM. Une ambiguïté
+   (fratrie, doublon, paiement historique) ne modifie aucun dossier. */
 function rapprocherStripeAuto() {
-  var paiements = paiementsStripe();
-  if (!paiements) { return; }
-  var lignes = supabaseLire('demandes?select=*&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&limit=500');
-  if (!lignes) { return; }
-  var jour = isoDe(new Date());
-  lignes.forEach(function (d) {
-    if (!d.parent_email) { return; }
-    var total = montantDe(d.tarif) || (d.type === 'stage' ? 840 : 0);
-    var solde = Math.max(total - 300, 0);
-    var reste = d.type === 'stage'
-      ? (d.acompte_paye ? 0 : 300) + (d.solde_paye ? 0 : solde)
-      : (d.paye ? 0 : total);
-    if (reste <= 0) { return; }
-    var email = String(d.parent_email).toLowerCase();
-    for (var i = 0; i < paiements.length; i++) {
-      var p = paiements[i];
-      if (p.email !== email) { continue; }
-      var patch = null;
-      if (d.type === 'stage') {
-        if (total > 0 && p.montant >= total) { patch = { acompte_paye: true, acompte_le: jour, solde_paye: true, solde_le: jour, paye: true, paye_le: jour, paye_montant: p.montant + ' €' }; }
-        else if (p.montant === 300 && !d.acompte_paye) { patch = { acompte_paye: true, acompte_le: jour }; }
-        else if (p.montant === solde && d.acompte_paye && !d.solde_paye) { patch = { solde_paye: true, solde_le: jour }; }
-      } else if (total > 0 && p.montant >= total) {
-        patch = { paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
-      }
-      if (!patch) { continue; }
-      paiements.splice(i, 1);
-      supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), patch);
-      break;
+  var liste = chargerRapprochementsStripe(), appliques = 0, aVerifier = {};
+  liste.paiements.forEach(function (p) {
+    if (p.statut === 'ambigu') {
+      p.candidats.forEach(function (c) { aVerifier[c.demande_id] = true; });
     }
   });
+  liste.propositions.forEach(function (p) {
+    var resultat = appliquerPaiementStripe(p.demande_id, p.session_id, 'routine');
+    if (!resultat.deja_rapproche) { appliques++; }
+  });
+  return { appliques: appliques, ambigus: liste.bilan.ambigus,
+    sans_correspondance: liste.bilan.sans_correspondance, demandes_a_verifier: Object.keys(aVerifier) };
 }
 
 /* La date de debut d'un stage, lue dans son intitule
@@ -777,12 +1406,13 @@ function debutStage(detail) {
 }
 
 /* 2 et 3. Les relances automatiques des stages. */
-function relancesAuto() {
-  var lignes = supabaseLire('demandes?select=*&type=eq.stage&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&limit=500');
-  if (!lignes) { return; }
+function relancesAuto(demandesAVerifier) {
+  var lignes = supabaseLireTout('demandes?select=*&type=eq.stage&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&order=id.asc');
   var jour = isoDe(new Date());
   var maintenant = new Date();
   lignes.forEach(function (d) {
+    // Ne pas relancer un dossier auquel un paiement ambigu pourrait appartenir.
+    if ((demandesAVerifier || []).indexOf(d.id) !== -1) { return; }
     if (!d.parent_email || !/.+@.+\..+/.test(d.parent_email)) { return; }
     var donnees = {
       type: 'stage',
@@ -824,8 +1454,8 @@ function envoyerRelanceAuto(donnees, sous) {
 function rappelsVeille() {
   var demain = new Date();
   demain.setDate(demain.getDate() + 1);
-  var lignes = supabaseLire('demandes?select=parent_email,enfant,cours_heure&type=eq.cours&statut=eq.' +
-    encodeURIComponent('validée') + '&annule=eq.false&cours_date=eq.' + isoDe(demain));
+  var lignes = supabaseLireTout('demandes?select=parent_email,enfant,cours_heure&type=eq.cours&statut=eq.' +
+    encodeURIComponent('validée') + '&annule=eq.false&cours_date=eq.' + isoDe(demain) + '&order=id.asc');
   if (!lignes || !lignes.length) { return; }
   var JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -867,7 +1497,7 @@ function doGet(e) {
 function traiterDecisionPost(d) {
   if (d.action !== 'valider' && d.action !== 'refuser') { return reponseTexte('action inconnue'); }
   var r = executerDecision(d.action, d.motif, d.d, d.s);
-  if (r.code === 'lien invalide' || r.code === 'motif inconnu') { return reponseTexte(r.code); }
+  if (r.code.indexOf('ok ') !== 0) { return reponseTexte(r.code + (r.texte ? ';' + r.texte : '')); }
   return reponseTexte(r.code + ';' + r.parentEmail + ';' + r.enfant + (r.motifBouton ? ';' + r.motifBouton : ''));
 }
 
@@ -950,7 +1580,9 @@ function secret() {
 }
 
 function fabriquerJeton(obj) {
-  var d = Utilities.base64EncodeWebSafe(JSON.stringify(obj));
+  // Deux inscriptions identiques restent deux décisions distinctes.
+  var contenu = Object.assign({}, obj, { nonce: Utilities.getUuid() });
+  var d = Utilities.base64EncodeWebSafe(JSON.stringify(contenu));
   var s = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(d, secret()));
   return { d: d, s: s };
 }

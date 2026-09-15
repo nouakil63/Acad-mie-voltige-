@@ -1,0 +1,30 @@
+name: Vérifications CRM
+
+on:
+  pull_request:
+  push:
+    branches: ['codex/**']
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Installer PostgreSQL local pour les tests
+        run: npm install --prefix "$RUNNER_TEMP/crm-tools" --no-audit --no-fund --ignore-scripts @electric-sql/pglite@0.5.8
+      - name: Vérifier la syntaxe
+        run: |
+          for file in assets/js/*.js builder/builder.js; do node --check "$file"; done
+          node --check < service/Code.gs
+      - name: Tester le CRM, le service et les migrations sans réseau métier
+        env:
+          AV_SQL_TEST_TOOLS: ${{ runner.temp }}/crm-tools
+        run: node --test tests/*.test.cjs

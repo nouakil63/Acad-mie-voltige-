@@ -15,6 +15,11 @@
 
   var SERVICE = window.AV_SERVICE_URL ||
     'https://script.google.com/macros/s/AKfycbyDW_h6BmR4QpKs1l_917hrml-CUjDQCb-GdyNEPfLufxDhgPwsCRP9Wxwnnk-ByZc/exec';
+  /* Activation explicite après vérification du service, des migrations et du
+     compte Stripe. L'aperçu local active ce flag avant de charger ce fichier.
+     Ce verrou de déploiement complète les contrôles du service ; il ne les remplace pas. */
+  var STRIPE_ACTIF = window.AV_CRM_STRIPE_ACTIF === true;
+  var STRIPE_EN_ATTENTE = 'Stripe est en attente d’activation. Le rapprochement et les remboursements seront disponibles une fois la connexion vérifiée.';
 
   var MOTIFS = { complet: 'Complet', age: 'Âge', gabarit: 'Gabarit', creneau: 'Créneau indisponible' };
   var VUES = ['p-attente', 'p-connexion', 'p-refuse', 'p-tableau'];
@@ -43,6 +48,111 @@
 
   var demandes = [];
   var familles = [];
+  var core = window.AVCrmCore;
+  var ui = window.AVCrmUI;
+  var notesDisponibles = false;
+  var operations = new Set();
+  var chargements = 0;
+  var versionDemandes = 0, versionFamilles = 0;
+  var erreurDemandes = false, erreurFamilles = false;
+  var remboursementsStripe = Object.create(null);
+  var resumesRemboursements = Object.create(null);
+  var operationsRemboursementLocales = Object.create(null);
+  var dossierRemboursement = null, versionRemboursement = 0;
+  var versionResumeStripe = 0;
+  var suiviStripeDisponible = false;
+
+  function notifier(texte, erreur) { ui.toast(texte, { error: !!erreur }); }
+  function confirmer(texte, danger) {
+    return ui.confirm({ title: danger ? 'Confirmer cette action' : 'Vérifier avant de continuer',
+      description: texte, submitLabel: 'Confirmer', danger: !!danger });
+  }
+  function rafraichirAffichage() {
+    afficherDemandes(); afficherPaiements(); afficherPlanning(); majCompteurs();
+    if (navigationActive && navigation.detail && navigation.detail.genre === 'remboursement') {
+      var d = demandes.find(function (x) { return String(x.id) === navigation.detail.id; });
+      if (d && !dossierRemboursement) { chargerVueRemboursements(d); }
+      else if (d && remboursementsStripe[d.id]) { dossierRemboursement = d; afficherRemboursements(d, remboursementsStripe[d.id]); }
+    }
+  }
+  function statutSynchro() {
+    var statut = el('crm-sync-status'), bouton = el('crm-refresh');
+    if (bouton) { bouton.disabled = chargements > 0; }
+    if (!statut) { return; }
+    statut.dataset.state = chargements ? 'loading' : erreurDemandes || erreurFamilles ? 'error' : 'ready';
+    statut.textContent = chargements ? 'Actualisation en cours…' : erreurDemandes || erreurFamilles
+      ? 'Actualisation incomplète — réessayez' : 'À jour à ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    statut.classList.toggle('est-erreur', !chargements && (erreurDemandes || erreurFamilles));
+    if (!chargements && positionApresChargement) {
+      restaurerPosition(positionApresChargement.position, positionApresChargement.focus);
+      positionApresChargement = null;
+    }
+  }
+  async function operation(cle, action) {
+    if (operations.has(cle)) { return null; }
+    operations.add(cle);
+    try { return await action(); }
+    catch (erreur) { notifier(erreur.message || 'L’action n’a pas abouti. Réessayez.', true); return null; }
+    finally { operations.delete(cle); }
+  }
+  async function reponseJson(r, messageErreur) {
+    if (!r || !r.ok) {
+      var detail = '';
+      if (r) { try { detail = (await r.json()).message || ''; } catch (_) {} }
+      var erreurs = {
+        cours_date_invalide:'La date du cours est invalide.',
+        cours_date_passee:'Choisissez une date de cours à venir.',
+        cours_samedi_uniquement:'Les cours ont lieu le samedi.',
+        cours_heure_invalide:'Indiquez une heure de cours valide.',
+        cours_complet:'Ce créneau est complet. Actualisez puis choisissez un autre horaire.'
+      };
+      throw new Error(erreurs[detail] || messageErreur || 'L’enregistrement a échoué. Vérifiez votre connexion et vos droits.');
+    }
+    return r.json();
+  }
+  async function appelService(corps, json) {
+    if (!STRIPE_ACTIF && /^stripe(?:-|$)/.test(String(corps && corps.type || ''))) { throw new Error(STRIPE_EN_ATTENTE); }
+    var session = await nuage.sessionValide();
+    if (!session) { throw new Error('Votre session a expiré. Reconnectez-vous.'); }
+    var controle = new AbortController();
+    var delai = setTimeout(function () { controle.abort(); }, 45000);
+    try {
+      var r = await fetch(SERVICE, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify(Object.assign({}, corps, {jeton:session.jeton})), signal:controle.signal });
+      if (!r.ok) { throw new Error('Le service est indisponible. Réessayez dans un instant.'); }
+      var texte = await r.text();
+      if (!json) { return texte.trim(); }
+      var donnees;
+      try { donnees = JSON.parse(texte); } catch (_) { throw new Error('Cette fonction nécessite la mise à jour du service CRM. Contactez la personne qui gère le site.'); }
+      if (!donnees.ok) {
+        var refus = new Error(donnees.message || 'Le service n’a pas pu terminer cette action.');
+        refus.donnees = donnees;
+        throw refus;
+      }
+      return donnees;
+    } catch (erreur) {
+      if (erreur.name === 'AbortError') { throw new Error('Le service met trop de temps à répondre. Actualisez les données avant de réessayer.'); }
+      throw erreur;
+    } finally { clearTimeout(delai); }
+  }
+  async function creerDemande(ligne) {
+    var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes', {
+      method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(ligne)
+    }));
+    if (!lignes || !lignes[0]) { throw new Error('La demande n’a pas été enregistrée. Actualisez puis réessayez.'); }
+    demandes.unshift(lignes[0]); rafraichirAffichage();
+    notifier('Demande enregistrée.');
+    return lignes[0];
+  }
+  function demandesVisibles() {
+    return core.filterRequests(demandes, {query:filtreTexte,status:filtre,
+      type:el('f-type') ? el('f-type').value : 'tous',
+      followup:el('f-suivi') ? el('f-suivi').value : 'tous',
+      sort:el('f-tri') ? el('f-tri').value : 'recent'});
+  }
+  function allerDemande(d) {
+    ouvrirDetail('demande', d.id);
+  }
   var filtre = 'toutes';
   var filtreTexte = '';
 
@@ -106,17 +216,16 @@
     var moisCourant = maintenant.getFullYear() + '-' + String(maintenant.getMonth() + 1).padStart(2, '0');
     var aujourdHui = isoLocal(maintenant);
 
-    var encaisseMois = 0, encaisseTotal = 0, resteTotal = 0, revenusCours = 0, revenusStages = 0;
+    var encaisseMois = 0, encaisseTotal = 0, resteTotal = 0, revenusCours = 0, revenusStages = 0, rembourseTotal = 0;
     var validees = 0, reglees = 0;
     demandes.forEach(function (d) {
-      if (d.annule) { return; }
       var recu = dejaEncaisse(d);
+      rembourseTotal += core.money(d.rembourse_montant);
       encaisseTotal += recu;
       resteTotal += resteAEncaisser(d);
       if (d.type === 'stage') { revenusStages += recu; } else { revenusCours += recu; }
-      var quand = String(d.solde_le || d.paye_le || d.acompte_le || '');
-      if (recu > 0 && quand.indexOf(moisCourant) === 0) { encaisseMois += recu; }
-      if (classeStatut(d.statut) === 'validee') { validees++; if (recu > 0) { reglees++; } }
+      encaisseMois += core.receivedInMonth(d, moisCourant);
+      if (!d.annule && classeStatut(d.statut) === 'validee') { validees++; if (recu > 0) { reglees++; } }
     });
 
     tuiles.innerHTML = '';
@@ -131,34 +240,50 @@
       t.appendChild(sp);
       tuiles.appendChild(t);
     }
-    tuile(encaisseMois + ' €', 'encaissés ce mois-ci');
+    tuile(encaisseMois.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts ce mois-ci');
     tuile(resteTotal + ' €', 'restent à encaisser');
-    tuile(encaisseTotal + ' €', 'encaissés en tout', true);
+    tuile(encaisseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts en tout', true);
+    tuile(rembourseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'remboursements déclarés', true);
 
     /* « À traiter » : tout ce qui attend un clic, avec les actions directes. */
+    function tacheAccueil(d, detail) {
+      var li = elementFiche('li','crm-task-item');
+      li.appendChild(avatarFiche(d.enfant || 'Voltigeur'));
+      var contenu = elementFiche('div','crm-task-content');
+      contenu.appendChild(elementFiche('span','crm-task-title',d.enfant || 'Voltigeur'));
+      contenu.appendChild(elementFiche('span','crm-task-meta',detail));
+      li.appendChild(contenu);
+      var actions = elementFiche('div','crm-task-actions');
+      li.appendChild(actions);
+      return {ligne:li,actions:actions};
+    }
+    function ouvrirDepuisAccueil(d) {
+      var bouton = lienAction('Ouvrir le dossier', function () { allerDemande(d); });
+      bouton.setAttribute('data-record-open','accueil-demande:' + d.id);
+      return bouton;
+    }
     var lTraiter = el('l-traiter');
     if (lTraiter) {
       lTraiter.innerHTML = '';
       var enAttente = demandes.filter(function (d) { return classeStatut(d.statut) === 'attente' && !d.annule; });
       enAttente.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.type === 'stage' ? 'stage' : 'cours') + ' · demande à valider ou refuser';
+        var tache = tacheAccueil(d,(d.type === 'stage' ? 'Stage' : 'Cours') + ' · À valider');
         if (d.jeton_d && d.jeton_s) {
-          li.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
+          tache.actions.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
         } else {
-          li.appendChild(lienAction('Marquer validée', function () {
-            if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
+          tache.actions.appendChild(lienAction('Marquer validée', async function () {
+            if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
             patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
           }));
         }
-        li.appendChild(lienAction('Ouvrir', function () { ouvrirOnglet('demandes'); }));
-        lTraiter.appendChild(li);
+        tache.actions.appendChild(ouvrirDepuisAccueil(d));
+        lTraiter.appendChild(tache.ligne);
       });
       coursAPlanifier().forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · cours validé · à appeler pour convenir du créneau';
-        li.appendChild(lienAction('Appelé : envoyer date, heure et paiement', function () { planifierCours(d); }));
-        lTraiter.appendChild(li);
+        var tache = tacheAccueil(d,'Cours · Créneau à prévoir');
+        tache.actions.appendChild(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        tache.actions.appendChild(ouvrirDepuisAccueil(d));
+        lTraiter.appendChild(tache.ligne);
       });
       el('b-traiter').hidden = !lTraiter.children.length;
     }
@@ -173,27 +298,28 @@
     var lRelances = el('l-relances');
     lRelances.innerHTML = '';
     aRelancer.forEach(function (d) {
-      var li = document.createElement('li');
-      li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (!d.acompte_paye ? 'acompte de 300 € en attente' : 'solde à réclamer (stage dans moins de 45 jours)');
-      li.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
-      lRelances.appendChild(li);
+      var tache = tacheAccueil(d,'Stage · ' + (!d.acompte_paye ? 'Acompte de 300 € en attente' : 'Solde à relancer'));
+      tache.actions.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
+      tache.actions.appendChild(ouvrirDepuisAccueil(d));
+      lRelances.appendChild(tache.ligne);
     });
 
     var lProchains = el('l-prochains');
     lProchains.innerHTML = '';
     var parJour = {};
-    coursAVenir().forEach(function (d) { (parJour[d.cours_date] = parJour[d.cours_date] || []).push(d); });
+    coursAVenir().forEach(function (d) { var cle = core.scheduleKey(d); (parJour[cle] = parJour[cle] || []).push(d); });
     var joursPlanifies = Object.keys(parJour).sort();
     if (!joursPlanifies.length) {
       var liAucun = document.createElement('li');
-      liAucun.textContent = 'Aucun cours planifié pour l’instant (les cours apparaissent ici dès que Fleur note la date après son appel).';
+      liAucun.className = 'crm-agenda-empty';
+      liAucun.textContent = 'Aucun cours à venir. Les prochains créneaux apparaîtront ici.';
       lProchains.appendChild(liAucun);
     }
-    joursPlanifies.slice(0, 4).forEach(function (date) {
-      var n = parJour[date].length;
-      var li = document.createElement('li');
-      li.textContent = 'Cours du ' + jourLisible(date) + ' : ' + n + (n > 1 ? ' inscrits' : ' inscrit');
-      lProchains.appendChild(li);
+    joursPlanifies.slice(0, 4).forEach(function (cle) {
+      var inscrits = parJour[cle], premier = inscrits[0], n = inscrits.length;
+      lProchains.appendChild(ligneAgenda(premier.cours_date, 'Cours de voltige',
+        (core.time(premier.cours_heure) || premier.cours_heure || 'Horaire à préciser') + ' · ' + n + (n > 1 ? ' inscrits' : ' inscrit'),
+        'cours', cle));
     });
     var parStage = {};
     demandes.forEach(function (d) {
@@ -203,15 +329,16 @@
       }
     });
     Object.keys(parStage).sort().forEach(function (cle) {
-      var li = document.createElement('li');
-      li.textContent = cle + ' : ' + parStage[cle] + (parStage[cle] > 1 ? ' inscrits' : ' inscrit');
-      lProchains.appendChild(li);
+      var debut = debutStageDetail(cle);
+      lProchains.appendChild(ligneAgenda(debut ? isoLocal(debut) : '', cle,
+        parStage[cle] + (parStage[cle] > 1 ? ' inscrits' : ' inscrit'), 'stage', cle));
     });
 
     var lStats = el('l-stats');
     lStats.innerHTML = '';
     [
-      'Encaissé en tout : ' + encaisseTotal + ' € (cours et trimestres : ' + revenusCours + ' € · stages : ' + revenusStages + ' €)',
+      'Encaissé brut en tout : ' + encaisseTotal + ' € (cours et trimestres : ' + revenusCours + ' € · stages : ' + revenusStages + ' €)',
+      'Remboursements déclarés : ' + rembourseTotal + ' €',
       'Cours à venir planifiés : ' + coursAVenir().length,
       validees ? 'Demandes validées réglées, au moins en partie : ' + reglees + ' sur ' + validees : 'Aucune demande validée pour l’instant.'
     ].forEach(function (texte) {
@@ -269,54 +396,22 @@
   }
 
   /* Ce qui reste dû sur une demande validée (0 si soldée ou annulée). */
-  function resteAEncaisser(d) {
-    if (classeStatut(d.statut) !== 'validee' || d.annule) { return 0; }
-    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-    if (d.type === 'stage') {
-      var reste = 0;
-      if (!d.acompte_paye) { reste += ACOMPTE_STAGE; }
-      if (!d.solde_paye) { reste += Math.max(total - ACOMPTE_STAGE, 0); }
-      return reste;
-    }
-    return d.paye ? 0 : total;
-  }
+  function resteAEncaisser(d) { return core.due(d); }
 
-  function dejaEncaisse(d) {
-    if (d.type === 'stage') {
-      var total = montantNumerique(d.tarif) || 840;
-      return (d.acompte_paye ? ACOMPTE_STAGE : 0) + (d.solde_paye ? Math.max(total - ACOMPTE_STAGE, 0) : 0);
-    }
-    return d.paye ? montantNumerique(d.paye_montant || d.tarif) : 0;
-  }
+  function dejaEncaisse(d) { return core.paid(d); }
 
   /* ---- relances par e-mail (via le service Google, jeton signé) ---- */
-  function relancer(d, sous, montant, silencieux) {
-    var etiquettes = { acompte: 'l’acompte (300 €)', solde: 'le solde', paiement: 'le paiement', annulation: 'l’annulation' };
-    if (!silencieux && !confirm('Envoyer au parent le mail concernant ' + (etiquettes[sous] || sous) + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    nuage.sessionValide().then(function (session) {
-      /* Le jeton signé de la demande prouve le lien ; pour les demandes
-         reçues par un ancien déploiement (jeton plus reconnu), la session
-         admin et les informations de la demande prennent le relais. */
-      var corps = {
-        type: 'relance', relance: sous,
-        d: d.jeton_d || '', s: d.jeton_s || '',
-        jeton: session ? session.jeton : '',
-        dtype: d.type || '', enfant: d.enfant || '',
-        parentEmail: d.parent_email || '', detail: d.detail || '',
-        paiement: /Règlement choisi : Au trimestre/.test(d.lignes || '') ? 'trimestre'
-          : /Règlement choisi : Au cours/.test(d.lignes || '') ? 'unite' : ''
-      };
-      if (montant) { corps.montant = montant; }
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(corps)
-      }).then(function (r) { return r.text(); }).then(function (rep) {
-        var morceaux = rep.trim().split(';');
-        if (morceaux[0] === 'ok relance') { alert('C’est parti : le mail vient d’être envoyé à ' + (morceaux[1] || 'la famille') + '.'); }
-        else { alert('Le service a répondu : « ' + rep.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
-      });
-    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
+  async function relancer(d, sous, montant, silencieux) {
+    var etiquettes = {acompte:'l’acompte',solde:'le solde',paiement:'le paiement',annulation:'l’annulation'};
+    if (!d.parent_email) { notifier('Ajoutez l’e-mail du parent avant d’envoyer un message.', true); return; }
+    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' un e-mail concernant ' + (etiquettes[sous] || sous) + ' de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+    return operation('relance:' + d.id + ':' + sous, async function () {
+      var texte = await appelService({type:'relance',relance:sous,d:d.jeton_d || '',s:d.jeton_s || '',
+        dtype:d.type || '',enfant:d.enfant || '',parentEmail:d.parent_email,detail:d.detail || '',
+        paiement:formuleDe(d),montant:montant || ''});
+      if (texte.split(';')[0] !== 'ok relance') { throw new Error('Le service n’a pas confirmé l’envoi de ce message.'); }
+      notifier('E-mail envoyé à ' + d.parent_email + '.');
+    });
   }
 
   /* Le bon mail de paiement selon la demande : acompte (300 €) puis
@@ -334,246 +429,447 @@
     return 'unite';
   }
 
-  function planifierCours(d) {
-    var date = prompt(
-      'Date du cours convenue avec la famille (AAAA-MM-JJ) :',
-      d.cours_date || prochainsJoursCours(1)[0]);
-    if (date === null) { return; }
-    date = date.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { alert('Date non comprise : écrivez-la comme ' + prochainsJoursCours(1)[0] + '.'); return; }
-    var heure = prompt('Heure du cours (par exemple 10h00) :', d.cours_heure || '10h00');
-    if (heure === null) { return; }
-    heure = heure.trim();
-    patchDemande(d, { cours_date: date, cours_heure: heure || null }, function () {
-      if (!/.+@.+\..+/.test(d.parent_email || '')) {
-        alert('C’est noté au planning. La demande n’a pas d’e-mail : prévenez la famille autrement.');
-        return;
-      }
-      if (confirm('C’est noté au planning : ' + jourLisible(date) + (heure ? ', ' + heure : '') + '.\n' +
-        'Envoyer maintenant à ' + d.parent_email + ' les infos du cours avec le lien de paiement (' +
-        (formuleDe(d) === 'trimestre' ? '325 € le trimestre' : '25 € le cours') + ') ?')) {
-        envoyerInfosCours(d, true);
-      }
+  async function planifierCours(d) {
+    var valeurs = await ui.form({ title:'Planifier le cours', description:d.enfant + ' · ' + (d.parent_email || 'Sans e-mail'),
+      validate:function (v) { return erreurCreneau(v.date, v.heure, d.id); },
+      submitLabel:'Enregistrer le créneau', fields:[
+        {name:'date',label:'Date du cours',type:'date',required:true,value:d.cours_date || prochainsJoursCours(1)[0],help:'Les cours ont lieu le samedi.'},
+        {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(d.cours_heure) || '10:00'}
+      ] });
+    if (!valeurs) { return; }
+    var enregistre = await patchDemande(d, {cours_date:valeurs.date,cours_heure:valeurs.heure,infos_envoyees_le:null});
+    if (!enregistre) { return; }
+    if (d.parent_email && await confirmer('Le créneau est enregistré. Envoyer à ' + d.parent_email + ' la date, l’heure et le lien de paiement ?')) {
+      await envoyerInfosCours(d, true);
+    }
+  }
+
+  function erreurCreneau(date, heure, demandeId) {
+    var erreur = core.validateSchedule(date, heure, isoLocal(new Date()));
+    if (erreur) { return erreur; }
+    var cle = core.scheduleKey({cours_date:date,cours_heure:heure});
+    var nombre = coursAVenir().filter(function (d) { return d.id !== demandeId && core.scheduleKey(d) === cle; }).length;
+    return nombre >= CAPACITE_COURS ? 'Ce créneau compte déjà ' + CAPACITE_COURS + ' inscrits. Choisissez un autre horaire.' : '';
+  }
+
+  async function envoyerInfosCours(d, silencieux) {
+    if (!d.cours_date) { return planifierCours(d); }
+    if (!/.+@.+\..+/.test(d.parent_email || '')) { notifier('Ajoutez une adresse e-mail à cette demande pour prévenir la famille.', true); return; }
+    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' les informations du cours du ' + jourLisible(d.cours_date) + ' à ' + d.cours_heure + ' et le lien de paiement ?')) { return; }
+    return operation('infos:' + d.id, async function () {
+      var texte = await appelService({type:'infos-cours',email:d.parent_email,enfant:d.enfant || '',
+        quand:jourLisible(d.cours_date),heure:d.cours_heure || '',paiement:formuleDe(d)});
+      if (texte.indexOf('ok infos') !== 0) { throw new Error('Le service n’a pas confirmé l’envoi. Actualisez puis réessayez.'); }
+      var sauve = await patchDemande(d, {infos_envoyees_le:isoLocal(new Date())});
+      notifier(sauve ? 'Informations et lien de paiement envoyés à la famille.' : 'E-mail envoyé, mais son suivi n’a pas pu être enregistré. Actualisez avant de renvoyer.', !sauve);
     });
   }
 
-  function envoyerInfosCours(d, silencieux) {
-    if (!d.cours_date) { planifierCours(d); return; }
-    if (!/.+@.+\..+/.test(d.parent_email || '')) { alert('Cette demande n’a pas d’adresse e-mail : contactez la famille autrement.'); return; }
-    if (!silencieux && !confirm('Envoyer à ' + d.parent_email + ' les infos du cours du ' + jourLisible(d.cours_date) +
-      (d.cours_heure ? ' (' + d.cours_heure + ')' : '') + ' avec le lien de paiement ?')) { return; }
-    nuage.sessionValide().then(function (session) {
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          type: 'infos-cours', jeton: session ? session.jeton : '',
-          email: d.parent_email, enfant: d.enfant || '',
-          quand: jourLisible(d.cours_date), heure: d.cours_heure || '',
-          paiement: formuleDe(d)
-        })
-      }).then(function (r) { return r.text(); }).then(function (t) {
-        if (t.trim().indexOf('ok infos') === 0) {
-          patchDemande(d, { infos_envoyees_le: isoLocal(new Date()) }, function () {
-            alert('C’est parti : les infos du cours et le lien de paiement viennent d’être envoyés à ' + d.parent_email + '.');
-          });
-        } else {
-          alert('Le service a répondu : « ' + t.trim().slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?');
-        }
-      });
-    }).catch(function () { alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.'); });
-  }
-
-  function patchDemande(d, patch, apres) {
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('La mise à jour n’a pas abouti (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      afficherPlanning();
-      majCompteurs();
-      if (apres) { apres(); }
+  async function patchDemande(d, patch, apres) {
+    return operation('demande:' + d.id, async function () {
+      var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
+        method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)
+      }));
+      if (!lignes || !lignes[0]) { throw new Error('Cette demande n’est plus disponible. Actualisez la liste.'); }
+      Object.assign(d, lignes[0]); rafraichirAffichage(); notifier('Modifications enregistrées.');
+      if (apres) { await apres(); }
+      return d;
     });
   }
 
-  function marquerAcompte(d) {
-    if (!confirm('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function marquerAcompte(d) {
+    if (!await confirmer('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()) });
   }
-  function marquerSolde(d) {
-    if (!confirm('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function marquerSolde(d) {
+    if (!await confirmer('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()) });
   }
-  function annulerDemande(d) {
-    var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-    var montant = prompt(
-      'Annuler l’inscription de ' + (d.enfant || 'ce voltigeur') + '.\n' +
-      'Montant à rembourser (de 0 € à ' + total + ' €) :', '0 €');
-    if (montant === null) { return; }
-    montant = montant.trim() || '0 €';
-    if (!confirm('Confirmer l’annulation' + (montantNumerique(montant) ? ' avec un remboursement de ' + montant : ' sans remboursement') + ' ?')) { return; }
-    patchDemande(d, { annule: true, annule_le: isoLocal(new Date()), rembourse_montant: montant }, function () {
-      if (confirm('Prévenir la famille par e-mail (annulation' + (montantNumerique(montant) ? ' + remboursement de ' + montant : '') + ') ?')) {
-        relancer(d, 'annulation', montant, true);
-      }
-    });
+  async function annulerDemande(d) {
+    var suiviStripe = resumesRemboursements[d.id] || {};
+    var remboursementStripe = (Number(suiviStripe.rembourse_centimes) || 0) / 100;
+    var attenteStripe = (Number(suiviStripe.en_attente_centimes) || 0) / 100;
+    var maximumDeclaration = Math.max(0,dejaEncaisse(d) - remboursementStripe - attenteStripe);
+    var valeurs = await ui.form({title:'Annuler l’inscription',danger:true,submitLabel:'Enregistrer l’annulation',
+      description:'Cette action annule l’inscription de ' + d.enfant + '. ' + (STRIPE_ACTIF
+        ? 'Le montant ci-dessous déclare un autre remboursement déjà effectué, hors Stripe. Un remboursement bancaire Stripe se demande depuis « Remboursements Stripe ».'
+        : 'Aucun remboursement bancaire n’est déclenché. Stripe n’est pas synchronisé : indiquez uniquement un remboursement déjà effectué et vérifié.') +
+        (remboursementStripe || attenteStripe ? '\nStripe suit déjà ' + euros(remboursementStripe) + ' remboursés et ' + euros(attenteStripe) + ' en attente. Ne les déclarez pas une seconde fois.' : ''),
+      fields:[{name:'montant',label:STRIPE_ACTIF ? 'Autre remboursement déjà effectué, hors Stripe (€)' : 'Remboursement déjà effectué (€)',type:'number',required:true,min:0,max:maximumDeclaration,step:'0.01',value:'0'}]});
+    if (!valeurs) { return; }
+    var montant = Number(valeurs.montant);
+    if (!Number.isFinite(montant) || montant < 0 || montant > maximumDeclaration) { notifier(STRIPE_ACTIF
+      ? 'Ce remboursement déclaré dépasse le montant restant après le suivi Stripe.'
+      : 'Le remboursement déclaré doit être compris entre zéro et le montant encaissé.',true); return; }
+    var ok = await patchDemande(d,{annule:true,annule_le:isoLocal(new Date()),rembourse_montant:montant + ' €'});
+    if (ok && d.parent_email && await confirmer('Prévenir ' + d.parent_email + ' de cette annulation' + (montant ? ' et du remboursement déclaré de ' + montant + ' €' : '') + ' ?')) {
+      await relancer(d,'annulation',montant + ' €',true);
+    }
   }
-  function retablirDemande(d) {
-    if (!confirm('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function retablirDemande(d) {
+    var suiviStripe = resumesRemboursements[d.id] || {};
+    if (Number(suiviStripe.rembourse_centimes) > 0 || Number(suiviStripe.en_attente_centimes) > 0 || suiviStripe.a_verifier) {
+      notifier('Un remboursement Stripe est enregistré ou en cours. Créez une nouvelle demande pour conserver son historique.',true); return;
+    }
+    var erreur = core.restoreError(d);
+    if (erreur) { notifier(erreur, true); return; }
+    if (!await confirmer('Rétablir l’inscription de ' + (d.enfant || 'ce voltigeur') + ' ?' + (!STRIPE_ACTIF
+      ? '\nStripe n’est pas synchronisé. Vérifiez qu’aucun remboursement bancaire n’a été effectué avant de rétablir ce dossier.' : ''))) { return; }
     patchDemande(d, { annule: false, annule_le: null, rembourse_montant: null });
   }
 
-  function modifierMontant(d) {
-    var montant = prompt('Montant encaissé :', d.paye_montant || d.tarif || '');
-    if (montant === null) { return; }
-    patchDemande(d, { paye_montant: montant.trim() });
+  async function modifierMontant(d) {
+    var valeurs = await ui.form({title:'Corriger le règlement déclaré',submitLabel:'Enregistrer',fields:[
+      {name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(dejaEncaisse(d))}
+    ]});
+    if (valeurs) { await patchDemande(d,{paye_montant:Number(valeurs.montant) + ' €'}); }
   }
 
-  function retirerMarques(d) {
-    if (!confirm('Retirer les marques « payé » (acompte + solde) sur le stage de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
+  async function retirerMarques(d) {
+    if (!await confirmer('Retirer les marques « payé » (acompte + solde) sur le stage de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
     patchDemande(d, { acompte_paye: false, acompte_le: null, solde_paye: false, solde_le: null, paye: false, paye_le: null, paye_montant: null });
   }
 
   /* Un stage réglé d'un coup (par exemple payé en entier avant la mise
      en place de l'acompte) : tout est noté en un clic. */
-  function reglerTotalite(d) {
-    if (!confirm('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
+  async function reglerTotalite(d) {
+    if (!await confirmer('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
     var jour = isoLocal(new Date());
-    patchDemande(d, {
-      acompte_paye: true, acompte_le: jour,
-      solde_paye: true, solde_le: jour,
-      paye: true, paye_le: jour, paye_montant: d.tarif || ''
-    });
+    patchDemande(d, core.totalPaymentPatch(d, jour));
   }
 
   /* ---- La vérification des paiements sur Stripe ----
      Le service Google (qui garde la clé Stripe, secrète) renvoie les
      règlements reçus ; on les rapproche ici des demandes en attente. */
-  function verifierStripe() {
-    var bouton = el('b-stripe');
-    var etat = el('m-stripe');
-    bouton.disabled = true;
-    etat.textContent = 'Interrogation de Stripe…';
-    nuage.sessionValide().then(function (s) {
-      if (!s) { bouton.disabled = false; etat.textContent = ''; alert('Reconnectez-vous puis réessayez.'); return; }
-      return fetch(SERVICE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ type: 'stripe', jeton: s.jeton })
-      }).then(function (r) { return r.text(); }).then(function (t) {
-        bouton.disabled = false;
-        etat.textContent = '';
-        var rep = null;
-        try { rep = JSON.parse(t); } catch (e) { /* réponse texte : un souci */ }
-        if (!rep || !rep.ok) {
-          var texte = String(t || '').trim();
-          if (texte.indexOf('stripe non configuree') === 0) { alert('La clé Stripe n’est pas encore collée dans le script Google (ligne STRIPE_CLE). Tant qu’elle n’y est pas, cette vérification reste indisponible.'); }
-          else if (texte.indexOf('acces refuse') === 0) { alert('Le service n’a pas reconnu votre compte académie. Reconnectez-vous puis réessayez.'); }
-          else if (texte.indexOf('cle stripe refusee') === 0) { alert('Stripe a refusé la clé collée dans le script. Vérifiez la clé restreinte (lecture des sessions Checkout).'); }
-          else { alert('Le service a répondu : « ' + texte.slice(0, 120) + ' ». Le script Google est-il bien en version 21 ?'); }
-          return;
-        }
-        rapprocherStripe(rep.paiements || []);
-      });
-    }).catch(function () {
-      bouton.disabled = false;
-      etat.textContent = '';
-      alert('Le service n’a pas répondu. Vérifiez votre connexion et réessayez.');
+  async function verifierStripe() {
+    if (!STRIPE_ACTIF) { return; }
+    var bouton = el('b-stripe'), etat = el('m-stripe');
+    if (bouton.disabled) { return; }
+    bouton.disabled = true; etat.textContent = 'Vérification des règlements…';
+    try {
+      var rep = await appelService({type:'stripe'}, true);
+      if (rep.version < 22 || !Array.isArray(rep.propositions)) { throw new Error('La vérification sécurisée nécessite la mise à jour du service CRM. Aucun paiement n’a été modifié.'); }
+      rapprocherStripe(rep);
+      etat.textContent = rep.propositions.length + ' rapprochement(s) proposé(s) · vérification terminée';
+    } catch (erreur) { etat.textContent = 'Vérification non terminée'; notifier(erreur.message,true); }
+    finally { bouton.disabled = false; }
+  }
+
+  function rapprocherStripe(rep) {
+    if (!STRIPE_ACTIF) { return; }
+    var conteneur = el('stripe-propositions');
+    conteneur.innerHTML = '';
+    var titre = document.createElement('h3'); titre.textContent = 'Résultats de la vérification Stripe'; conteneur.appendChild(titre);
+    var paiements = (rep.paiements || []).filter(function (p) { return p.statut !== 'deja_rapproche'; });
+    if (!paiements.length) {
+      var vide = document.createElement('p'); vide.textContent = 'Aucun règlement à rapprocher sur la période vérifiée.'; conteneur.appendChild(vide); return;
+    }
+    var tbody = fabriquerTableau(conteneur,['Règlement','Famille','Correspondance','Action']);
+    paiements.forEach(function (p) {
+      var tr = document.createElement('tr');
+      cellule(tr,p.montant + ' € · ' + (p.quand || 'Date non renseignée'));
+      cellule(tr,p.email || 'E-mail absent');
+      var candidats = p.candidats || [];
+      var choix = document.createElement('div');
+      choix.textContent = p.statut === 'ambigu' ? 'Plusieurs dossiers possibles : vérification manuelle nécessaire.'
+        : p.statut === 'sans_correspondance' ? 'Aucune demande compatible.' : '';
+      var d = demandes.find(function (x) { return x.id === p.demande_id; });
+      if (d) { choix.textContent = d.enfant + ' · ' + (d.detail || ''); }
+      cellule(tr,choix);
+      var actions = document.createElement('div');
+      if (p.statut === 'propose' && p.demande_id) {
+        actions.appendChild(lienAction('Rapprocher ce règlement', async function () {
+          if (!await confirmer('Attribuer ' + p.montant + ' € reçus de ' + p.email + ' à ' + (d ? d.enfant : 'ce dossier') + ' ?')) { return; }
+          await operation('stripe:' + p.session_id, async function () {
+            var resultat = await appelService({type:'stripe-rapprocher',demande_id:p.demande_id,session_id:p.session_id}, true);
+            if (!resultat.demande) { throw new Error('Le service n’a pas renvoyé la demande mise à jour. Actualisez les données.'); }
+            var locale = demandes.find(function (x) { return x.id === resultat.demande.id; });
+            if (locale) { Object.assign(locale,resultat.demande); } else { demandes.unshift(resultat.demande); }
+            tr.remove(); rafraichirAffichage(); notifier(resultat.deja_rapproche ? 'Ce règlement était déjà rapproché.' : 'Règlement rapproché et enregistré.');
+          });
+        }));
+      } else if (candidats.length) {
+        candidats.forEach(function (candidat) {
+          var demande = demandes.find(function (x) { return x.id === candidat.demande_id; });
+          if (demande) { actions.appendChild(lienAction('Voir ' + demande.enfant,function () { allerDemande(demande); })); }
+        });
+      }
+      cellule(tr,actions); tbody.appendChild(tr);
     });
   }
 
-  function rapprocherStripe(paiements) {
-    var libres = paiements.filter(function (p) { return p && p.email && p.montant > 0; });
-    var reportes = 0;
-    demandes.filter(function (d) { return resteAEncaisser(d) > 0 && d.parent_email; }).forEach(function (d) {
-      var email = String(d.parent_email).toLowerCase();
-      var total = montantNumerique(d.tarif) || (d.type === 'stage' ? 840 : 0);
-      var solde = Math.max(total - ACOMPTE_STAGE, 0);
-      for (var i = 0; i < libres.length; i++) {
-        var p = libres[i];
-        if (String(p.email).toLowerCase() !== email) { continue; }
-        var patch = null, quoi = '';
-        var jour = /^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? p.quand : isoLocal(new Date());
-        if (d.type === 'stage') {
-          if (p.montant >= total && total > 0) {
-            patch = { acompte_paye: true, acompte_le: jour, solde_paye: true, solde_le: jour, paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
-            quoi = 'la totalité du stage';
-          } else if (p.montant === ACOMPTE_STAGE && !d.acompte_paye) {
-            patch = { acompte_paye: true, acompte_le: jour };
-            quoi = 'l’acompte (300 €)';
-          } else if (p.montant === solde && d.acompte_paye && !d.solde_paye) {
-            patch = { solde_paye: true, solde_le: jour };
-            quoi = 'le solde (' + solde + ' €)';
-          }
-        } else if (!d.paye && total > 0 && p.montant >= total) {
-          patch = { paye: true, paye_le: jour, paye_montant: p.montant + ' €' };
-          quoi = 'le paiement (' + p.montant + ' €)';
-        }
-        if (!patch) { continue; }
-        libres.splice(i, 1);
-        if (confirm('Stripe : ' + p.montant + ' € reçus de ' + d.parent_email + ' le ' +
-          new Date(jour + 'T12:00:00').toLocaleDateString('fr-FR') + '.\nNoter ' + quoi + ' pour ' + (d.enfant || 'ce voltigeur') + ' ?')) {
-          patchDemande(d, patch);
-          reportes++;
-        }
-        break;
-      }
-    });
-    var bilan = reportes
-      ? 'C’est noté : ' + reportes + (reportes > 1 ? ' paiements reportés' : ' paiement reporté') + ' depuis Stripe.'
-      : 'Aucun nouveau paiement Stripe ne correspond aux demandes en attente de règlement.';
-    if (libres.length) {
-      bilan += '\n\nReçus sur Stripe, sans correspondance avec une demande en attente (déjà réglée, e-mail ou montant différent) :\n· ' +
-        libres.slice(0, 8).map(function (p) {
-          return p.montant + ' € · ' + p.email +
-            (/^\d{4}-\d{2}-\d{2}$/.test(String(p.quand)) ? ' · ' + new Date(p.quand + 'T12:00:00').toLocaleDateString('fr-FR') : '');
-        }).join('\n· ') +
-        '\n\nSi vous reconnaissez un règlement, notez-le à la main sur la bonne ligne (Réglé en totalité, Acompte reçu, Solde reçu ou Marquer payé).';
+  /* ================= Remboursements Stripe =================
+     Le registre serveur et Stripe décident du plafond et de l'état. Les
+     marques de paiement et remboursements déclarés ne sont jamais réécrites. */
+  var identiteAdmin = '';
+  var MOTIFS_REMBOURSEMENT = {requested_by_customer:'À la demande de la famille',duplicate:'Paiement en double',fraudulent:'Paiement frauduleux'};
+  function natureRemboursement(p,d) {
+    return {acompte:'Acompte du stage',solde:'Solde du stage',total:d && d.type === 'stage' ? 'Paiement intégral du stage' : 'Paiement du cours',cours:'Paiement du cours'}[p.nature] || 'Paiement Stripe';
+  }
+  function cleOperationLocale(demandeId, sessionId) {
+    return 'av:crm:remboursement:' + encodeURIComponent(identiteAdmin) + ':' + encodeURIComponent(demandeId) + ':' + encodeURIComponent(sessionId);
+  }
+  function lireOperationLocale(demandeId, sessionId) {
+    var cle = cleOperationLocale(demandeId, sessionId), op = operationsRemboursementLocales[cle];
+    if (!op) { try { op = JSON.parse(sessionStorage.getItem(cle) || 'null'); } catch (_) {} }
+    return op && op.demande_id === demandeId && op.session_id === sessionId ? op : null;
+  }
+  function garderOperationLocale(demandeId, sessionId, op) {
+    var cle = cleOperationLocale(demandeId, sessionId);
+    if (!op) {
+      delete operationsRemboursementLocales[cle];
+      try { sessionStorage.removeItem(cle); } catch (_) {}
+      return;
     }
-    alert(bilan);
+    op = Object.assign({}, op, {demande_id:demandeId,session_id:sessionId});
+    operationsRemboursementLocales[cle] = op;
+    try { sessionStorage.setItem(cle, JSON.stringify(op)); } catch (_) {}
+  }
+  function nouvelIdentifiantRemboursement() {
+    if (window.crypto && window.crypto.randomUUID) { return window.crypto.randomUUID(); }
+    if (!window.crypto || !window.crypto.getRandomValues) { throw new Error('Ce navigateur ne permet pas de créer un remboursement sécurisé. Utilisez un navigateur récent.'); }
+    var bytes = window.crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    var hex = Array.from(bytes).map(function (b) { return b.toString(16).padStart(2,'0'); }).join('');
+    return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
+  }
+  function accepterRemboursements(d, rep) {
+    if (!STRIPE_ACTIF) { throw new Error(STRIPE_EN_ATTENTE); }
+    if (!rep || !(Number(rep.version) >= 24) || !Array.isArray(rep.paiements) || !rep.resume) {
+      throw new Error('La consultation des remboursements nécessite la mise à jour du service CRM. Aucun remboursement n’a été demandé.');
+    }
+    versionResumeStripe++;
+    remboursementsStripe[d.id] = rep;
+    resumesRemboursements[d.id] = Object.assign({}, rep.resume, {verifie_le:new Date().toISOString()});
+    rep.paiements.forEach(function (p) {
+      var saved = lireOperationLocale(d.id,p.session_id);
+      var reprise = core.refundRecovery(p,saved);
+      if (reprise.resolved && saved) { garderOperationLocale(d.id,p.session_id,null); }
+      if (p.operation_en_cours) { garderOperationLocale(d.id,p.session_id,p.operation_en_cours); }
+    });
+    resumesRemboursements[d.id].a_verifier = rep.paiements.some(function (p) {
+      return !!p.operation_en_cours || !!lireOperationLocale(d.id,p.session_id);
+    });
+    afficherDemandes(); afficherPaiements();
+    if (dossierRemboursement && dossierRemboursement.id === d.id) { afficherRemboursements(d,rep); }
+    return rep;
+  }
+  async function chargerResumeRemboursements(version) {
+    if (!STRIPE_ACTIF) { return; }
+    var lecture = ++versionResumeStripe;
+    try {
+      var resultats = await Promise.all([
+        core.loadAll(nuage.requeteAuth,'/rest/v1/crm_etats_stripe?select=session_id,demande_id,rembourse_centimes,en_attente_centimes,verifie_le&order=session_id','session_id'),
+        core.loadAll(nuage.requeteAuth,'/rest/v1/crm_operations_remboursement_stripe?select=operation_id,demande_id,session_id,montant_centimes,motif,statut,cree_le&order=operation_id','operation_id')
+      ]);
+      if (version !== versionDemandes || lecture !== versionResumeStripe) { return; }
+      var index = Object.create(null);
+      resultats[0].forEach(function (p) {
+        if (!p.demande_id) { return; }
+        var resume = index[p.demande_id] || (index[p.demande_id] = {rembourse_centimes:0,en_attente_centimes:0});
+        resume.rembourse_centimes += Number(p.rembourse_centimes) || 0;
+        resume.en_attente_centimes += Number(p.en_attente_centimes) || 0;
+        if (!resume.verifie_le || p.verifie_le > resume.verifie_le) { resume.verifie_le = p.verifie_le; }
+      });
+      resultats[1].forEach(function (op) {
+        var resume = index[op.demande_id] || (index[op.demande_id] = {rembourse_centimes:0,en_attente_centimes:0});
+        if (['reserve','incertain','pending','requires_action'].indexOf(op.statut) !== -1) { resume.a_verifier = true; }
+        var saved = lireOperationLocale(op.demande_id,op.session_id);
+        if (saved && saved.operation_id === op.operation_id && ['succeeded','failed','canceled'].indexOf(op.statut) !== -1) {
+          garderOperationLocale(op.demande_id,op.session_id,null);
+        }
+      });
+      resumesRemboursements = index; suiviStripeDisponible = true;
+      if (el('crm-refund-summary-status')) { el('crm-refund-summary-status').textContent = 'Les remboursements Stripe vérifiés apparaissent dans le suivi des dossiers, séparément des déclarations manuelles.'; }
+      afficherDemandes(); afficherPaiements();
+    } catch (_) {
+      if (version !== versionDemandes || lecture !== versionResumeStripe) { return; }
+      suiviStripeDisponible = false;
+      if (el('crm-refund-summary-status')) { el('crm-refund-summary-status').textContent = 'Le registre des remboursements Stripe est indisponible. Ouvrez le suivi du dossier pour vérifier directement son état.'; }
+    }
+  }
+  function ajouterSuiviRemboursement(conteneur,d) {
+    var resume = resumesRemboursements[d.id];
+    if (!resume) { return; }
+    if (Number(resume.rembourse_centimes) > 0) {
+      conteneur.appendChild(elementFiche('span','crm-record-meta crm-refund-inline','Stripe : ' + euros(resume.rembourse_centimes / 100) + ' remboursés'));
+    }
+    if (Number(resume.en_attente_centimes) > 0) {
+      conteneur.appendChild(elementFiche('span','crm-record-meta crm-refund-inline','Stripe : ' + euros(resume.en_attente_centimes / 100) + ' en attente'));
+    } else if (resume.a_verifier) {
+      conteneur.appendChild(elementFiche('span','crm-record-meta crm-refund-inline','Remboursement Stripe à vérifier'));
+    }
+  }
+  async function lireRemboursements(d) {
+    var acteur = identiteAdmin;
+    var rep = await appelService({type:'stripe-remboursements',demande_id:d.id},true);
+    if (!acteur || identiteAdmin !== acteur) { throw new Error('Votre session a changé. Rouvrez le suivi de ce dossier.'); }
+    return accepterRemboursements(d,rep);
+  }
+  function ouvrirRemboursements(d) { if (STRIPE_ACTIF) { ouvrirDetail('remboursement', d.id); } }
+  async function chargerVueRemboursements(d) {
+    if (!STRIPE_ACTIF) { return; }
+    var version = ++versionRemboursement;
+    dossierRemboursement = d;
+    var panneau = el('crm-refunds');
+    panneau.hidden = false;
+    el('crm-refunds-title').textContent = 'Remboursements Stripe · ' + (d.enfant || 'Voltigeur');
+    el('crm-refunds-body').innerHTML = '';
+    el('crm-refunds-body').appendChild(elementFiche('p','crm-refund-notice','Vérification du paiement et des remboursements auprès de Stripe…'));
+    try {
+      var rep = await appelService({type:'stripe-remboursements',demande_id:d.id},true);
+      if (version === versionRemboursement) { accepterRemboursements(d,rep); }
+    } catch (erreur) {
+      if (version !== versionRemboursement) { return; }
+      var message = elementFiche('p','message souci',erreur.message);
+      message.setAttribute('role','alert'); el('crm-refunds-body').innerHTML = ''; el('crm-refunds-body').appendChild(message);
+      el('crm-refunds-body').appendChild(lienAction('Réessayer la consultation',function () { chargerVueRemboursements(d); }));
+    }
+  }
+  function afficherRemboursements(d, rep) {
+    if (!STRIPE_ACTIF) { return; }
+    var corps = el('crm-refunds-body');
+    corps.innerHTML = '';
+    var total = elementFiche('div','crm-refund-totals');
+    total.appendChild(elementFiche('p','',euros((Number(rep.resume.rembourse_centimes) || 0) / 100) + ' remboursés via Stripe'));
+    total.appendChild(elementFiche('p','',euros((Number(rep.resume.en_attente_centimes) || 0) / 100) + ' en attente chez Stripe'));
+    corps.appendChild(total);
+    if (montantNumerique(d.rembourse_montant) > 0) {
+      corps.appendChild(elementFiche('p','crm-refund-notice','Un remboursement de ' + d.rembourse_montant + ' est déjà déclaré dans le dossier. Cette déclaration peut concerner un versement de cet historique : vérifiez-la avant de demander un remboursement supplémentaire.'));
+    }
+    if (rep.remboursements_actifs !== true) {
+      corps.appendChild(elementFiche('p','crm-refund-notice','La consultation est disponible. L’exécution des remboursements n’est pas encore activée pour ce CRM.'));
+    }
+    if (!rep.paiements.length) {
+      corps.appendChild(elementFiche('p','aide','Aucun paiement Stripe rapproché de ce dossier. Un règlement marqué « payé » peut provenir d’un autre moyen de paiement. Vérifiez le rapprochement Stripe avant de poursuivre.'));
+    }
+    rep.paiements.forEach(function (p) {
+      var carte = elementFiche('article','crm-refund-payment');
+      carte.appendChild(elementFiche('h4','',natureRemboursement(p,d)));
+      carte.appendChild(elementFiche('p','crm-record-meta','Référence du paiement : ' + p.session_id));
+      var chiffres = elementFiche('div','crm-refund-payment-numbers');
+      [['Reçu',p.montant_centimes],['Déjà remboursé',p.rembourse_centimes],['En attente',p.en_attente_centimes],['Disponible',p.disponible_centimes]].forEach(function (chiffre) {
+        var bloc = elementFiche('div',''); bloc.appendChild(elementFiche('span','',chiffre[0]));
+        bloc.appendChild(elementFiche('strong','',euros((Number(chiffre[1]) || 0) / 100))); chiffres.appendChild(bloc);
+      });
+      carte.appendChild(chiffres);
+      if (p.verifie_le) { carte.appendChild(elementFiche('p','crm-record-meta','Vérifié le ' + quandLisible(p.verifie_le))); }
+      if (p.conteste) { carte.appendChild(elementFiche('p','crm-refund-notice','Paiement contesté : vérifiez le litige dans Stripe.')); }
+      var historique = p.remboursements || [];
+      if (historique.length) {
+        var liste = elementFiche('ul','crm-refund-history');
+        historique.forEach(function (r) {
+          var ligne = elementFiche('li','');
+          var badge = elementFiche('span','pastille ' + (r.statut === 'succeeded' ? 'validee' : r.statut === 'failed' || r.statut === 'canceled' ? 'refusee' : 'attente'),core.refundStatus(r.statut));
+          ligne.appendChild(badge);
+          ligne.appendChild(elementFiche('strong','',euros(r.montant_centimes / 100)));
+          ligne.appendChild(elementFiche('span','crm-record-meta',(r.cree_le ? quandLisible(r.cree_le) + ' · ' : '') + (MOTIFS_REMBOURSEMENT[r.motif] || 'Motif non renseigné')));
+          if (r.id) { ligne.appendChild(elementFiche('span','crm-record-meta','Référence du remboursement : ' + r.id)); }
+          liste.appendChild(ligne);
+        });
+        carte.appendChild(liste);
+      } else { carte.appendChild(elementFiche('p','crm-record-meta','Aucun remboursement connu pour ce paiement.')); }
+      var saved = lireOperationLocale(d.id,p.session_id);
+      var reprise = core.refundRecovery(p,saved);
+      if (reprise.operation) {
+        carte.appendChild(elementFiche('p','crm-refund-notice','Demande de ' + euros(reprise.operation.montant_centimes / 100) + ' : ' + core.refundStatus(reprise.operation.statut).toLowerCase() + '.'));
+      }
+      if (reprise.blocked) { carte.appendChild(elementFiche('p','crm-refund-notice',reprise.blocked)); }
+      if (rep.remboursements_actifs === true && !p.conteste && !reprise.blocked && (reprise.operation || p.disponible_centimes > 0)) {
+        var bouton = lienAction(reprise.operation ? 'Reprendre la demande de remboursement' : 'Rembourser ce paiement',function () { preparerRemboursement(d,p.session_id); });
+        bouton.className = 'btn btn-contour';
+        bouton.disabled = operations.has('remboursement:' + d.id + ':' + p.session_id);
+        carte.appendChild(bouton);
+      }
+      corps.appendChild(carte);
+    });
+  }
+  async function preparerRemboursement(d, sessionId) {
+    if (!STRIPE_ACTIF) { notifier(STRIPE_EN_ATTENTE); return; }
+    var version = versionRemboursement;
+    return operation('preparer-remboursement:' + d.id,async function () {
+      var rep = await lireRemboursements(d);
+      if (version !== versionRemboursement) { return; }
+      if (rep.remboursements_actifs !== true) { throw new Error('Les remboursements Stripe ne sont pas activés.'); }
+      var p = rep.paiements.find(function (paiement) { return paiement.session_id === sessionId; });
+      if (!p) { throw new Error('Ce paiement ne figure plus dans le dossier. Actualisez le suivi.'); }
+      if (p.conteste) { throw new Error('Ce paiement est contesté. Vérifiez le litige dans Stripe.'); }
+      var reprise = core.refundRecovery(p,lireOperationLocale(d.id,sessionId));
+      if (reprise.blocked) { throw new Error(reprise.blocked); }
+      var op = reprise.operation;
+      if (!op) {
+        var valeurs = await ui.form({title:'Préparer le remboursement Stripe',description:(d.enfant || 'Voltigeur') + ' · ' + natureRemboursement(p,d) + '\nPaiement ' + p.session_id,
+          submitLabel:'Vérifier le remboursement',fields:[
+            {name:'montant',label:'Montant à rembourser (€)',type:'number',required:true,min:'0.01',max:String(p.disponible_centimes / 100),step:'0.01',value:String(p.disponible_centimes / 100),help:'Vous pouvez rembourser tout le disponible ou une partie.'},
+            {name:'motif',label:'Motif transmis à Stripe',type:'select',required:true,value:'requested_by_customer',options:Object.keys(MOTIFS_REMBOURSEMENT).map(function (cle) { return {value:cle,label:MOTIFS_REMBOURSEMENT[cle]}; })}
+          ],validate:function (valeurs) { return core.refundValidation(p,core.refundAmountCents(valeurs.montant)); }});
+        if (!valeurs || version !== versionRemboursement) { return; }
+        op = {montant_centimes:core.refundAmountCents(valeurs.montant),motif:valeurs.motif};
+      }
+      if (!Number.isSafeInteger(op.montant_centimes) || op.montant_centimes <= 0 || !MOTIFS_REMBOURSEMENT[op.motif]) {
+        throw new Error('Les informations de cette opération doivent être vérifiées dans Stripe.');
+      }
+      var description = (d.enfant || 'Voltigeur') + ' · ' + (d.parent_email || 'Famille sans e-mail') + '\n' + natureRemboursement(p,d) + ' · ' + p.session_id + '\n' +
+        'Montant : ' + euros(op.montant_centimes / 100) + '\nMotif : ' + MOTIFS_REMBOURSEMENT[op.motif] + '\n' +
+        'Les fonds seront retournés sur le moyen de paiement utilisé à l’origine. Cette opération bancaire est irréversible. L’inscription reste inchangée.' +
+        (reprise.operation ? '\nVous reprenez la demande existante et son montant déjà confirmé.' : '');
+      if (!await ui.confirm({title:reprise.operation ? 'Reprendre ce remboursement ?' : 'Confirmer le remboursement Stripe',description:description,danger:true,submitLabel:reprise.operation ? 'Reprendre le remboursement' : 'Rembourser ' + euros(op.montant_centimes / 100)})) { return; }
+      if (version !== versionRemboursement) { return; }
+      var session = await nuage.sessionValide();
+      if (version !== versionRemboursement) { return; }
+      if (!session || (session.user_id || session.email) !== identiteAdmin) { throw new Error('Votre session a changé. Reconnectez-vous avant de rembourser.'); }
+      if (!op.operation_id) { op.operation_id = nouvelIdentifiantRemboursement(); op.cree_le = new Date().toISOString(); op.statut = 'incertain'; }
+      garderOperationLocale(d.id,sessionId,op);
+      await executerRemboursement(d,p,op,!!reprise.operation);
+    });
+  }
+  async function executerRemboursement(d, paiement, op, estReprise) {
+    if (!STRIPE_ACTIF) { notifier(STRIPE_EN_ATTENTE); return; }
+    var acteur = identiteAdmin;
+    var cle = 'remboursement:' + d.id + ':' + paiement.session_id;
+    if (operations.has(cle)) { return; }
+    operations.add(cle);
+    if (dossierRemboursement && dossierRemboursement.id === d.id) { afficherRemboursements(d,remboursementsStripe[d.id]); }
+    var rep, erreur;
+    try {
+      rep = await appelService({type:'stripe-rembourser',operation_id:op.operation_id,demande_id:d.id,session_id:paiement.session_id,montant_centimes:op.montant_centimes,motif:op.motif},true);
+    } catch (e) { erreur = e; rep = e.donnees; }
+    finally { operations.delete(cle); }
+    if (identiteAdmin !== acteur) { return; }
+    if (rep && Array.isArray(rep.paiements) && rep.resume) { accepterRemboursements(d,rep); }
+    var remboursement = rep && rep.remboursement;
+    if (core.refundCanForget(op.operation_id,rep,estReprise)) {
+      garderOperationLocale(d.id,paiement.session_id,null);
+    }
+    if (remboursement && remboursement.statut === 'succeeded') {
+      notifier('Stripe confirme le remboursement de ' + euros(remboursement.montant_centimes / 100) + '. L’inscription est conservée.');
+    } else {
+      var texte = remboursement ? core.refundStatus(remboursement.statut) + '. Consultez le suivi avant toute autre demande.'
+        : erreur ? erreur.message + ' La demande est conservée pour vérifier son état et reprendre la même opération.' : 'Le remboursement reste à vérifier auprès de Stripe.';
+      notifier(texte,true);
+    }
+    try { await lireRemboursements(d); } catch (_) {
+      if (dossierRemboursement && dossierRemboursement.id === d.id && remboursementsStripe[d.id]) { afficherRemboursements(d,remboursementsStripe[d.id]); }
+    }
   }
 
   /* ================= Les paiements =================
      Note maison : le trimestre est dû, que le voltigeur vienne ou non. */
-  function montantNumerique(texte) {
-    var m = String(texte || '').replace(',', '.').match(/\d+(?:\.\d+)?/);
-    return m ? Number(m[0]) : 0;
+  function montantNumerique(texte) { return core.money(texte); }
+
+  async function marquerPaye(d) {
+    var valeurs = await ui.form({title:'Enregistrer un règlement',description:d.enfant + ' · indiquez le règlement complet déjà reçu. Pour corriger le prix convenu, modifiez d’abord le tarif de la demande.',submitLabel:'Enregistrer le règlement',
+      fields:[{name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(core.total(d))},
+        {name:'date',label:'Date du règlement',type:'date',required:true,max:isoLocal(new Date()),value:isoLocal(new Date())}]});
+    if (!valeurs) { return; }
+    if (Number(valeurs.montant) <= 0) { notifier('Le montant doit être supérieur à zéro.',true); return; }
+    return patchDemande(d,{paye:true,paye_le:valeurs.date,paye_montant:Number(valeurs.montant) + ' €'});
   }
 
-  function marquerPaye(d) {
-    var montant = prompt('Montant encaissé pour ' + (d.enfant || 'ce voltigeur') + ' :', d.tarif || '');
-    if (montant === null) { return; }
-    var patch = { paye: true, paye_le: isoLocal(new Date()), paye_montant: montant.trim() };
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('Le paiement n’a pas pu être noté (le SQL le plus récent a-t-il été joué dans Supabase ?).'); return; }
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    });
-  }
-
-  function annulerPaye(d) {
-    if (!confirm('Retirer la marque « payé » sur la demande de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    var patch = { paye: false, paye_le: null, paye_montant: null };
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(patch)
-    }).then(function () {
-      Object.assign(d, patch);
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    });
+  async function annulerPaye(d) {
+    if (await confirmer('Retirer le règlement déclaré pour ' + d.enfant + ' ? Aucun remboursement bancaire ne sera effectué.',true)) {
+      return patchDemande(d,{paye:false,paye_le:null,paye_montant:null});
+    }
   }
 
   function pastilleEtat(texte, bonne) {
@@ -585,9 +881,9 @@
 
   /* Un tableau type CRM : en-tetes de colonnes + corps, dans un cadre
      qui defile horizontalement sur petit ecran. */
-  function fabriquerTableau(conteneur, colonnes) {
+  function fabriquerTableau(conteneur, colonnes, classe) {
     var cadre = document.createElement('div');
-    cadre.className = 'cadre-tableau';
+    cadre.className = 'cadre-tableau' + (classe ? ' ' + classe : '');
     var table = document.createElement('table');
     table.className = 'tableau';
     var thead = document.createElement('thead');
@@ -595,6 +891,7 @@
     colonnes.forEach(function (c) {
       var th = document.createElement('th');
       th.textContent = c;
+      th.scope = 'col';
       tr.appendChild(th);
     });
     thead.appendChild(tr);
@@ -616,138 +913,186 @@
     return td;
   }
 
-  function lignePaiement(d, groupe) {
-    var ligne = document.createElement('tr');
-    ligne.className = 'carte-demande st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente');
+  /* Présentation commune aux demandes et aux paiements ; les règles de
+     calcul et les callbacks métier restent dans leurs fonctions dédiées. */
+  var formatEuros = new Intl.NumberFormat('fr-FR', {
+    style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2
+  });
+  function euros(valeur) { return formatEuros.format(Number(valeur) || 0); }
+  function elementFiche(balise, classe, texte) {
+    var element = document.createElement(balise);
+    if (classe) { element.className = classe; }
+    if (texte != null) { element.textContent = String(texte); }
+    return element;
+  }
+  function avatarFiche(nom) {
+    var initiales = String(nom || '').trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
+    var avatar = elementFiche('span', 'crm-avatar', initiales || 'A');
+    avatar.setAttribute('aria-hidden', 'true');
+    return avatar;
+  }
+  function etiquetteDetail(conteneur, texte, detail) {
+    if (detail) { conteneur.appendChild(elementFiche('span', 'crm-detail-label', texte)); }
+  }
+  function vignetteDate(iso) {
+    var vignette = elementFiche('span', 'crm-date-tile');
+    var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    var date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
+    if (date) {
+      vignette.setAttribute('aria-label', jourLisible(iso));
+      vignette.appendChild(elementFiche('span', 'crm-date-day', date.getDate()));
+      vignette.appendChild(elementFiche('span', 'crm-date-month', date.toLocaleDateString('fr-FR', {month:'short'})));
+    } else {
+      vignette.classList.add('crm-date-undated');
+      vignette.appendChild(elementFiche('span', 'crm-date-day', '—'));
+      vignette.appendChild(elementFiche('span', 'crm-date-month', 'Stage'));
+    }
+    return vignette;
+  }
+  function ligneAgenda(date, titre, contexte, genre, cle) {
+    var ligne = elementFiche('li', 'crm-agenda-item');
+    ligne.appendChild(vignetteDate(date));
+    var copie = elementFiche('div', 'crm-agenda-copy');
+    copie.appendChild(elementFiche('span', 'crm-task-title', genre === 'stage' ? titre.replace(/\s*\([^)]*\)\s*$/, '') : titre));
+    copie.appendChild(elementFiche('span', 'crm-task-meta', contexte));
+    ligne.appendChild(copie);
+    var ouvrir = lienAction('Voir', function () { ouvrirDetail(genre, cle); });
+    ouvrir.classList.add('crm-agenda-open');
+    ouvrir.setAttribute('aria-label', 'Voir les inscrits : ' + titre + (date ? ' du ' + jourLisible(date) : ''));
+    ouvrir.setAttribute('data-record-open', 'accueil-' + genre + ':' + cle);
+    ligne.appendChild(ouvrir);
+    return ligne;
+  }
+  function actionSensible(texte, surClic) {
+    var bouton = lienAction(texte, surClic);
+    bouton.classList.add('crm-action-danger');
+    return bouton;
+  }
+  function badgeActivite(d) {
+    return elementFiche('span', 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours'), d.type === 'stage' ? 'Stage' : 'Cours');
+  }
+  function identiteFiche(d, avecInscription, detail) {
+    var celluleIdentite = elementFiche('td', 'crm-record-person');
+    var personne = elementFiche('div', 'crm-person');
+    var nom = d.enfant || 'Voltigeur';
+    var copie = elementFiche('div', 'crm-person-copy');
+    copie.appendChild(elementFiche('span', 'nom', nom));
+    etiquetteDetail(copie, 'Contact', detail);
+    copie.appendChild(elementFiche('span', 'crm-record-meta', d.parent_nom || 'Parent non renseigné'));
+    var email = elementFiche(detail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.parent_email || '') ? 'a' : 'span',
+      'crm-record-meta crm-record-email' + (detail ? ' crm-contact-link' : ''), d.parent_email || 'E-mail non renseigné');
+    if (email.tagName === 'A') { email.setAttribute('href', 'mailto:' + encodeURIComponent(d.parent_email)); }
+    copie.appendChild(email);
+    if (avecInscription) {
+      var inscription = elementFiche('div', 'crm-person-offer');
+      etiquetteDetail(inscription, 'Inscription', detail);
+      inscription.appendChild(badgeActivite(d));
+      inscription.appendChild(elementFiche('span', 'crm-record-detail', (detail ? d.detail : detailCourt(d)) || 'Inscription'));
+      copie.appendChild(inscription);
+    } else if (d.cree) {
+      copie.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', 'Reçue le ' + quandLisible(d.cree)));
+    }
+    personne.appendChild(avatarFiche(nom));
+    personne.appendChild(copie);
+    celluleIdentite.appendChild(personne);
+    return celluleIdentite;
+  }
+  function actionsFiche(d, detail) {
+    var celluleActions = elementFiche('td', 'crm-record-actions');
+    etiquetteDetail(celluleActions, 'Actions', detail);
+    var contenu = elementFiche('div', 'crm-row-actions');
+    var menu = elementFiche('details', 'crm-actions-menu');
+    var resume = elementFiche('summary', '', 'Gérer');
+    resume.setAttribute('aria-label', 'Gérer le dossier de ' + (d.enfant || 'ce voltigeur'));
+    var secondaires = elementFiche('div', 'crm-actions-menu-content');
+    menu.appendChild(resume);
+    menu.appendChild(secondaires);
+    contenu.appendChild(menu);
+    celluleActions.appendChild(contenu);
+    return {
+      cellule: celluleActions, contenu: contenu, menu: menu, secondaires: secondaires,
+      principale: function (bouton) {
+        bouton.className = 'btn btn-rouge crm-record-primary';
+        contenu.insertBefore(bouton, menu);
+        return bouton;
+      },
+      terminer: function () { if (!secondaires.children.length) { menu.remove(); } }
+    };
+  }
 
-    var type = document.createElement('span');
-    type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
-    type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    cellule(ligne, type);
+  function lignePaiement(d, groupe, detail) {
+    var ligne = elementFiche('tr', 'carte-demande crm-record-row st-' + (groupe === 'regle' ? 'validee' : groupe === 'annule' ? 'refusee' : 'attente'));
+    ligne.appendChild(identiteFiche(d, true, detail));
 
-    var qui = document.createElement('td');
-    var nom = document.createElement('span');
-    nom.className = 'nom';
-    nom.textContent = d.enfant || 'Voltigeur';
-    qui.appendChild(nom);
-    var parent = document.createElement('div');
-    parent.className = 'corps';
-    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
-    qui.appendChild(parent);
-    ligne.appendChild(qui);
-
-    var montant = document.createElement('td');
-    montant.appendChild(document.createTextNode(d.tarif || ''));
     var reste = resteAEncaisser(d);
-    if (groupe === 'du' && d.type === 'stage') {
-      var du = document.createElement('div');
-      du.className = 'corps';
-      du.textContent = 'reste dû : ' + reste + ' €';
-      montant.appendChild(du);
+    var recu = dejaEncaisse(d);
+    var remboursement = montantNumerique(d.rembourse_montant);
+    var montant = elementFiche('td', 'crm-record-amount');
+    etiquetteDetail(montant, 'Règlement', detail);
+    montant.appendChild(elementFiche('span', 'crm-money', euros(groupe === 'du' ? reste : groupe === 'annule' ? remboursement : recu)));
+    montant.appendChild(elementFiche('span', 'crm-record-meta', groupe === 'du' ? 'Reste à encaisser' : groupe === 'annule' ? 'Remboursement déclaré' : 'Montant encaissé'));
+    montant.appendChild(elementFiche('span', 'crm-record-meta', 'Tarif total : ' + euros(core.total(d))));
+    if (groupe === 'du' && recu > 0) {
+      montant.appendChild(elementFiche('span', 'crm-record-meta', 'Déjà reçu : ' + euros(recu)));
     }
     ligne.appendChild(montant);
 
-    var etat = document.createElement('td');
+    var etat = elementFiche('td', 'crm-record-status');
+    etiquetteDetail(etat, 'Suivi', detail);
+    var badges = elementFiche('div', 'crm-status-badges');
     if (groupe === 'annule') {
-      var pAnnule = document.createElement('span');
-      pAnnule.className = 'pastille refusee';
-      pAnnule.textContent = 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : ' · sans remboursement');
-      etat.appendChild(pAnnule);
+      badges.appendChild(elementFiche('span', 'pastille refusee', 'Inscription annulée'));
+      badges.appendChild(elementFiche('span', 'crm-record-meta', remboursement ? 'Remboursement déclaré' : 'Sans remboursement'));
     } else if (d.type === 'stage') {
-      etat.appendChild(pastilleEtat(d.acompte_paye ? 'acompte ✓' : 'acompte dû', !!d.acompte_paye));
-      etat.appendChild(pastilleEtat(d.solde_paye ? 'solde ✓' : 'solde dû', !!d.solde_paye));
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      etat.appendChild(pastilleEtat('payé' + (d.paye_montant ? ' · ' + d.paye_montant : ''), true));
+      badges.appendChild(pastilleEtat(reste > 0 ? 'Partiellement réglé' : 'Réglé', reste === 0));
+    } else {
+      badges.appendChild(pastilleEtat('À régler', false));
     }
+    etat.appendChild(badges);
+    var dateTexte = groupe === 'annule' && d.annule_le
+      ? 'Annulée le ' + new Date(d.annule_le + 'T12:00:00').toLocaleDateString('fr-FR')
+      : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
+        ? 'Réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
+        : d.cree ? 'Demande du ' + quandLisible(d.cree) : '';
+    if (dateTexte) { etat.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', dateTexte)); }
+    ajouterSuiviRemboursement(etat,d);
     ligne.appendChild(etat);
 
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = groupe === 'annule' && d.annule_le
-      ? 'annulé le ' + new Date(d.annule_le + 'T12:00:00').toLocaleDateString('fr-FR')
-      : groupe === 'regle' && (d.paye_le || d.solde_le || d.acompte_le)
-        ? 'réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
-        : quandLisible(d.cree);
-    cellule(ligne, quand);
-
-    var actions = document.createElement('div');
-    actions.className = 'actions';
-
+    var actions = actionsFiche(d, detail);
+    var secondaires = actions.secondaires;
     if (groupe === 'annule') {
-      var retablir = document.createElement('button');
-      retablir.type = 'button';
-      retablir.className = 'lien-doux';
-      retablir.textContent = 'Rétablir l’inscription';
-      retablir.addEventListener('click', function () { retablirDemande(d); });
-      actions.appendChild(retablir);
+      actions.principale(lienAction('Rétablir l’inscription', function () { retablirDemande(d); }));
     } else if (d.type === 'stage') {
       if (!d.acompte_paye) {
-        var bAcompte = document.createElement('button');
-        bAcompte.type = 'button';
-        bAcompte.className = 'btn btn-rouge';
-        bAcompte.innerHTML = '<span>Acompte reçu</span>';
-        bAcompte.addEventListener('click', function () { marquerAcompte(d); });
-        actions.appendChild(bAcompte);
-        var rAcompte = document.createElement('button');
-        rAcompte.type = 'button';
-        rAcompte.className = 'lien-doux';
-        rAcompte.textContent = 'Relancer l’acompte';
-        rAcompte.addEventListener('click', function () { relancer(d, 'acompte'); });
-        actions.appendChild(rAcompte);
+        actions.principale(lienAction('Acompte reçu', function () { marquerAcompte(d); }));
+        secondaires.appendChild(lienAction('Relancer l’acompte', function () { relancer(d, 'acompte'); }));
       } else if (!d.solde_paye) {
-        var bSolde = document.createElement('button');
-        bSolde.type = 'button';
-        bSolde.className = 'btn btn-rouge';
-        bSolde.innerHTML = '<span>Solde reçu</span>';
-        bSolde.addEventListener('click', function () { marquerSolde(d); });
-        actions.appendChild(bSolde);
-        var rSolde = document.createElement('button');
-        rSolde.type = 'button';
-        rSolde.className = 'lien-doux';
-        rSolde.textContent = 'Relancer le solde';
-        rSolde.addEventListener('click', function () { relancer(d, 'solde'); });
-        actions.appendChild(rSolde);
+        actions.principale(lienAction('Solde reçu', function () { marquerSolde(d); }));
+        secondaires.appendChild(lienAction('Relancer le solde', function () { relancer(d, 'solde'); }));
       }
       if (!(d.acompte_paye && d.solde_paye)) {
-        var totalite = document.createElement('button');
-        totalite.type = 'button';
-        totalite.className = 'lien-doux';
-        totalite.textContent = 'Réglé en totalité';
-        totalite.addEventListener('click', function () { reglerTotalite(d); });
-        actions.appendChild(totalite);
+        secondaires.appendChild(lienAction('Réglé en totalité', function () { reglerTotalite(d); }));
       } else {
-        actions.appendChild(lienAction('Modifier le montant', function () { modifierMontant(d); }));
-        actions.appendChild(lienAction('Retirer les marques « payé »', function () { retirerMarques(d); }));
+        secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { retirerMarques(d); }));
       }
-      var annuler = document.createElement('button');
-      annuler.type = 'button';
-      annuler.className = 'lien-doux';
-      annuler.textContent = 'Annuler / rembourser';
-      annuler.addEventListener('click', function () { annulerDemande(d); });
-      actions.appendChild(annuler);
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
     } else if (groupe === 'regle') {
-      actions.appendChild(lienAction('Modifier le montant', function () { modifierMontant(d); }));
-      var retirer = document.createElement('button');
-      retirer.type = 'button';
-      retirer.className = 'lien-doux';
-      retirer.textContent = 'Retirer la marque « payé »';
-      retirer.addEventListener('click', function () { annulerPaye(d); });
-      actions.appendChild(retirer);
+      actions.principale(lienAction('Modifier le montant', function () { modifierMontant(d); }));
+      secondaires.appendChild(actionSensible('Retirer la marque « payé »', function () { annulerPaye(d); }));
     } else {
-      var payer = document.createElement('button');
-      payer.type = 'button';
-      payer.className = 'btn btn-rouge';
-      payer.innerHTML = '<span>Marquer payé</span>';
-      payer.addEventListener('click', function () { marquerPaye(d); });
-      actions.appendChild(payer);
-      var rPaiement = document.createElement('button');
-      rPaiement.type = 'button';
-      rPaiement.className = 'lien-doux';
-      rPaiement.textContent = 'Relancer le paiement';
-      rPaiement.addEventListener('click', function () { relancer(d, 'paiement'); });
-      actions.appendChild(rPaiement);
+      actions.principale(lienAction('Marquer payé', function () { marquerPaye(d); }));
+      secondaires.appendChild(lienAction('Relancer le paiement', function () { relancer(d, 'paiement'); }));
     }
-    cellule(ligne, actions);
+    if (d.type !== 'stage' && groupe !== 'annule') {
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
+    }
+    if (STRIPE_ACTIF && (recu > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
+    actions.terminer();
+    ligne.appendChild(actions.cellule);
+    if (!detail) { ajouterOuvertureDossier(ligne, actions.cellule, 'paiement', d.id, d.enfant); }
     return ligne;
   }
 
@@ -760,54 +1105,54 @@
     payes.innerHTML = '';
     annules.innerHTML = '';
 
-    var dus = demandes.filter(function (d) { return resteAEncaisser(d) > 0; });
-    var regles = demandes.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
-    var lesAnnules = demandes.filter(function (d) { return d.annule; });
+    var mot = el('f-paiement-recherche') ? el('f-paiement-recherche').value : '';
+    var selection = demandes.filter(function (d) { return core.matches(d, mot); });
+    var dus = selection.filter(function (d) { return resteAEncaisser(d) > 0; });
+    var regles = selection.filter(function (d) { return !d.annule && resteAEncaisser(d) === 0 && dejaEncaisse(d) > 0; });
+    var lesAnnules = selection.filter(function (d) { return d.annule; });
 
-    var COLONNES_PAIEMENTS = ['Type', 'Voltigeur', 'Montant', 'État', 'Date', 'Actions'];
+    var colonnes = ['Famille / inscription', 'Montant', 'Suivi', 'Actions'];
     var totalDu = 0, totalRegle = 0, totalRembourse = 0;
     if (dus.length) {
-      var corpsDus = fabriquerTableau(encaisser, COLONNES_PAIEMENTS);
+      var corpsDus = fabriquerTableau(encaisser, colonnes, 'crm-record-table crm-payment-table');
       dus.forEach(function (d) { totalDu += resteAEncaisser(d); corpsDus.appendChild(lignePaiement(d, 'du')); });
     }
     if (regles.length) {
-      var corpsRegles = fabriquerTableau(payes, COLONNES_PAIEMENTS);
+      var corpsRegles = fabriquerTableau(payes, colonnes, 'crm-record-table crm-payment-table');
       regles.forEach(function (d) { totalRegle += dejaEncaisse(d); corpsRegles.appendChild(lignePaiement(d, 'regle')); });
     }
     if (lesAnnules.length) {
-      var corpsAnnules = fabriquerTableau(annules, COLONNES_PAIEMENTS);
+      var corpsAnnules = fabriquerTableau(annules, colonnes, 'crm-record-table crm-payment-table');
       lesAnnules.forEach(function (d) { totalRembourse += montantNumerique(d.rembourse_montant); corpsAnnules.appendChild(lignePaiement(d, 'annule')); });
     }
 
-    el('t-encaisser').textContent = dus.length ? 'environ ' + totalDu + ' €' : '';
-    el('t-payes').textContent = regles.length ? totalRegle + ' € encaissés' : '';
-    el('t-annules').textContent = lesAnnules.length ? totalRembourse + ' € remboursés' : '';
-
+    el('t-encaisser').textContent = euros(totalDu);
+    el('t-payes').textContent = euros(totalRegle);
+    el('t-annules').textContent = euros(totalRembourse);
+    [['pc-due-count', dus.length, 'dossier'], ['pc-paid-count', regles.length, 'dossier'], ['pc-cancel-count', lesAnnules.length, 'annulation']].forEach(function (compteur) {
+      if (el(compteur[0])) { el(compteur[0]).textContent = compteur[1] + ' ' + compteur[2] + (compteur[1] > 1 ? 's' : ''); }
+    });
+    if (el('resultats-paiements')) {
+      var nombre = dus.length + regles.length + lesAnnules.length;
+      el('resultats-paiements').textContent = nombre + (nombre > 1 ? ' dossiers' : ' dossier') + (mot.trim() ? ' · Les montants suivent votre recherche.' : ' dans le suivi des règlements.');
+    }
     if (!dus.length) {
-      var v1 = document.createElement('p');
-      v1.className = 'aide';
-      v1.textContent = 'Rien à encaisser : toutes les demandes validées sont réglées.';
-      encaisser.appendChild(v1);
+      encaisser.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucun montant à encaisser pour cette recherche.' : 'Rien à encaisser : toutes les demandes validées sont réglées.'));
     }
     if (!regles.length) {
-      var v2 = document.createElement('p');
-      v2.className = 'aide';
-      v2.textContent = 'Aucun paiement complet pour l’instant.';
-      payes.appendChild(v2);
+      payes.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucun règlement complet pour cette recherche.' : 'Aucun paiement complet pour l’instant.'));
     }
     if (!lesAnnules.length) {
-      var v3 = document.createElement('p');
-      v3.className = 'aide';
-      v3.textContent = 'Aucune annulation.';
-      annules.appendChild(v3);
+      annules.appendChild(elementFiche('p', 'aide etat-vide', mot ? 'Aucune annulation pour cette recherche.' : 'Aucune annulation.'));
     }
+    actualiserDetail('paiement');
   }
-
 
   /* ================= Les feuilles de présence ================= */
   function ouvrirFeuille(feuille) {
+    feuille.retour = location.hash;
     try { localStorage.setItem('av:feuille', JSON.stringify(feuille)); } catch (e) { return; }
-    window.open('feuille.html', '_blank', 'noopener');
+    window.location.href = 'feuille.html';
   }
 
   /* ================= Le dossier d'inscription rempli =================
@@ -864,75 +1209,54 @@
 
   /* ================= Les demandes ================= */
   /* Ajouter, corriger ou supprimer une demande a la main. */
-  function ajouterDemande() {
-    var type = prompt('Quel type de demande ? (cours ou stage)', 'cours');
-    if (type === null) { return; }
-    type = /stage/i.test(type) ? 'stage' : 'cours';
-    var enfant = prompt('Nom du voltigeur :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var parentNom = prompt('Nom du parent :', '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent :', '');
-    if (email === null) { return; }
-    var detail = prompt(type === 'stage' ? 'Quel stage ? (intitulé et dates)' : 'Quelle formule ? (Cours à l’unité ou Cours au trimestre)',
-      type === 'stage' ? 'Stage de la Toussaint (Du 19 au 24 octobre 2026)' : 'Cours à l’unité');
-    if (detail === null) { return; }
-    var tarif = prompt('Tarif :', type === 'stage' ? '840 € / semaine' : '25 € / cours');
-    if (tarif === null) { return; }
-    var validee = confirm('Noter la demande directement « validée » ? (Annuler = en attente)');
-    var ligne = {
-      type: type, enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-      detail: detail.trim(), tarif: tarif.trim(),
-      lignes: 'Ajoutée à la main depuis l’espace académie.',
-      statut: validee ? 'validée' : 'en attente'
-    };
-    if (validee) { ligne.decide = new Date().toISOString(); }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify(ligne)
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      if (validee && type === 'stage' && /.+@.+\..+/.test(ligne.parent_email) &&
-          confirm('Envoyer tout de suite le lien de paiement de l’acompte (300 €) à ' + ligne.parent_email + ' ?')) {
-        envoyerLienPaiement(ligne, true);
-      }
-      if (validee && type === 'cours') {
-        alert('C’est noté. La demande apparaît « à appeler » : après votre appel, cliquez « Appelé : envoyer date, heure et paiement » pour tout envoyer en un clic.');
-      }
-      chargerDemandes();
+  async function ajouterDemande(options) {
+    options = options && (options.type === 'cours' || options.type === 'stage') ? options : {};
+    var valeurs = await ui.form({title:'Nouvelle demande',description:'Ajoutez un dossier reçu par téléphone ou sur place. Aucun e-mail ne part à cette étape.',submitLabel:'Créer la demande',
+      onChange:function (name, value, controls) {
+        if (name !== 'type') { return; }
+        var ancienTarif = value === 'stage' ? '25' : '840';
+        if (controls.tarif.value === ancienTarif) { controls.tarif.value = value === 'stage' ? '840' : '25'; }
+        if (!controls.detail.value || controls.detail.value === 'Cours à l’unité' || controls.detail.value === 'Stage — dates à préciser') {
+          controls.detail.value = value === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité';
+        }
+      },fields:[
+      {name:'type',label:'Activité',type:'select',value:options.type || 'cours',options:[{value:'cours',label:'Cours'},{value:'stage',label:'Stage'}]},
+      {name:'enfant',label:'Nom du voltigeur',required:true},
+      {name:'parent_nom',label:'Nom du parent'},
+      {name:'parent_email',label:'E-mail du parent',type:'email'},
+      {name:'detail',label:'Formule ou stage et dates',required:true,value:options.detail || (options.type === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité')},
+      {name:'tarif',label:'Tarif total (€)',type:'number',required:true,min:'0.01',step:'0.01',value:options.type === 'stage' ? '840' : '25'},
+      {name:'statut',label:'Statut initial',type:'select',value:'en attente',options:[{value:'en attente',label:'En attente de validation'},{value:'validée',label:'Validée'}]}
+    ]});
+    if (!valeurs) { return; }
+    await operation('nouvelle-demande',async function () {
+      var ligne = {type:valeurs.type,enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),
+        detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €',statut:valeurs.statut,lignes:'Ajoutée à la main depuis l’espace académie.'};
+      if (ligne.statut === 'validée') { ligne.decide = new Date().toISOString(); }
+      var d = await creerDemande(ligne); allerDemande(d);
     });
   }
 
-  function modifierDemande(d) {
-    var enfant = prompt('Nom du voltigeur :', d.enfant || '');
-    if (enfant === null) { return; }
-    var parentNom = prompt('Nom du parent :', d.parent_nom || '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent :', d.parent_email || '');
-    if (email === null) { return; }
-    var detail = prompt(d.type === 'stage' ? 'Stage (intitulé et dates) :' : 'Formule :', d.detail || '');
-    if (detail === null) { return; }
-    var tarif = prompt('Tarif :', d.tarif || '');
-    if (tarif === null) { return; }
-    patchDemande(d, {
-      enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-      detail: detail.trim(), tarif: tarif.trim()
-    });
+  async function modifierDemande(d) {
+    var valeurs = await ui.form({title:'Modifier la demande',description:d.enfant,submitLabel:'Enregistrer les modifications',
+      validate:function (v) { return core.validateTariff(d, v.tarif); },fields:[
+      {name:'enfant',label:'Nom du voltigeur',required:true,value:d.enfant || ''},
+      {name:'parent_nom',label:'Nom du parent',value:d.parent_nom || ''},
+      {name:'parent_email',label:'E-mail du parent',type:'email',value:d.parent_email || ''},
+      {name:'detail',label:'Formule ou stage et dates',required:true,value:d.detail || ''},
+      {name:'tarif',label:'Tarif total (€)',type:'number',min:'0.01',step:'0.01',required:true,value:String(core.total(d))}
+    ]});
+    if (!valeurs) { return; }
+    return patchDemande(d,{enfant:valeurs.enfant.trim(),parent_nom:valeurs.parent_nom.trim(),parent_email:valeurs.parent_email.trim(),detail:valeurs.detail.trim(),tarif:Number(valeurs.tarif) + ' €'});
   }
 
-  function supprimerDemande(d) {
-    if (!confirm('Supprimer la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Son suivi de paiement disparaît aussi.')) { return; }
-    nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-      method: 'DELETE',
-      headers: { Prefer: 'return=minimal' }
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('La suppression n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      demandes = demandes.filter(function (x) { return x !== d; });
-      afficherDemandes();
-      afficherPaiements();
-      afficherPlanning();
-      majCompteurs();
+  async function supprimerDemande(d) {
+    if (dejaEncaisse(d) > 0) { notifier('Cette demande possède un règlement. Utilisez l’annulation pour conserver son historique.',true); return; }
+    if (!await confirmer('Supprimer définitivement la demande de ' + d.enfant + ' ? Pour garder son historique, vous pouvez annuler l’inscription à la place.',true)) { return; }
+    return operation('demande:' + d.id,async function () {
+      var lignes = await reponseJson(await nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id),{method:'DELETE',headers:{Prefer:'return=representation'}}));
+      if (!lignes || !lignes.length) { throw new Error('Cette demande n’a pas été supprimée. Actualisez la liste.'); }
+      demandes = demandes.filter(function (x) { return x.id !== d.id; }); rafraichirAffichage(); notifier('Demande supprimée.');
     });
   }
 
@@ -946,263 +1270,168 @@
     return d.detail || '';
   }
 
-  function carteDemande(d) {
-    var c = document.createElement('tr');
-    c.className = 'carte-demande st-' + classeStatut(d.statut);
+  function carteDemande(d, detail) {
+    var c = elementFiche('tr', 'carte-demande crm-record-row st-' + classeStatut(d.statut));
+    c.appendChild(identiteFiche(d, false, detail));
 
-    var type = document.createElement('span');
-    type.className = 'pastille ' + (d.type === 'stage' ? 'type-stage' : 'type-cours');
-    type.textContent = d.type === 'stage' ? 'Stage' : 'Cours';
-    cellule(c, type);
-
-    var qui = document.createElement('td');
-    var nom = document.createElement('span');
-    nom.className = 'nom';
-    nom.textContent = d.enfant || 'Voltigeur';
-    qui.appendChild(nom);
-    var parent = document.createElement('div');
-    parent.className = 'corps';
-    parent.textContent = (d.parent_nom || 'Parent') + ' · ' + (d.parent_email || '');
-    qui.appendChild(parent);
-    c.appendChild(qui);
-
-    var demande = document.createElement('td');
-    demande.appendChild(document.createTextNode(detailCourt(d)));
-    if (d.tarif) {
-      var tarif = document.createElement('div');
-      tarif.className = 'corps';
-      tarif.textContent = d.tarif;
-      demande.appendChild(tarif);
-    }
-    if (d.lignes) {
-      var plus = document.createElement('details');
-      var resume = document.createElement('summary');
-      resume.textContent = 'Tout le dossier';
-      plus.appendChild(resume);
-      var pre = document.createElement('pre');
-      pre.textContent = d.lignes;
-      plus.appendChild(pre);
-      demande.appendChild(plus);
-    }
+    var demande = elementFiche('td', 'crm-record-offer');
+    etiquetteDetail(demande, 'Inscription', detail);
+    demande.appendChild(badgeActivite(d));
+    demande.appendChild(elementFiche('span', 'crm-record-detail', (detail ? d.detail : detailCourt(d)) || 'Inscription'));
+    if (d.tarif) { demande.appendChild(elementFiche('span', 'crm-record-price', d.tarif)); }
     c.appendChild(demande);
 
-    var etatTd = document.createElement('td');
-    var statut = document.createElement('span');
-    statut.className = 'pastille ' + classeStatut(d.statut);
-    statut.textContent = d.statut || 'en attente';
-    etatTd.appendChild(statut);
+    var etatTd = elementFiche('td', 'crm-record-status');
+    etiquetteDetail(etatTd, 'Suivi', detail);
+    var badges = elementFiche('div', 'crm-status-badges');
+    badges.appendChild(elementFiche('span', 'pastille ' + classeStatut(d.statut), d.statut || 'en attente'));
+    etatTd.appendChild(badges);
     c.appendChild(etatTd);
-
-    var quand = document.createElement('span');
-    quand.className = 'quand';
-    quand.textContent = quandLisible(d.cree);
-    cellule(c, quand);
-
-    var actions = document.createElement('div');
-    actions.className = 'actions';
+    var actions = actionsFiche(d, detail);
+    var secondaires = actions.secondaires;
+    var paiementCours;
 
     if (classeStatut(d.statut) === 'attente' && d.jeton_d && d.jeton_s) {
-      var valider = document.createElement('button');
-      valider.type = 'button';
-      valider.className = 'btn btn-rouge';
-      valider.innerHTML = '<span>Valider</span>';
-      valider.addEventListener('click', function () { decider(d, 'valider', null, c); });
-      actions.appendChild(valider);
-
-      var motif = document.createElement('select');
-      motif.setAttribute('aria-label', 'Motif du refus');
+      var valider = actions.principale(lienAction('Valider', function () { decider(d, 'valider', null, c); }));
+      var motif = elementFiche('select', 'crm-refusal-reason');
+      motif.setAttribute('aria-label', 'Motif du refus pour ' + (d.enfant || 'ce voltigeur'));
       Object.keys(MOTIFS).forEach(function (cle) {
-        var o = document.createElement('option');
+        var o = elementFiche('option', '', 'Motif : ' + MOTIFS[cle]);
         o.value = cle;
-        o.textContent = 'Motif : ' + MOTIFS[cle];
         motif.appendChild(o);
       });
-      actions.appendChild(motif);
-
-      var refuser = document.createElement('button');
-      refuser.type = 'button';
-      refuser.className = 'btn btn-contour';
-      refuser.innerHTML = '<span>Refuser</span>';
-      refuser.addEventListener('click', function () { decider(d, 'refuser', motif.value, c); });
-      actions.appendChild(refuser);
-
-      var etat = document.createElement('span');
-      etat.className = 'quand';
-      etat.style.marginLeft = '0';
-      actions.appendChild(etat);
+      secondaires.appendChild(motif);
+      var refuser = actionSensible('Refuser', function () { decider(d, 'refuser', motif.value, c); });
+      secondaires.appendChild(refuser);
+      var etat = elementFiche('span', 'crm-record-meta crm-action-status');
+      etat.setAttribute('role', 'status');
+      actions.contenu.appendChild(etat);
       c.etatAction = etat;
       c.boutons = [valider, refuser];
     }
 
     if (d.annule) {
-      var pAnnulee = document.createElement('span');
-      pAnnulee.className = 'pastille refusee';
-      pAnnulee.textContent = 'annulé';
-      etatTd.appendChild(pAnnulee);
+      badges.appendChild(elementFiche('span', 'pastille refusee', 'Annulée'));
     } else if (d.type === 'stage' && classeStatut(d.statut) === 'validee') {
-      var pA = document.createElement('span');
-      pA.className = 'pastille ' + (d.acompte_paye ? 'validee' : 'attente');
-      pA.textContent = d.acompte_paye ? 'acompte ✓' : 'acompte dû';
-      etatTd.appendChild(pA);
-      var pS = document.createElement('span');
-      pS.className = 'pastille ' + (d.solde_paye ? 'validee' : 'attente');
-      pS.textContent = d.solde_paye ? 'solde ✓' : 'solde dû';
-      etatTd.appendChild(pS);
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      var payee = document.createElement('span');
-      payee.className = 'pastille validee';
-      payee.textContent = 'payé' + (d.paye_montant ? ' · ' + d.paye_montant : '');
-      etatTd.appendChild(payee);
+      badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '')));
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
-      var payer = document.createElement('button');
-      payer.type = 'button';
-      payer.className = 'lien-doux';
-      payer.textContent = 'Marquer payé';
-      payer.addEventListener('click', function () { marquerPaye(d); });
-      actions.appendChild(payer);
+      paiementCours = lienAction('Marquer payé', function () { marquerPaye(d); });
     }
 
-    /* Un cours validé : « à appeler » tant que Fleur n'a pas noté le
-       créneau, puis tout part en un clic (infos + lien de paiement). */
     if (estCours(d)) {
-      var pCours = document.createElement('span');
-      pCours.className = 'pastille ' + (d.cours_date ? 'validee' : 'attente');
-      pCours.textContent = d.cours_date
-        ? 'planifié · ' + jourLisible(d.cours_date) + (d.cours_heure ? ' · ' + d.cours_heure : '')
-        : 'à appeler';
-      etatTd.appendChild(pCours);
+      badges.appendChild(pastilleEtat(d.cours_date ? 'Planifié' : 'À appeler', !!d.cours_date));
+      if (d.cours_date) {
+        etatTd.appendChild(elementFiche('span', 'crm-record-schedule', jourLisible(d.cours_date) + (d.cours_heure ? ' · ' + d.cours_heure : '')));
+      }
       if (!d.cours_date) {
-        var bPlanifier = document.createElement('button');
-        bPlanifier.type = 'button';
-        bPlanifier.className = 'btn btn-rouge';
-        bPlanifier.innerHTML = '<span>Appelé : envoyer date, heure et paiement</span>';
-        bPlanifier.addEventListener('click', function () { planifierCours(d); });
-        actions.appendChild(bPlanifier);
+        actions.principale(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        if (paiementCours) { secondaires.appendChild(paiementCours); }
       } else {
-        actions.appendChild(lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); }));
-        actions.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
+        var renvoyer = lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); });
+        if (paiementCours) { actions.principale(paiementCours); secondaires.appendChild(renvoyer); }
+        else { actions.principale(renvoyer); }
+        secondaires.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
       }
     }
 
-    /* demande ajoutée à la main (pas de jeton) : décision directe, sans mail */
+    /* Les demandes manuelles conservent leur décision locale, sans e-mail. */
     if (classeStatut(d.statut) === 'attente' && !(d.jeton_d && d.jeton_s)) {
-      actions.appendChild(lienAction('Marquer validée', function () {
-        if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
+      actions.principale(lienAction('Marquer validée', async function () {
+        if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'validée', decide: new Date().toISOString() });
       }));
-      actions.appendChild(lienAction('Marquer refusée', function () {
-        if (!confirm('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
+      secondaires.appendChild(lienAction('Marquer refusée', async function () {
+        if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme refusée ? (Aucun mail ne part.)')) { return; }
         patchDemande(d, { statut: 'refusée (à la main)', decide: new Date().toISOString() });
       }));
     }
-
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
-      actions.appendChild(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
+      actions.principale(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
     }
 
-    var dossier = document.createElement('button');
-    dossier.type = 'button';
-    dossier.className = 'lien-doux';
-    dossier.textContent = 'Dossier d’inscription rempli (imprimer / PDF)';
-    dossier.addEventListener('click', function () { ouvrirDossier(d); });
-    actions.appendChild(dossier);
-    actions.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
-    actions.appendChild(lienAction('Supprimer', function () { supprimerDemande(d); }));
-
-    cellule(c, actions);
+    if (d.lignes) {
+      var plus = elementFiche('details', 'crm-dossier-details');
+      plus.appendChild(elementFiche('summary', '', 'Tout le dossier'));
+      plus.appendChild(elementFiche('pre', '', d.lignes));
+      secondaires.appendChild(plus);
+    }
+    secondaires.appendChild(lienAction('Dossier à imprimer', function () { ouvrirDossier(d); }));
+    secondaires.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
+    if (!d.annule) { secondaires.appendChild(actionSensible('Annuler l’inscription', function () { annulerDemande(d); })); }
+    else { secondaires.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
+    secondaires.appendChild(actionSensible('Supprimer', function () { supprimerDemande(d); }));
+    ajouterSuiviRemboursement(etatTd,d);
+    if (STRIPE_ACTIF && (dejaEncaisse(d) > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
+    actions.terminer();
+    c.appendChild(actions.cellule);
+    if (!detail) { ajouterOuvertureDossier(c, actions.cellule, 'demande', d.id, d.enfant); }
     return c;
   }
 
   function afficherDemandes() {
+    actualiserDetail('demande');
     var conteneur = el('a-demandes');
     conteneur.innerHTML = '';
-    var visibles = demandes.filter(function (d) {
-      if (filtreTexte && JSON.stringify(d).toLowerCase().indexOf(filtreTexte) === -1) { return false; }
-      if (filtre === 'toutes') { return true; }
-      if (filtre === 'en attente') { return classeStatut(d.statut) === 'attente'; }
-      if (filtre === 'validée') { return classeStatut(d.statut) === 'validee'; }
-      return classeStatut(d.statut) === 'refusee';
+    var visibles = demandesVisibles();
+    if (el('resultats-demandes')) {
+      el('resultats-demandes').textContent = visibles.length + (visibles.length > 1 ? ' demandes affichées' : ' demande affichée') + ' sur ' + demandes.length;
+    }
+    // Les compteurs suivent recherche/activité/suivi et ignorent seulement
+    // le statut sélectionné, pour comparer les quatre filtres entre eux.
+    var optionsCompteurs = {query: filtreTexte,
+      type: el('f-type') ? el('f-type').value : 'tous',
+      followup: el('f-suivi') ? el('f-suivi').value : 'tous'};
+    document.querySelectorAll('[data-status-count]').forEach(function (compteur) {
+      optionsCompteurs.status = compteur.getAttribute('data-status-count');
+      compteur.textContent = String(core.filterRequests(demandes, optionsCompteurs).length);
     });
     if (!visibles.length) {
-      var vide = document.createElement('p');
-      vide.className = 'aide';
-      vide.textContent = demandes.length
-        ? 'Aucune demande dans cette catégorie.'
-        : 'Aucune demande pour l’instant. Elles apparaîtront ici dès qu’un parent enverra une inscription depuis le site.';
-      conteneur.appendChild(vide);
+      conteneur.appendChild(elementFiche('p', 'aide etat-vide', demandes.length ? 'Aucune demande ne correspond aux filtres. Essayez un autre nom ou élargissez la sélection.' : 'Aucune demande pour l’instant. Ajoutez un dossier ou attendez la première inscription.'));
       return;
     }
-    var corpsTableau = fabriquerTableau(conteneur, ['Type', 'Voltigeur', 'Demande', 'Statut', 'Reçue le', 'Actions']);
-    visibles.forEach(function (d) { corpsTableau.appendChild(carteDemande(d)); });
-    majCompteurs();
+    var corps = fabriquerTableau(conteneur, ['Famille', 'Inscription', 'Suivi', 'Actions'], 'crm-record-table crm-request-table');
+    visibles.forEach(function (d) { corps.appendChild(carteDemande(d)); });
   }
 
-  function decider(d, action, motifCle, carteEl) {
-    var question = action === 'valider'
-      ? (d.type === 'stage'
-        ? 'Valider la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Le parent reçoit aussitôt le mail avec le lien de paiement.'
-        : 'Valider la demande de ' + (d.enfant || 'ce voltigeur') + ' ? Le parent reçoit un mail « Fleur vous appelle pour convenir du créneau » (le lien de paiement partira après votre appel).')
-      : 'Refuser la demande de ' + (d.enfant || 'ce voltigeur') + ' (motif : ' + (MOTIFS[motifCle] || motifCle) + ') ? Le parent reçoit un message courtois avec ce motif.';
-    if (!confirm(question)) { return; }
-
-    if (carteEl) {
-      carteEl.boutons.forEach(function (b) { b.disabled = true; });
-      carteEl.etatAction.textContent = 'Envoi en cours…';
-    }
-
-    var corps = { type: 'decision', action: action, d: d.jeton_d, s: d.jeton_s };
-    if (action === 'refuser') { corps.motif = motifCle; }
-
-    fetch(SERVICE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(corps)
-    }).then(function (r) { return r.text(); }).then(function (t) {
-      var morceaux = t.trim().split(';');
-      if (morceaux[0] !== 'ok valide' && morceaux[0] !== 'ok refuse') {
-        var souci = 'Souci : « ' + t.trim().slice(0, 120) + ' ». Réessayez, ou utilisez les boutons du mail.';
-        if (carteEl) {
-          carteEl.boutons.forEach(function (b) { b.disabled = false; });
-          carteEl.etatAction.textContent = souci;
-        } else { alert(souci); }
-        return;
+  async function decider(d, action, motifCle, carteEl) {
+    var question = action === 'valider' ? 'Valider la demande de ' + d.enfant + ' et envoyer l’e-mail à la famille ?'
+      : 'Refuser la demande de ' + d.enfant + ' et envoyer le motif « ' + (MOTIFS[motifCle] || motifCle) + ' » à la famille ?';
+    if (!await confirmer(question,action !== 'valider')) { return; }
+    return operation('decision:' + d.id,async function () {
+      if (carteEl) { carteEl.boutons.forEach(function (b) { b.disabled=true; }); carteEl.etatAction.textContent='Traitement en cours…'; }
+      try {
+        var texte = await appelService({type:'decision',action:action,d:d.jeton_d,s:d.jeton_s,motif:motifCle || ''});
+        var code = texte.split(';')[0];
+        if (code !== 'ok valide' && code !== 'ok refuse') {
+          var erreurs = {
+            'decision deja traitee':'Cette demande a déjà été traitée. Actualisez son statut.',
+            'decision en cours':'Cette décision est déjà en cours de traitement. Actualisez dans un instant.',
+            'decision a verifier':'Le service demande une vérification. Contrôlez le dossier et les e-mails envoyés avant tout renvoi.'
+          };
+          throw new Error(erreurs[code] || 'La décision n’a pas été confirmée. Actualisez avant de réessayer.');
+        }
+        // Le service est propriétaire de cette transition : aucun second PATCH aveugle.
+        await chargerDemandes(); notifier('Décision enregistrée par le service.');
+      } finally {
+        if (carteEl) { carteEl.boutons.forEach(function (b) { b.disabled=false; }); carteEl.etatAction.textContent=''; }
       }
-      var statut = morceaux[0] === 'ok valide'
-        ? 'validée'
-        : 'refusée (' + (MOTIFS[motifCle] || motifCle) + ')';
-      d.statut = statut;
-      d.decide = new Date().toISOString();
-      /* le service note aussi le statut ; cette mise à jour rend la page exacte tout de suite */
-      nuage.requeteAuth('/rest/v1/demandes?id=eq.' + encodeURIComponent(d.id), {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ statut: statut, decide: d.decide })
-      });
-      afficherDemandes();
-      afficherPaiements();
-      majCompteurs();
-    }).catch(function () {
-      var panne = 'Le service n’a pas répondu. Vérifiez votre connexion et réessayez.';
-      if (carteEl) {
-        carteEl.boutons.forEach(function (b) { b.disabled = false; });
-        carteEl.etatAction.textContent = panne;
-      } else { alert(panne); }
     });
   }
 
-  function chargerDemandes() {
-    message('m-liste', 'Chargement des demandes…', true);
-    return nuage.requeteAuth('/rest/v1/demandes?select=*&order=cree.desc&limit=200')
-      .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (l) {
-        if (!l) { message('m-liste', 'Impossible de charger les demandes. Rechargez la page dans un instant.'); return; }
-        demandes = l;
-        el('m-liste').hidden = true;
-        afficherDemandes();
-        afficherPlanning();
-        afficherPaiements();
-      })
-      .catch(function () { message('m-liste', 'Impossible de charger les demandes. Rechargez la page dans un instant.'); });
+  async function chargerDemandes() {
+    var version = ++versionDemandes; chargements++; statutSynchro();
+    message('m-liste','Chargement de toutes les demandes…',true);
+    try {
+      var liste = await core.loadAll(nuage.requeteAuth,'/rest/v1/demandes?select=*&order=cree.desc,id.desc','id');
+      if (version !== versionDemandes) { return; }
+      demandes = liste; erreurDemandes=false; el('m-liste').hidden=true; rafraichirAffichage();
+      chargerResumeRemboursements(version);
+    } catch (erreur) {
+      if (version === versionDemandes) { erreurDemandes=true; message('m-liste',erreur.message + (demandes.length ? ' Les données précédentes restent affichées.' : '')); }
+    } finally { chargements--; statutSynchro(); }
   }
 
   /* ================= Le planning en cases ================= */
@@ -1228,21 +1457,33 @@
     return b;
   }
 
-  function casePlanning(titre, sousTitre, stage, actif, surClic) {
+  function casePlanning(titre, sousTitre, stage, actif, surClic, cle) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'case-planning' + (stage ? ' case-stage' : '') + (actif ? ' actif' : '');
-    var t = document.createElement('b');
-    t.textContent = titre;
-    b.appendChild(t);
-    var sous = document.createElement('span');
-    sous.textContent = sousTitre;
-    b.appendChild(sous);
+    if (cle) { b.setAttribute('data-record-open', (stage ? 'stage:' : 'cours:') + cle); }
+    var debut = stage ? debutStageDetail(cle || titre) : null;
+    var date = stage ? (debut ? isoLocal(debut) : '') : String(cle || '').split('|')[0];
+    b.setAttribute('aria-label', titre + ' · ' + sousTitre);
+    b.appendChild(vignetteDate(date));
+    var copie = elementFiche('span', 'crm-planning-copy');
+    copie.appendChild(elementFiche('span', 'crm-planning-type', stage ? 'Stage de voltige' : 'Cours de voltige'));
+    var horaire = !stage && String(cle || '').split('|')[1];
+    var titreCourt = stage ? titre.replace(/\s*\([^)]*\)\s*$/, '') : horaire ? horaire.replace(':', 'h') : titre;
+    copie.appendChild(elementFiche('b', '', titreCourt));
+    var periode = stage && titre.match(/\(([^)]+)\)/);
+    if (periode) { copie.appendChild(elementFiche('span', 'crm-planning-period', periode[1])); }
+    copie.appendChild(elementFiche('span', 'crm-planning-count', sousTitre));
+    b.appendChild(copie);
+    var fleche = elementFiche('span', 'crm-planning-arrow', '↗');
+    fleche.setAttribute('aria-hidden', 'true');
+    b.appendChild(fleche);
     b.addEventListener('click', surClic);
     return b;
   }
 
   function afficherPlanning() {
+    if (navigationActive) { caseChoisie = selectionPlanning(navigation); }
     var gCours = el('g-cours');
     var gStages = el('g-stages');
     if (!gCours || !gStages) { return; }
@@ -1250,20 +1491,21 @@
     gStages.innerHTML = '';
 
     var parDate = {};
-    coursAVenir().forEach(function (d) { (parDate[d.cours_date] = parDate[d.cours_date] || []).push(d); });
+    coursAVenir().forEach(function (d) { var cle=core.scheduleKey(d); (parDate[cle] = parDate[cle] || []).push(d); });
     var jours = Object.keys(parDate).sort();
     if (!jours.length) {
       var videCours = document.createElement('p');
       videCours.className = 'aide';
-      videCours.textContent = 'Aucun cours planifié pour l’instant : validez une demande de cours, appelez la famille, puis cliquez « Appelé : envoyer date, heure et paiement ».';
+      videCours.textContent = 'Aucun cours à venir. Ouvrez une demande validée pour planifier un créneau.';
       gCours.appendChild(videCours);
     }
     jours.forEach(function (date) {
       var n = parDate[date].length;
       var sousTitre = n + '/' + CAPACITE_COURS + (n > 1 ? ' inscrits' : ' inscrit') + (n >= CAPACITE_COURS ? ' · complet' : '');
-      gCours.appendChild(casePlanning(jourLisible(date), sousTitre, false,
+      var premier=parDate[date][0];
+      gCours.appendChild(casePlanning(jourLisible(premier.cours_date) + ' · ' + (core.time(premier.cours_heure) || premier.cours_heure || 'Horaire à préciser'), sousTitre, false,
         !!(caseChoisie && caseChoisie.genre === 'cours' && caseChoisie.date === date),
-        function () { caseChoisie = { genre: 'cours', date: date }; afficherPlanning(); }));
+        function () { ouvrirDetail('cours', date); }, date));
     });
 
     var parStage = {};
@@ -1276,17 +1518,18 @@
     if (!cles.length) {
       var vide = document.createElement('p');
       vide.className = 'aide';
-      vide.textContent = 'Aucun stage avec des inscrits pour l’instant (les demandes de stage validées apparaissent ici).';
+      vide.textContent = 'Aucun stage avec des inscrits. Les inscriptions validées apparaîtront ici.';
       gStages.appendChild(vide);
     }
     cles.forEach(function (cle) {
       var nS = parStage[cle].length;
       gStages.appendChild(casePlanning(cle, nS + (nS > 1 ? ' inscrits' : ' inscrit'), true,
         !!(caseChoisie && caseChoisie.genre === 'stage' && caseChoisie.cle === cle),
-        function () { caseChoisie = { genre: 'stage', cle: cle }; afficherPlanning(); }));
+        function () { ouvrirDetail('stage', cle); }, cle));
     });
 
     afficherInscrits(parDate, parStage);
+    if (navigation.detail && ['cours','stage'].indexOf(navigation.detail.genre) !== -1) { afficherDetail(); }
   }
 
   function afficherInscrits(parDate, parStage) {
@@ -1300,8 +1543,24 @@
 
     var titre = document.createElement('h3');
     var liste = document.createElement('ul');
+    liste.className = 'crm-attendees';
     var actions = document.createElement('div');
-    actions.className = 'actions';
+    actions.className = 'actions crm-planning-actions';
+
+    function inscrit(d) {
+      var li = elementFiche('li', 'crm-attendee');
+      var personne = elementFiche('div', 'crm-attendee-person');
+      personne.appendChild(avatarFiche(d.enfant || 'Voltigeur'));
+      var copie = elementFiche('div', 'crm-attendee-copy');
+      copie.appendChild(elementFiche('span', 'crm-task-title', d.enfant || 'Voltigeur'));
+      copie.appendChild(elementFiche('span', 'crm-task-meta', d.parent_nom || d.parent_email || 'Parent non renseigné'));
+      if (d.parent_nom && d.parent_email) { copie.appendChild(elementFiche('span', 'crm-task-meta', d.parent_email)); }
+      personne.appendChild(copie);
+      li.appendChild(personne);
+      var controles = elementFiche('div', 'crm-attendee-actions');
+      li.appendChild(controles);
+      return {ligne:li,actions:controles};
+    }
 
     function boutonAjout(surClic) {
       var b = document.createElement('button');
@@ -1313,23 +1572,23 @@
     }
 
     if (caseChoisie.genre === 'cours') {
-      var date = caseChoisie.date;
-      titre.textContent = 'Cours du ' + jourLisible(date);
-      var inscrits = parDate[date] || [];
+      var inscrits = parDate[caseChoisie.date] || [];
+      var date = inscrits[0].cours_date, heure = core.time(inscrits[0].cours_heure) || inscrits[0].cours_heure || '';
+      titre.textContent = 'Cours du ' + jourLisible(date) + (heure ? ' · ' + heure : '');
       inscrits.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + (d.cours_heure ? ' · ' + d.cours_heure : '') + (d.parent_email ? ' · ' + d.parent_email : '');
-        li.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
-        li.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
-        li.appendChild(lienAction('Retirer', function () { retirerDuPlanning(d); }));
-        liste.appendChild(li);
+        var fiche = inscrit(d);
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
+        fiche.actions.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
+        fiche.actions.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { retirerDuPlanning(d); }));
+        liste.appendChild(fiche.ligne);
       });
       if (!inscrits.length) {
         var aucun = document.createElement('li');
         aucun.textContent = 'Personne pour l’instant.';
         liste.appendChild(aucun);
       }
-      actions.appendChild(boutonAjout(function () { ajouterInscritCours(date); }));
+      actions.appendChild(boutonAjout(function () { ajouterInscritCours(date,heure); }));
       actions.appendChild(lienAction('Feuille de présence', function () {
         ouvrirFeuille({
           titre: 'Cours du ' + jourLisible(date),
@@ -1343,10 +1602,10 @@
       var lesInscrits = parStage[cle] || [];
       titre.textContent = cle;
       lesInscrits.forEach(function (d) {
-        var li = document.createElement('li');
-        li.textContent = (d.enfant || 'Voltigeur') + ' · ' + (d.parent_nom || '') + (d.parent_email ? ' · ' + d.parent_email : '');
-        li.appendChild(lienAction('Retirer', function () { supprimerDemande(d); }));
-        liste.appendChild(li);
+        var fiche = inscrit(d);
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { supprimerDemande(d); }));
+        liste.appendChild(fiche.ligne);
       });
       actions.appendChild(boutonAjout(function () { ajouterInscritStage(cle); }));
       actions.appendChild(lienAction('Feuille de présence de la semaine', function () {
@@ -1365,83 +1624,43 @@
   }
 
   /* ---- inscrire ou retirer un voltigeur a la main ---- */
-  function ajouterInscritCours(date) {
-    var nActuel = coursAVenir().filter(function (d) { return d.cours_date === date; }).length;
-    if (nActuel >= CAPACITE_COURS && !confirm('Ce cours est complet (' + nActuel + '/' + CAPACITE_COURS + '). Ajouter quand même ?')) { return; }
-    var enfant = prompt('Nom du voltigeur à inscrire au cours du ' + jourLisible(date) + ' :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var email = prompt('E-mail du parent (facultatif) :', '');
-    if (email === null) { return; }
-    var heure = prompt('Heure du cours (par exemple 10h00) :', '10h00');
-    if (heure === null) { return; }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({
-        type: 'cours', enfant: enfant.trim(), parent_nom: '', parent_email: email.trim(),
-        detail: 'Cours à l’unité', tarif: '25 € / cours',
-        statut: 'validée', decide: new Date().toISOString(),
-        lignes: 'Ajoutée à la main depuis l’espace académie.',
-        cours_date: date, cours_heure: heure.trim() || null
-      })
-    }).then(function (r) { return r && r.ok ? r.json().catch(function () { return null; }) : null; })
-      .then(function (lignes) {
-        if (!lignes) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-        var d = lignes[0];
-        if (d && /.+@.+\..+/.test(d.parent_email || '') &&
-            confirm('Envoyer tout de suite à ' + d.parent_email + ' les infos du cours avec le lien de paiement (25 €) ?')) {
-          envoyerInfosCours(d, true);
-        }
-        chargerDemandes();
-      });
-  }
-
-  function retirerDuPlanning(d) {
-    if (!confirm('Retirer ' + (d.enfant || 'ce voltigeur') + ' de ce cours ? La demande reste validée : vous pourrez replanifier après un nouvel appel.')) { return; }
-    patchDemande(d, { cours_date: null, cours_heure: null, infos_envoyees_le: null });
-  }
-
-  function ajouterInscritStage(cle) {
-    var enfant = prompt('Nom du voltigeur à inscrire au stage :', '');
-    if (enfant === null || !enfant.trim()) { return; }
-    var parentNom = prompt('Nom du parent :', '');
-    if (parentNom === null) { return; }
-    var email = prompt('E-mail du parent (facultatif) :', '');
-    if (email === null) { return; }
-    nuage.requeteAuth('/rest/v1/demandes', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        type: 'stage', enfant: enfant.trim(), parent_nom: parentNom.trim(), parent_email: email.trim(),
-        detail: cle, tarif: '840 € / semaine', statut: 'validée', decide: new Date().toISOString(),
-        lignes: 'Ajoutée à la main depuis l’espace académie.'
-      })
-    }).then(function (r) {
-      if (!r || !r.ok) { alert('L’ajout n’a pas abouti (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-      if (/.+@.+\..+/.test(email.trim()) &&
-          confirm('Envoyer tout de suite le lien de paiement de l’acompte (300 €) à ' + email.trim() + ' ?')) {
-        envoyerLienPaiement({ type: 'stage', enfant: enfant.trim(), parent_email: email.trim(), detail: cle, tarif: '840 € / semaine' }, true);
-      }
-      chargerDemandes();
+  async function ajouterInscritCours(date, heureInitiale) {
+    var valeurs = await ui.form({title:'Ajouter un inscrit au cours',description:jourLisible(date),submitLabel:'Ajouter au créneau',
+      validate:function (v) { return erreurCreneau(date, v.heure); },fields:[
+      {name:'enfant',label:'Nom du voltigeur',required:true},{name:'email',label:'E-mail du parent',type:'email'},
+      {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(heureInitiale) || '10:00'}]});
+    if (!valeurs) { return; }
+    await operation('nouvel-inscrit',async function () {
+      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'25 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:'Ajoutée à la main depuis l’espace académie.',cours_date:date,cours_heure:valeurs.heure});
+      if (d.parent_email && await confirmer('Inscrit ajouté. Envoyer les informations du cours à '+d.parent_email+' ?')) { await envoyerInfosCours(d,true); }
     });
   }
 
+  async function retirerDuPlanning(d) {
+    if (!await confirmer('Retirer ' + (d.enfant || 'ce voltigeur') + ' de ce cours ? La demande reste validée : vous pourrez replanifier après un nouvel appel.')) { return; }
+    patchDemande(d, { cours_date: null, cours_heure: null, infos_envoyees_le: null });
+  }
+
+  function ajouterInscritStage(cle) { return ajouterDemande({type:'stage',detail:cle}); }
+
   /* ================= La base clients ================= */
-  function carteFamille(f) {
+  function carteFamille(f, detail) {
     var d = f.donnees || {};
     var r = d.responsable || {};
+    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
     var c = document.createElement('tr');
     c.className = 'carte-famille';
 
     var qui = document.createElement('td');
+    qui.className = 'crm-family-person';
     var ident = document.createElement('div');
     ident.className = 'identite';
     var nomComplet = r.nom || f.email || 'Famille';
-    var initiales = document.createElement('span');
-    initiales.className = 'initiales';
-    initiales.textContent = nomComplet.trim().split(/\s+/).slice(0, 2).map(function (mot) { return (mot[0] || '').toUpperCase(); }).join('');
+    var initiales = avatarFiche(nomComplet);
+    initiales.className += ' initiales';
     ident.appendChild(initiales);
     var bloc = document.createElement('div');
+    bloc.className = 'crm-person-copy';
     var nom = document.createElement('span');
     nom.className = 'nom';
     nom.textContent = nomComplet;
@@ -1452,36 +1671,58 @@
       q.textContent = r.qualite;
       bloc.appendChild(q);
     }
+    if (!detail) {
+      var prenoms = enfants.slice(0, 2).map(function (e) { return e.prenom || e.nom; }).join(', ');
+      var autres = enfants.length > 2 ? ' +' + (enfants.length - 2) : '';
+      bloc.appendChild(elementFiche('span', 'crm-family-summary', enfants.length
+        ? enfants.length + (enfants.length > 1 ? ' voltigeurs · ' : ' voltigeur · ') + prenoms + autres
+        : 'Aucun voltigeur renseigné'));
+    }
     ident.appendChild(bloc);
     qui.appendChild(ident);
     c.appendChild(qui);
 
     var contact = document.createElement('td');
+    contact.className = 'crm-family-contact';
+    etiquetteDetail(contact, 'Contact', detail);
     var contacts = [f.email, r.tel, [r.cp, r.ville].filter(Boolean).join(' ')].filter(Boolean);
     if (contacts.length) {
       contacts.forEach(function (ligne) {
         var l = document.createElement('div');
-        l.textContent = ligne;
+        var href = '';
+        if (detail && ligne === f.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ligne)) {
+          href = 'mailto:' + encodeURIComponent(ligne);
+        } else if (detail && ligne === r.tel && /^\+?[\d\s().-]{6,25}$/.test(String(ligne))) {
+          var telephone = String(ligne).replace(/[^\d+]/g,'');
+          if (/^\+?\d{6,15}$/.test(telephone)) { href = 'tel:' + telephone; }
+        }
+        if (href) {
+          var lien = elementFiche('a','crm-contact-link',ligne);
+          lien.setAttribute('href',href);
+          l.appendChild(lien);
+        } else { l.textContent = ligne; }
         contact.appendChild(l);
       });
     } else {
-      contact.textContent = 'Aucune coordonnée renseignée.';
+      contact.appendChild(elementFiche('p', 'crm-record-meta', 'Aucune coordonnée renseignée.'));
     }
     c.appendChild(contact);
 
     var voltigeurs = document.createElement('td');
-    var enfants = (d.enfants || []).filter(function (e) { return e && (e.prenom || e.nom); });
+    voltigeurs.className = 'crm-family-children';
+    etiquetteDetail(voltigeurs, 'Voltigeurs', detail);
     enfants.forEach(function (e) {
-      var puce = document.createElement('div');
-      var morceaux = [(e.prenom + ' ' + (e.nom || '')).trim()];
-      if (e.naissance) { morceaux.push('né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR')); }
-      puce.textContent = morceaux.join(' · ');
+      var puce = elementFiche('div', 'crm-child-item');
+      puce.appendChild(elementFiche('span', 'crm-child-name', ((e.prenom || '') + ' ' + (e.nom || '')).trim()));
+      if (e.naissance) { puce.appendChild(elementFiche('span', 'crm-child-meta', 'Né(e) le ' + new Date(e.naissance).toLocaleDateString('fr-FR'))); }
       voltigeurs.appendChild(puce);
     });
-    if (!enfants.length) { voltigeurs.textContent = '—'; }
+    if (!enfants.length) { voltigeurs.appendChild(elementFiche('p', 'crm-record-meta', 'Aucun voltigeur renseigné.')); }
     c.appendChild(voltigeurs);
 
     var suivi = document.createElement('td');
+    suivi.className = 'crm-family-followup';
+    etiquetteDetail(suivi, 'Suivi de la famille', detail);
     var nbDemandes = (d.demandes || []).length;
     if (nbDemandes) {
       var lDemandes = document.createElement('div');
@@ -1496,10 +1737,9 @@
       suivi.appendChild(maj);
     }
     if (f.note_admin) {
-      var note = document.createElement('div');
-      note.className = 'corps';
-      note.style.fontStyle = 'italic';
-      note.textContent = 'Note : ' + f.note_admin;
+      var note = elementFiche('div', 'corps crm-private-note');
+      note.appendChild(elementFiche('span', 'crm-detail-label', 'Note privée'));
+      note.appendChild(elementFiche('p', '', f.note_admin));
       suivi.appendChild(note);
     }
     c.appendChild(suivi);
@@ -1507,37 +1747,42 @@
     var actions = document.createElement('div');
     actions.className = 'actions';
     if (f.user_id) {
-      actions.appendChild(lienAction(f.note_admin ? 'Modifier la note' : 'Ajouter une note', function () {
-        var note = prompt('Note sur cette famille (visible de l’académie seulement) :', f.note_admin || '');
-        if (note === null) { return; }
-        nuage.requeteAuth('/rest/v1/familles?user_id=eq.' + encodeURIComponent(f.user_id), {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ note_admin: note.trim() || null })
-        }).then(function (r) {
-          if (!r || !r.ok) { alert('La note n’a pas pu être enregistrée (le SQL le plus récent, v9, a-t-il été joué dans Supabase ?).'); return; }
-          f.note_admin = note.trim();
-          afficherFamilles();
+      var boutonNote = lienAction(f.note_admin ? 'Modifier la note' : 'Ajouter une note', async function () {
+        if (!notesDisponibles) { notifier('Les notes privées sont indisponibles. Actualisez la base clients.',true); return; }
+        var valeurs=await ui.form({title:'Note privée de l’académie',description:'Cette note est réservée aux administrateurs.',submitLabel:'Enregistrer la note',
+          fields:[{name:'note',label:'Note sur cette famille',type:'textarea',value:f.note_admin || ''}]});
+        if (!valeurs) { return; }
+        await operation('note:'+f.user_id,async function () {
+          var lignes=await reponseJson(await nuage.requeteAuth('/rest/v1/notes_familles?on_conflict=user_id',{
+            method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:f.user_id,note:valeurs.note.trim()})
+          }),'La note privée n’a pas pu être enregistrée. Vérifiez la connexion et la mise à jour du CRM.');
+          if (!lignes || !lignes[0]) { throw new Error('La note n’a pas été enregistrée.'); }
+          f.note_admin=lignes[0].note || ''; afficherFamilles(); notifier('Note privée enregistrée.');
         });
-      }));
+      });
+      boutonNote.disabled = !notesDisponibles;
+      actions.appendChild(boutonNote);
     }
-    cellule(c, actions);
+    var celluleActions = cellule(c, actions);
+    celluleActions.className = 'crm-family-actions';
+    if (!detail) { ajouterOuvertureDossier(c, celluleActions, 'famille', f.user_id || f.email, nomComplet); }
     return c;
   }
 
   function afficherFamilles() {
+    actualiserDetail('famille');
     var conteneur = el('a-familles');
     conteneur.innerHTML = '';
     var mot = el('f-recherche').value.trim().toLowerCase();
     var visibles = familles.filter(function (f) {
       if (!mot) { return true; }
-      return JSON.stringify(f).toLowerCase().indexOf(mot) !== -1;
+      return core.normalize(JSON.stringify(f)).indexOf(core.normalize(mot)) !== -1;
     });
     if (!visibles.length) {
       var vide = document.createElement('p');
       vide.className = 'aide';
       vide.textContent = familles.length
-        ? 'Aucune famille ne correspond à cette recherche.'
+        ? 'Aucune famille ne correspond à cette recherche. Essayez un autre nom ou une autre adresse.'
         : 'Aucun compte famille pour l’instant.';
       conteneur.appendChild(vide);
       return;
@@ -1546,18 +1791,24 @@
     visibles.forEach(function (f) { corpsTableau.appendChild(carteFamille(f)); });
   }
 
-  function chargerFamilles() {
-    message('m-familles', 'Chargement de la base clients…', true);
-    return nuage.requeteAuth('/rest/v1/familles?select=user_id,email,donnees,maj,note_admin&order=maj.desc&limit=500')
-      .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (l) {
-        if (!l) { message('m-familles', 'Impossible de charger la base clients. Rechargez la page dans un instant.'); return; }
-        familles = l;
-        el('m-familles').hidden = true;
-        afficherFamilles();
-        majCompteurs();
-      })
-      .catch(function () { message('m-familles', 'Impossible de charger la base clients. Rechargez la page dans un instant.'); });
+  async function chargerFamilles() {
+    var version = ++versionFamilles; chargements++; statutSynchro();
+    message('m-familles','Chargement des familles et des notes privées…',true);
+    try {
+      var liste = await core.loadAll(nuage.requeteAuth,'/rest/v1/familles?select=user_id,email,donnees,maj&order=maj.desc,user_id.desc','user_id');
+      var notes = [], souciNotes = false;
+      try { notes = await core.loadAll(nuage.requeteAuth,'/rest/v1/notes_familles?select=user_id,note,maj&order=user_id','user_id'); }
+      catch (_) { souciNotes=true; }
+      if (version !== versionFamilles) { return; }
+      var index = {}; notes.forEach(function (n) { index[n.user_id]=n.note; });
+      liste.forEach(function (f) { f.note_admin=index[f.user_id] || ''; });
+      familles=liste; notesDisponibles=!souciNotes; erreurFamilles=souciNotes;
+      if (souciNotes) { message('m-familles','Les familles sont chargées, mais les notes privées sont indisponibles. Actualisez ; si le problème persiste, faites vérifier la mise à jour du CRM.'); }
+      else { el('m-familles').hidden=true; }
+      afficherFamilles(); majCompteurs();
+    } catch (erreur) {
+      if (version === versionFamilles) { erreurFamilles=true; message('m-familles',erreur.message + (familles.length ? ' Les données précédentes restent affichées.' : '')); }
+    } finally { chargements--; statutSynchro(); }
   }
 
   /* ================= Accès et navigation ================= */
@@ -1565,7 +1816,7 @@
     montrer('p-attente');
     nuage.retrouverEmail().then(function (s) {
       if (!s) { montrer('p-connexion'); return; }
-      nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
+      return nuage.requeteAuth('/rest/v1/admins?select=email&limit=1')
         .then(function (r) {
           /* la table admins ne répond pas : l'installation SQL n'a pas été faite */
           if (!r || !r.ok) {
@@ -1578,13 +1829,17 @@
         .then(function (l) {
           if (!l) { return; }
           if (!l.length) { montrer('p-refuse'); return; }
+          identiteAdmin = s.user_id || s.email || '';
           el('p-compte').textContent = s.email || '';
           el('p-deconnexion').hidden = false;
           montrer('p-tableau');
           chargerDemandes();
           chargerFamilles();
+          initialiserNavigation();
         })
         .catch(function () { montrer('p-refuse'); });
+    }).catch(function () {
+      montrer('p-connexion'); message('m-admin','Impossible de vérifier votre session. Reconnectez-vous ou réessayez dans un instant.');
     });
   }
 
@@ -1595,33 +1850,238 @@
     message('m-admin', 'Connexion…', true);
     nuage.connexion(email, mdp).then(function (r) {
       if (r.erreur) { message('m-admin', r.erreur); return; }
-      entrer();
-    });
+      el('ad-mdp').value=''; entrer();
+    }).catch(function(){ message('m-admin','Connexion impossible. Vérifiez votre connexion et réessayez.'); });
   });
 
   el('p-deconnexion').addEventListener('click', function (ev) {
     ev.preventDefault();
+    versionDemandes++; versionFamilles++; versionRemboursement++; demandes=[]; familles=[];
+    identiteAdmin=''; dossierRemboursement=null; remboursementsStripe=Object.create(null); resumesRemboursements=Object.create(null); operationsRemboursementLocales=Object.create(null);
+    navigationActive = false; revisionNavigation++; positionApresChargement = null; positionsOnglets = Object.create(null);
+    restaurerPanneaux(); navigation = {onglet:'accueil',detail:null};
+    document.body.classList.remove('crm-detail-open');
+    if (ui.closeDialog) { ui.closeDialog(); }
+    if (el('crm-detail')) { el('crm-detail').hidden=true; el('crm-detail-body').innerHTML=''; }
+    if (el('crm-refunds')) { el('crm-refunds').hidden=true; el('crm-refunds-body').innerHTML=''; }
+    el('ad-mdp').value='';
     nuage.deconnexion();
     el('p-compte').textContent = '';
     el('p-deconnexion').hidden = true;
     montrer('p-connexion');
   });
 
-  function ouvrirOnglet(onglet) {
-    document.querySelectorAll('.onglets [data-onglet]').forEach(function (b) {
-      b.classList.toggle('actif-onglet', b.getAttribute('data-onglet') === onglet);
-    });
-    el('o-accueil').hidden = onglet !== 'accueil';
-    el('o-demandes').hidden = onglet !== 'demandes';
-    el('o-familles').hidden = onglet !== 'familles';
-    el('o-reservations').hidden = onglet !== 'reservations';
-    el('o-paiements').hidden = onglet !== 'paiements';
+  /* Une entrée d'historique par écran. Les filtres restent dans la liste ;
+     le retour restaure sa position et le bouton qui a ouvert le dossier. */
+  var ONGLETS_CRM = ['accueil','demandes','familles','reservations','paiements'];
+  var DETAILS_CRM = ['demande','paiement','famille','remboursement','cours','stage'];
+  var navigation = {onglet:'accueil',detail:null}, navigationActive = false;
+  var positionsOnglets = Object.create(null), panneauxDeplaces = Object.create(null);
+  var revisionNavigation = 0, positionApresChargement = null;
+
+  function routeDepuisHash(hash) {
+    var morceaux = String(hash || '').replace(/^#/, '').split('/');
+    var route = {onglet: ONGLETS_CRM.indexOf(morceaux[0]) !== -1 ? morceaux[0] : 'accueil', detail:null};
+    if (DETAILS_CRM.indexOf(morceaux[1]) !== -1 && morceaux[2]) {
+      if (morceaux[1] === 'remboursement' && !STRIPE_ACTIF) { return route; }
+      try { route.detail = {genre:morceaux[1],id:decodeURIComponent(morceaux.slice(2).join('/'))}; } catch (_) {}
+    }
+    return route;
   }
+  function hashDeRoute(route) {
+    return '#' + route.onglet + (route.detail ? '/' + route.detail.genre + '/' + encodeURIComponent(route.detail.id) : '');
+  }
+  function selectionPlanning(route) {
+    return route.detail && route.detail.genre === 'cours' ? {genre:'cours',date:route.detail.id}
+      : route.detail && route.detail.genre === 'stage' ? {genre:'stage',cle:route.detail.id} : null;
+  }
+  function etatNavigation() { return history.state && history.state.avCrmNavigation; }
+  function sauvegarderPosition() {
+    if (!navigationActive) { return; }
+    var precedent = etatNavigation() || {}, actif = document.activeElement;
+    var focus = actif && actif.getAttribute ? actif.getAttribute('data-record-open') || actif.id || precedent.focus || '' : '';
+    var position = Math.max(0, window.scrollY || 0);
+    if (!navigation.detail) { positionsOnglets[navigation.onglet] = position; }
+    history.replaceState(Object.assign({}, history.state, {avCrmNavigation:{
+      route:navigation,position:position,focus:focus,profondeur:precedent.profondeur || 0
+    }}), '', hashDeRoute(navigation));
+  }
+  function restaurerPosition(position, focus) {
+    var revision = ++revisionNavigation;
+    window.requestAnimationFrame(function () {
+      if (revision !== revisionNavigation) { return; }
+      var cible = focus && (el(focus) || Array.from(document.querySelectorAll('[data-record-open]')).find(function (b) { return b.getAttribute('data-record-open') === focus; }));
+      if (!cible) { cible = el(navigation.detail ? 'crm-detail-title' : 'crm-page-title'); }
+      if (cible && cible.focus) { cible.focus({preventScroll:true}); }
+      window.scrollTo({top:Math.max(0, position || 0),left:0,behavior:'instant'});
+    });
+  }
+  function deplacerPanneau(id) {
+    var panneau = el(id), corps = el('crm-detail-body');
+    if (!panneau || !corps) { return; }
+    if (!panneauxDeplaces[id]) { panneauxDeplaces[id] = {parent:panneau.parentNode,suivant:panneau.nextSibling}; }
+    if (panneau.parentNode !== corps) { corps.appendChild(panneau); }
+    panneau.hidden = false;
+  }
+  function restaurerPanneaux() {
+    Object.keys(panneauxDeplaces).forEach(function (id) {
+      var origine = panneauxDeplaces[id], panneau = el(id);
+      if (!panneau) { return; }
+      origine.parent.insertBefore(panneau, origine.suivant && origine.suivant.parentNode === origine.parent ? origine.suivant : null);
+      panneau.hidden = true;
+    });
+    panneauxDeplaces = Object.create(null);
+  }
+  function actualiserDetail(genre) {
+    if (navigationActive && navigation.detail && navigation.detail.genre === genre) { afficherDetail(); }
+  }
+  function afficherDetail() {
+    var detail = navigation.detail, corps = el('crm-detail-body');
+    if (!detail || !corps) { return; }
+    var titre = '', ligne, donnees;
+    if (detail.genre === 'remboursement') {
+      donnees = demandes.find(function (d) { return String(d.id) === detail.id; });
+      titre = 'Remboursements · ' + (donnees ? donnees.enfant : 'Dossier');
+      deplacerPanneau('crm-refunds');
+    } else if (detail.genre === 'cours' || detail.genre === 'stage') {
+      deplacerPanneau('p-inscrits');
+      var titrePlanning = el('p-inscrits').querySelector('h3');
+      titre = titrePlanning ? titrePlanning.textContent : 'Ce créneau n’a plus d’inscrit';
+      if (!titrePlanning) { el('p-inscrits').textContent = 'Le planning a été actualisé. Revenez à la liste pour choisir un autre créneau.'; }
+    } else {
+      var focusCourant = document.activeElement;
+      var focusDansDetail = corps.contains(focusCourant);
+      var actionCourante = focusDansDetail && focusCourant.tagName === 'BUTTON' ? focusCourant.textContent : '';
+      var menuCourant = corps.querySelector('.crm-actions-menu');
+      var autresActionsOuvertes = !!(menuCourant && menuCourant.open);
+      corps.innerHTML = '';
+      if (detail.genre === 'famille') {
+        donnees = familles.find(function (f) { return String(f.user_id || f.email) === detail.id; });
+        if (donnees) { ligne = carteFamille(donnees,true); titre = ((donnees.donnees || {}).responsable || {}).nom || donnees.email || 'Famille'; }
+      } else {
+        donnees = demandes.find(function (d) { return String(d.id) === detail.id; });
+        if (donnees) {
+          titre = donnees.enfant || 'Voltigeur';
+          ligne = detail.genre === 'paiement' ? lignePaiement(donnees, donnees.annule ? 'annule' : resteAEncaisser(donnees) > 0 ? 'du' : 'regle', true) : carteDemande(donnees,true);
+        }
+      }
+      if (ligne) {
+        var table = elementFiche('table','crm-detail-table'), tbody = document.createElement('tbody');
+        table.setAttribute('aria-label','Dossier de ' + titre);
+        ligne.classList.add('crm-detail-record');
+        tbody.appendChild(ligne); table.appendChild(tbody); corps.appendChild(table);
+        var menu = ligne.querySelector('.crm-actions-menu');
+        if (menu) {
+          menu.open = autresActionsOuvertes;
+          var resume = menu.querySelector('summary');
+          if (resume) { resume.textContent = 'Autres actions'; resume.setAttribute('aria-label','Autres actions pour ' + titre); }
+        }
+      } else {
+        titre = 'Dossier';
+        corps.appendChild(elementFiche('p','aide etat-vide',chargements ? 'Chargement du dossier…' : 'Ce dossier n’est plus disponible. Revenez à la liste pour retrouver les dossiers actuels.'));
+      }
+      if (focusDansDetail) {
+        var nouveauFocus = actionCourante && Array.from(corps.querySelectorAll('button')).find(function (b) { return b.textContent === actionCourante; });
+        (nouveauFocus || el('crm-detail-title')).focus({preventScroll:true});
+      }
+    }
+    el('crm-detail-title').textContent = titre;
+    document.title = titre + ' — Espace académie';
+  }
+  function appliquerNavigation(route, position, focus) {
+    if (ui.closeDialog) { ui.closeDialog(); }
+    versionRemboursement++; dossierRemboursement = null;
+    restaurerPanneaux();
+    if (el('crm-detail-body')) { el('crm-detail-body').innerHTML = ''; }
+    navigation = route;
+    positionApresChargement = chargements ? {position:position,focus:focus} : null;
+    document.querySelectorAll('.onglets [data-onglet]').forEach(function (b) {
+      var actif = b.getAttribute('data-onglet') === route.onglet;
+      b.classList.toggle('actif-onglet', actif);
+      if (actif) { b.setAttribute('aria-current','page'); } else { b.removeAttribute('aria-current'); }
+    });
+    ONGLETS_CRM.forEach(function (onglet) { el('o-' + onglet).hidden = !!route.detail || onglet !== route.onglet; });
+    if (ui.setPage) { ui.setPage(route.onglet); }
+    document.body.classList.toggle('crm-detail-open', !!route.detail);
+    if (el('crm-detail')) { el('crm-detail').hidden = !route.detail; }
+    if (el('crm-back')) { el('crm-back').hidden = !route.detail && route.onglet === 'accueil'; }
+    caseChoisie = selectionPlanning(route);
+    if (caseChoisie) { afficherPlanning(); }
+    if (route.detail) {
+      afficherDetail();
+      if (route.detail.genre === 'remboursement') {
+        var d = demandes.find(function (x) { return String(x.id) === route.detail.id; });
+        if (d) { chargerVueRemboursements(d); }
+        else { el('crm-refunds-body').textContent = chargements ? 'Chargement du dossier…' : 'Ce dossier n’est plus disponible.'; }
+      }
+    }
+    restaurerPosition(position, focus);
+  }
+  function naviguer(route, remplacer) {
+    if (!navigationActive) { return; }
+    var identique = hashDeRoute(route) === hashDeRoute(navigation);
+    sauvegarderPosition();
+    if (identique) { restaurerPosition(0); return; }
+    var ancien = etatNavigation() || {};
+    var etat = {route:route,position:route.detail ? 0 : positionsOnglets[route.onglet] || 0,focus:'',profondeur:remplacer ? ancien.profondeur || 0 : (ancien.profondeur || 0) + 1};
+    history[remplacer ? 'replaceState' : 'pushState'](Object.assign({},history.state,{avCrmNavigation:etat}), '', hashDeRoute(route));
+    appliquerNavigation(route, etat.position);
+  }
+  function ouvrirOnglet(onglet) {
+    if (ONGLETS_CRM.indexOf(onglet) !== -1) { naviguer({onglet:onglet,detail:null}); }
+  }
+  function ouvrirDetail(genre, id) {
+    if (genre === 'remboursement' && !STRIPE_ACTIF) { return; }
+    if (DETAILS_CRM.indexOf(genre) !== -1) { naviguer({onglet:navigation.onglet,detail:{genre:genre,id:String(id)}}); }
+  }
+  function retourNavigation() {
+    if (ui.closeDialog && ui.closeDialog()) { return; }
+    var etat = etatNavigation();
+    if (etat && etat.profondeur > 0) { history.back(); }
+    else { naviguer({onglet:navigation.detail ? navigation.onglet : 'accueil',detail:null}, true); }
+  }
+  function initialiserNavigation() {
+    navigationActive = true;
+    if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+    var route = routeDepuisHash(location.hash), precedent = etatNavigation();
+    var etat = precedent && hashDeRoute(precedent.route) === hashDeRoute(route) ? precedent : {route:route,position:0,focus:'',profondeur:0};
+    history.replaceState(Object.assign({},history.state,{avCrmNavigation:etat}), '', hashDeRoute(route));
+    appliquerNavigation(route, etat.position, etat.focus);
+  }
+  function ajouterOuvertureDossier(ligne, cellule, genre, id, nom) {
+    ligne.setAttribute('data-record-kind', genre); ligne.setAttribute('data-record-id', String(id));
+    var bouton = lienAction('Ouvrir le dossier', function () { ouvrirDetail(genre,id); });
+    bouton.className = 'crm-open-record';
+    bouton.setAttribute('data-record-open', genre + ':' + id);
+    bouton.setAttribute('aria-label','Ouvrir le dossier de ' + (nom || 'cette famille'));
+    cellule.appendChild(bouton);
+  }
+
+  window.addEventListener('popstate', function () {
+    if (!navigationActive) { return; }
+    var route = routeDepuisHash(location.hash), etat = etatNavigation();
+    appliquerNavigation(route, etat ? etat.position : 0, etat ? etat.focus : '');
+  });
+  var sauvegardeScrollPrevue = false;
+  window.addEventListener('scroll', function () {
+    if (!navigationActive || sauvegardeScrollPrevue || (ui.isDialogOpen && ui.isDialogOpen())) { return; }
+    sauvegardeScrollPrevue = true;
+    var revision = revisionNavigation;
+    window.requestAnimationFrame(function () {
+      sauvegardeScrollPrevue = false;
+      if (revision === revisionNavigation && !positionApresChargement) { sauvegarderPosition(); }
+    });
+  }, {passive:true});
+  if (el('crm-back')) { el('crm-back').addEventListener('click', retourNavigation); }
 
   document.querySelector('.onglets').addEventListener('click', function (ev) {
     var bouton = ev.target.closest('[data-onglet]');
     if (!bouton) { return; }
     ouvrirOnglet(bouton.getAttribute('data-onglet'));
+  });
+  document.addEventListener('click', function (ev) {
+    var bouton = ev.target.closest('[data-crm-go]');
+    if (bouton) { ouvrirOnglet(bouton.getAttribute('data-crm-go')); }
   });
 
   el('a-rafraichir').addEventListener('click', function (ev) { ev.preventDefault(); chargerDemandes(); });
@@ -1636,7 +2096,7 @@
       [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
        { titre: 'E-mail', largeur: 165 }, { titre: 'Demande', largeur: 210 }, { titre: 'Tarif', largeur: 95 },
        { titre: 'Statut', largeur: 85 }, { titre: 'Reçue le', largeur: 105 }, { titre: 'Paiement', largeur: 150 }],
-      demandes.map(function (d) {
+      demandesVisibles().map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.detail, d.tarif, d.statut, quandLisible(d.cree),
           d.annule ? 'annulé' : d.type === 'stage'
             ? (d.acompte_paye ? 'acompte reçu' : 'acompte dû') + ' / ' + (d.solde_paye ? 'solde reçu' : 'solde dû')
@@ -1648,7 +2108,9 @@
       [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
        { titre: 'E-mail', largeur: 165 }, { titre: 'Tarif', largeur: 95 }, { titre: 'Encaissé (€)', largeur: 75 },
        { titre: 'Reste dû (€)', largeur: 75 }, { titre: 'État', largeur: 150 }, { titre: 'Réglé le', largeur: 80 }],
-      demandes.filter(function (d) { return classeStatut(d.statut) === 'validee' || d.annule; }).map(function (d) {
+      demandes.filter(function (d) {
+        return (classeStatut(d.statut) === 'validee' || d.annule) && core.matches(d, el('f-paiement-recherche') ? el('f-paiement-recherche').value : '');
+      }).map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.tarif, dejaEncaisse(d), resteAEncaisser(d),
           d.annule ? 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : '')
             : resteAEncaisser(d) > 0 ? 'en attente' : 'réglé',
@@ -1664,11 +2126,29 @@
     if (!bouton) { return; }
     filtre = bouton.getAttribute('data-filtre');
     el('a-filtres').querySelectorAll('[data-filtre]').forEach(function (b) {
-      b.classList.toggle('actif-filtre', b === bouton);
+      b.classList.toggle('actif-filtre', b === bouton); b.setAttribute('aria-pressed',String(b===bouton));
     });
     afficherDemandes();
   });
 
+  ['f-type','f-suivi','f-tri'].forEach(function(id){if(el(id)){el(id).addEventListener('change',afficherDemandes);}});
+  if(el('f-paiement-recherche')){el('f-paiement-recherche').addEventListener('input',afficherPaiements);}
+  if(el('crm-refresh')){el('crm-refresh').addEventListener('click',function(){chargerDemandes();chargerFamilles();});}
+  if (el('crm-refunds-close')) { el('crm-refunds-close').addEventListener('click',function () {
+    retourNavigation();
+  }); }
+  if (el('crm-refunds-refresh')) { el('crm-refunds-refresh').addEventListener('click',function () { if (dossierRemboursement) { chargerVueRemboursements(dossierRemboursement); } }); }
+  el('b-stripe').disabled = !STRIPE_ACTIF;
+  el('b-stripe').textContent = STRIPE_ACTIF ? 'Vérifier les paiements Stripe' : 'En attente d’activation';
+  el('crm-stripe-title').textContent = STRIPE_ACTIF ? 'Rapprocher les paiements Stripe' : 'Stripe';
+  if (el('crm-stripe-description')) { el('crm-stripe-description').textContent = STRIPE_ACTIF
+    ? 'Retrouvez les règlements en ligne à associer aux inscriptions.' : STRIPE_EN_ATTENTE; }
+  if (!STRIPE_ACTIF) {
+    el('m-stripe').textContent = '';
+    el('stripe-propositions').innerHTML = '';
+    if (el('crm-refund-summary-status')) { el('crm-refund-summary-status').textContent = ''; }
+    el('crm-refunds-refresh').disabled = true;
+  }
   if (!nuage.configure()) { montrer('p-refuse'); return; }
   entrer();
 })();
