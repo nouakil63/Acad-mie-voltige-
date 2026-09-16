@@ -317,6 +317,12 @@
 <p id="crm-live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="crm-live-alert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></p>
 
+<script>
+/* Stripe activé dans le CRM : service Google v25 publié, clés en place et
+   migrations SQL jouées (voir README-CRM.md). Retirer cette ligne pour
+   revenir à l'état « en attente d'activation ». */
+window.AV_CRM_STRIPE_ACTIF = true;
+</script>
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=3"></script>
 <script src="../assets/js/admin-core.js?v=24"></script>
