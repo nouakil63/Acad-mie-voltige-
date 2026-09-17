@@ -36,14 +36,15 @@ L’aperçu fictif active Stripe explicitement. Ajouter `?stripe=off#paiements` 
    - `service/migrations/20260911_paiements_crm.sql`
    - `service/migrations/20260911_planning_crm.sql`
    - `service/migrations/20260912_remboursements_stripe.sql`
+   - `service/migrations/20260917_moyens_paiement_crm.sql`
 3. Dans le projet Google Apps Script existant, conserver les paramètres de production et remplacer le code par `service/Code.gs` version 24. Utiliser de préférence les propriétés de script `SUPABASE_URL`, `SUPABASE_CLE_SERVICE`, `STRIPE_CLE` et `CLE_PROSPECTION` (pour l’outil d’e-mails). Les constantes historiques restent des valeurs de repli ; ne pas remplacer une configuration fonctionnelle par les placeholders du dépôt. Conserver impérativement la propriété `secret` utilisée par les anciens liens signés. Les liens publics de paiement des stages déjà utilisés par l’académie sont conservés dans `PAIEMENTS`.
 4. Publier une nouvelle version du **déploiement Apps Script existant**, pour conserver l’URL `/exec` déjà utilisée par le site. Vérifier que la page d’information du service indique la version 24. Configurer Stripe selon la section suivante.
 5. Publier le frontend sur la branche de production `claude/academie-voltige-style-x4qbuv`, après réussite des tests. Les fichiers JS concernés ont de nouvelles versions de cache. Recharger le CRM et les éventuelles installations mobiles.
 6. Avec un compte administrateur, vérifier lecture des familles, notes, liste des demandes et planning. Tester une action métier uniquement sur un dossier de test identifié ; vérifier la boîte Gmail et le registre Supabase avant de confirmer le fonctionnement en production.
 
-Pour une installation neuve, exécuter d’abord `service/supabase.sql`, puis `service/supabase-admin.sql`, puis les quatre migrations ci-dessus.
+Pour une installation neuve, exécuter d’abord `service/supabase.sql`, puis `service/supabase-admin.sql`, puis les cinq migrations ci-dessus.
 
-Les migrations sont transactionnelles et peuvent être rejouées. La migration des notes retire `familles.note_admin` après copie : l’ancien frontend ne peut donc plus modifier les notes après cette étape. Le registre Stripe empêche la suppression physique d’un dossier ayant un règlement affecté ; utiliser son annulation pour conserver l’historique. La migration v24 impose une vérification Stripe récente avant les nouveaux rapprochements : coordonner sa publication avec le nouveau script.
+Les migrations sont transactionnelles et peuvent être rejouées. La migration des notes retire `familles.note_admin` après copie : l’ancien frontend ne peut donc plus modifier les notes après cette étape. Le registre Stripe empêche la suppression physique d’un dossier ayant un règlement affecté ; utiliser son annulation pour conserver l’historique. La migration v24 impose une vérification Stripe récente avant les nouveaux rapprochements : coordonner sa publication avec le nouveau script. La migration des moyens de paiement ajoute `acompte_moyen`, `solde_moyen` et `paye_moyen` à `demandes` et reprend en « stripe » les versements déjà rapprochés du registre. Les versements notés à la main avant cette migration restent sans moyen connu : ils sont comptés à part dans le tableau de bord plutôt que devinés, et se corrigent en retirant puis en renotant le règlement.
 
 ## Activer les remboursements Stripe
 

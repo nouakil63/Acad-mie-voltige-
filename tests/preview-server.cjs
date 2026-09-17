@@ -14,11 +14,11 @@ const next=new Date(now);next.setDate(next.getDate()+(6-next.getDay()+7)%7);
 const saturday=localDay(next);
 const requests=[
  {id:id(10),type:'cours',enfant:'Éloïse Martin',parent_nom:'Camille Martin',parent_email:'camille@example.test',detail:'Cours au trimestre',tarif:'325 €',statut:'en attente',cree:today+'T09:20:00Z',jeton_d:'fixture',jeton_s:'fixture'},
- {id:id(11),type:'stage',enfant:'Gabriel Laurent',parent_nom:'Alex Laurent',parent_email:'alex@example.test',detail:'Stage de la Toussaint (Du 19 au 24 octobre 2026)',tarif:'840 €',statut:'validée',cree:'2026-09-01T14:00:00Z',acompte_paye:true,acompte_le:'2026-08-28',solde_paye:false},
+ {id:id(11),type:'stage',enfant:'Gabriel Laurent',parent_nom:'Alex Laurent',parent_email:'alex@example.test',detail:'Stage de la Toussaint (Du 19 au 24 octobre 2026)',tarif:'840 €',statut:'validée',cree:'2026-09-01T14:00:00Z',acompte_paye:true,acompte_le:'2026-08-28',acompte_moyen:'virement',solde_paye:false},
  {id:id(12),type:'cours',enfant:'Louise Moreau',parent_nom:'Sacha Moreau',parent_email:'sacha@example.test',detail:'Cours à l’unité',tarif:'25 €',statut:'validée',cree:'2026-09-10T11:00:00Z'},
- {id:id(13),type:'cours',enfant:'Arthur Petit',parent_nom:'Charlie Petit',parent_email:'charlie@example.test',detail:'Cours à l’unité',tarif:'25 €',statut:'validée',cours_date:saturday,cours_heure:'10h00',paye:true,paye_montant:'25 €',paye_le:today,cree:'2026-09-08T11:00:00Z'},
+ {id:id(13),type:'cours',enfant:'Arthur Petit',parent_nom:'Charlie Petit',parent_email:'charlie@example.test',detail:'Cours à l’unité',tarif:'25 €',statut:'validée',cours_date:saturday,cours_heure:'10h00',paye:true,paye_montant:'25 €',paye_le:today,paye_moyen:'stripe',cree:'2026-09-08T11:00:00Z'},
  {id:id(14),type:'cours',enfant:'Emma Bernard',parent_nom:'Lou Bernard',parent_email:'lou@example.test',detail:'Cours au trimestre',tarif:'325 €',statut:'validée',cours_date:saturday,cours_heure:'14:00',cree:'2026-09-07T15:00:00Z'},
- {id:id(15),type:'stage',enfant:'Léon Dubois',parent_nom:'Morgan Dubois',parent_email:'morgan@example.test',detail:'Stage de la Toussaint (Du 26 au 31 octobre 2026)',tarif:'840 €',statut:'validée',acompte_paye:true,acompte_le:'2026-08-20',solde_paye:true,solde_le:today,cree:'2026-08-18T10:00:00Z'},
+ {id:id(15),type:'stage',enfant:'Léon Dubois',parent_nom:'Morgan Dubois',parent_email:'morgan@example.test',detail:'Stage de la Toussaint (Du 26 au 31 octobre 2026)',tarif:'840 €',statut:'validée',acompte_paye:true,acompte_le:'2026-08-20',acompte_moyen:'stripe',solde_paye:true,solde_le:today,solde_moyen:'virement',cree:'2026-08-18T10:00:00Z'},
  {id:id(16),type:'cours',enfant:'Jade Leroy',parent_nom:'Alix Leroy',parent_email:'alix@example.test',detail:'Cours à l’unité',tarif:'25 €',statut:'refusée (Complet)',cree:'2026-09-06T10:00:00Z'},
  {id:id(17),type:'cours',enfant:'Malo Roux',parent_nom:'Noa Roux',parent_email:'noa@example.test',detail:'Cours à l’unité',tarif:'25 €',statut:'validée',paye:true,paye_montant:'25 €',paye_le:'2026-09-03',annule:true,rembourse_montant:'25 €',cree:'2026-09-02T10:00:00Z'}
 ];
@@ -66,7 +66,7 @@ const server=http.createServer(async(req,res)=>{
      const payment={session_id:'cs_fixture_1',email:'sacha@example.test',montant:25,montant_centimes:2500,quand:today,statut:'propose',demande_id:id(12),nature:'cours',candidats:[{demande_id:id(12),enfant:'Louise Moreau'}]};
      json(res,{ok:true,version:22,paiements:[payment],propositions:[payment],bilan:{proposes:1}});return;
     }
-    if(data.type==='stripe-rapprocher'){let row=requests.find(x=>x.id===data.demande_id);Object.assign(row,{paye:true,paye_le:today,paye_montant:'25 €'});json(res,{ok:true,demande:row,paiement:{session_id:data.session_id},deja_rapproche:false});return;}
+    if(data.type==='stripe-rapprocher'){let row=requests.find(x=>x.id===data.demande_id);Object.assign(row,{paye:true,paye_le:today,paye_montant:'25 €',paye_moyen:'stripe'});json(res,{ok:true,demande:row,paiement:{session_id:data.session_id},deja_rapproche:false});return;}
     let result=data.type==='infos-cours'?'ok infos':'ok relance;parent@example.test';
     if(data.type==='decision'){
      const row=requests.find(x=>x.jeton_d===data.d && x.jeton_s===data.s);

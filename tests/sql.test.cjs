@@ -300,3 +300,53 @@ test('les quatre migrations ensemble autorisent paiement, remboursement Stripe e
   assert.equal(after.rembourse_montant, null);
   assert.equal((await parent(db, tx => tx.query('select * from crm_etats_stripe'))).rows.length, 0);
 });
+
+test('migration moyens : reprise de l’historique, contrainte et estampille Stripe', async t => {
+  const db = await database(); t.after(() => db.close());
+  await db.exec(sql('20260911_paiements_crm.sql'));
+
+  // État v22 : un cours rapproché d'une session Stripe, un autre noté à la main.
+  const rapproche = await demande(db), aLaMain = await demande(db);
+  await paiement(db, 'cs_hist_1', 2500);
+  await admin(db, tx => apply(tx, rapproche, 'cs_hist_1'));
+  await db.query("update demandes set paye=true,paye_le=current_date,paye_montant='25 €' where id=$1", [aLaMain]);
+
+  await db.exec(sql('20260917_moyens_paiement_crm.sql'));
+
+  await t.test('seul un versement venu du registre Stripe est estampillé', async () => {
+    assert.equal((await db.query('select paye_moyen from demandes where id=$1', [rapproche])).rows[0].paye_moyen, 'stripe');
+    assert.equal((await db.query('select paye_moyen from demandes where id=$1', [aLaMain])).rows[0].paye_moyen, null);
+    assert.equal((await db.query('select paye from demandes where id=$1', [aLaMain])).rows[0].paye, true);
+  });
+
+  await t.test('aucun moyen hors stripe/virement n’entre en base', async () => {
+    await assert.rejects(db.query("update demandes set paye_moyen='especes' where id=$1", [aLaMain]), error => error.code === '23514');
+    await assert.rejects(db.query("update demandes set acompte_moyen='Stripe' where id=$1", [aLaMain]), error => error.code === '23514');
+    await db.query("update demandes set paye_moyen='virement' where id=$1", [aLaMain]);
+    assert.equal((await db.query('select paye_moyen from demandes where id=$1', [aLaMain])).rows[0].paye_moyen, 'virement');
+  });
+
+  await t.test('le rapprochement Stripe estampille l’acompte puis le solde d’un stage', async () => {
+    const stage = await demande(db, { tarif: '840 €' });
+    await db.query("update demandes set type='stage' where id=$1", [stage]);
+    await paiement(db, 'cs_acompte', 30000);
+    await admin(db, tx => apply(tx, stage, 'cs_acompte'));
+    let row = (await db.query('select * from demandes where id=$1', [stage])).rows[0];
+    assert.equal(row.acompte_moyen, 'stripe');
+    assert.equal(row.solde_moyen, null);
+    assert.equal(row.paye_moyen, null);
+    await paiement(db, 'cs_solde', 54000);
+    await admin(db, tx => apply(tx, stage, 'cs_solde'));
+    row = (await db.query('select * from demandes where id=$1', [stage])).rows[0];
+    assert.equal(row.acompte_moyen, 'stripe');
+    assert.equal(row.solde_moyen, 'stripe');
+    assert.equal(row.paye_moyen, 'stripe');
+  });
+
+  await t.test('réexécution : le virement noté par l’académie n’est jamais réécrit', async () => {
+    await db.exec(sql('20260917_moyens_paiement_crm.sql'));
+    assert.equal((await db.query('select paye_moyen from demandes where id=$1', [aLaMain])).rows[0].paye_moyen, 'virement');
+    assert.equal((await db.query('select paye_moyen from demandes where id=$1', [rapproche])).rows[0].paye_moyen, 'stripe');
+    assert.equal((await db.query("select count(*)::int as n from pg_constraint where conname='demandes_moyens_connus'")).rows[0].n, 1);
+  });
+});

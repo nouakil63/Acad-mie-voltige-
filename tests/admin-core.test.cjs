@@ -161,3 +161,50 @@ test('erreur d’une page, doublon ou changement de total ne donnent jamais de f
   await assert.rejects(core.loadAll(async()=>response([{id:1}],2),'/data','id'),/changé/);
   calls=0;await assert.rejects(core.loadAll(async()=>response([{id:++calls}],calls===1?2:3),'/data','id'),/changé/);
 });
+
+test('répartition par moyen : le détail redonne toujours l’encaissé brut', () => {
+  const rows = [
+    {type:'stage',tarif:'840 €',statut:'validée',acompte_paye:true,acompte_le:'2026-09-02',acompte_moyen:'virement',
+      solde_paye:true,solde_le:'2026-09-20',solde_moyen:'stripe'},
+    {type:'cours',tarif:'30 €',statut:'validée',paye:true,paye_montant:'30 €',paye_le:'2026-09-06',paye_moyen:'virement'},
+    {type:'cours',tarif:'325 €',statut:'validée',paye:true,paye_montant:'325 €',paye_le:'2026-08-30',paye_moyen:'stripe'},
+    /* dossier antérieur au suivi des moyens : compté, jamais deviné */
+    {type:'cours',tarif:'25 €',statut:'validée',paye:true,paye_montant:'25 €',paye_le:'2026-09-09'},
+    {type:'cours',tarif:'30 €',statut:'validée',paye:false}
+  ];
+  const tout = core.receivedByMethod(rows);
+  assert.deepEqual(tout,{stripe:865,virement:330,inconnu:25});
+  const brut = rows.reduce((somme,d)=>somme + core.paid(d),0);
+  assert.equal(tout.stripe + tout.virement + tout.inconnu,brut);
+
+  const septembre = core.receivedByMethod(rows,'2026-09');
+  assert.deepEqual(septembre,{stripe:540,virement:330,inconnu:25});
+  assert.equal(septembre.stripe + septembre.virement + septembre.inconnu,
+    rows.reduce((somme,d)=>somme + core.receivedInMonth(d,'2026-09'),0));
+  assert.deepEqual(core.receivedByMethod([]),{stripe:0,virement:0,inconnu:0});
+  assert.deepEqual(core.receivedByMethod(rows,'2026-07'),{stripe:0,virement:0,inconnu:0});
+});
+
+test('un moyen inattendu est classé « non précisé » plutôt que compté comme reçu en ligne', () => {
+  assert.equal(core.method('stripe'),'stripe');
+  assert.equal(core.method('virement'),'virement');
+  ['especes','Stripe','VIREMENT','',null,undefined,0].forEach(v=>assert.equal(core.method(v),'inconnu'));
+  assert.equal(core.methodLabel('stripe'),'Stripe');
+  assert.equal(core.methodLabel('virement'),'virement');
+  assert.equal(core.methodLabel('cheque'),'moyen non précisé');
+  const bricole = [{type:'cours',tarif:'30 €',statut:'validée',paye:true,paye_montant:'30 €',paye_le:'2026-09-06',paye_moyen:'especes'}];
+  assert.deepEqual(core.receivedByMethod(bricole),{stripe:0,virement:0,inconnu:30});
+});
+
+test('solder un stage en une fois conserve le moyen des versements déjà notés', () => {
+  const stage = {type:'stage',tarif:'840 €',statut:'validée',acompte_paye:true,acompte_le:'2026-08-20',acompte_moyen:'stripe',solde_paye:false,paye:false};
+  const patch = core.totalPaymentPatch(stage,'2026-09-11','virement');
+  assert.equal(patch.acompte_moyen,'stripe');
+  assert.equal(patch.solde_moyen,'virement');
+  assert.equal(patch.paye_moyen,'virement');
+  assert.deepEqual(core.receivedByMethod([{...stage,...patch}]),{stripe:300,virement:540,inconnu:0});
+  /* sans moyen transmis, rien n'est inventé : le versement reste non précisé */
+  assert.equal(core.totalPaymentPatch(stage,'2026-09-11').solde_moyen,null);
+  assert.equal(core.totalPaymentPatch(stage,'2026-09-11','especes').solde_moyen,null);
+  assert.equal(stage.solde_moyen,undefined);
+});

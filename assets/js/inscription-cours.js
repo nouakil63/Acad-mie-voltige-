@@ -8,7 +8,7 @@
 
   /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
   var PAIEMENTS = {
-    unite: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00',      /* 25 € — cours à l'unité */
+    unite: 'https://buy.stripe.com/3cI28rbRL97072o4vE4ow07',      /* 30 € — cours à l'unité */
     trimestre: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01'   /* 325 € — trimestre */
   };
 
@@ -77,7 +77,7 @@
   function tarifChoisi() {
     var p = paiementChoisi();
     if (p === 'trimestre') { return '325 € / trimestre'; }
-    if (p === 'unite') { return '25 € / cours'; }
+    if (p === 'unite') { return '30 € / cours'; }
     return '';
   }
   function majRecap() {
@@ -107,7 +107,7 @@
       annee: '2026/2027',
       formule: resumeCours() || 'Cours à l’unité',
       creneau: 'Le samedi, créneau à convenir par téléphone',
-      tarif: tarifChoisi() || '25 € / cours ou 325 € / trimestre',
+      tarif: tarifChoisi() || '30 € / cours ou 325 € / trimestre',
       paiement: paiementChoisi(),
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
       enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),
@@ -213,7 +213,7 @@
       '',
       '--------------------------------------------------',
       'Pour l’académie — à joindre à la réponse de validation :',
-      '· Paiement du cours à l’unité (25 €) :',
+      '· Paiement du cours à l’unité (30 €) :',
       PAIEMENTS.unite,
       '· Paiement du trimestre (325 €) :',
       PAIEMENTS.trimestre,

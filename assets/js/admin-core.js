@@ -35,14 +35,20 @@
     }
     return '';
   }
-  function totalPaymentPatch(d, day) {
+  function totalPaymentPatch(d, day, moyen) {
+    // Un versement déjà noté garde sa date et son moyen : le règlement
+    // en une fois ne réécrit que ce qui manquait encore.
+    var choisi = moyen === 'stripe' || moyen === 'virement' ? moyen : null;
     return {
       acompte_paye: true,
       acompte_le: d.acompte_paye ? d.acompte_le || null : day,
+      acompte_moyen: d.acompte_paye ? d.acompte_moyen || null : choisi,
       solde_paye: true,
       solde_le: d.solde_paye ? d.solde_le || null : day,
+      solde_moyen: d.solde_paye ? d.solde_moyen || null : choisi,
       paye: true,
       paye_le: d.paye ? d.paye_le || null : day,
+      paye_moyen: d.paye ? d.paye_moyen || null : choisi,
       paye_montant: d.tarif || ''
     };
   }
@@ -59,6 +65,34 @@
         (d.solde_paye && during(d.solde_le) ? Math.max(total(d) - deposit(d), 0) : 0);
     }
     return during(d.paye_le) ? paid(d) : 0;
+  }
+  // Le moyen de chaque versement : Stripe (rapproché depuis le registre)
+  // ou virement noté par l'académie. Un versement enregistré avant cette
+  // colonne reste « inconnu » : il n'est jamais deviné, seulement affiché
+  // à part pour que la somme des moyens reste égale à l'encaissé brut.
+  function method(value) {
+    return value === 'stripe' || value === 'virement' ? value : 'inconnu';
+  }
+  function methodLabel(value) {
+    return { stripe: 'Stripe', virement: 'virement', inconnu: 'moyen non précisé' }[method(value)];
+  }
+  function receivedByMethod(rows, month) {
+    var split = { stripe: 0, virement: 0, inconnu: 0 };
+    function during(day) { return !month || String(day || '').slice(0, 7) === month; }
+    function add(moyen, amount) {
+      if (!(amount > 0)) { return; }
+      var key = method(moyen);
+      split[key] = Math.round((split[key] + amount) * 100) / 100;
+    }
+    (rows || []).forEach(function (d) {
+      if (d.type === 'stage') {
+        if (d.acompte_paye && during(d.acompte_le)) { add(d.acompte_moyen, deposit(d)); }
+        if (d.solde_paye && during(d.solde_le)) { add(d.solde_moyen, Math.max(total(d) - deposit(d), 0)); }
+      } else if (d.paye && during(d.paye_le)) {
+        add(d.paye_moyen, paid(d));
+      }
+    });
+    return split;
   }
   function normalize(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -197,5 +231,6 @@
     normalize: normalize, matches: matches, filterRequests: filterRequests, time: time, scheduleKey: scheduleKey,
     validateSchedule: validateSchedule, loadAll: loadAll, refundAmountCents: refundAmountCents,
     refundValidation: refundValidation, refundStatus: refundStatus, refundRecovery: refundRecovery,
-    refundCanForget: refundCanForget };
+    refundCanForget: refundCanForget, method: method, methodLabel: methodLabel,
+    receivedByMethod: receivedByMethod };
 }));
