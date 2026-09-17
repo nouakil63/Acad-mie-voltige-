@@ -1253,8 +1253,8 @@
       validate:function (v) { return erreurAge(v.age); },
       onChange:function (name, value, controls) {
         if (name !== 'type') { return; }
-        var ancienTarif = value === 'stage' ? '25' : '840';
-        if (controls.tarif.value === ancienTarif) { controls.tarif.value = value === 'stage' ? '840' : '25'; }
+        var ancienTarif = value === 'stage' ? '30' : '840';
+        if (controls.tarif.value === ancienTarif) { controls.tarif.value = value === 'stage' ? '840' : '30'; }
         if (!controls.detail.value || controls.detail.value === 'Cours à l’unité' || controls.detail.value === 'Stage — dates à préciser') {
           controls.detail.value = value === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité';
         }
@@ -1265,7 +1265,7 @@
       {name:'parent_nom',label:'Nom du parent'},
       {name:'parent_email',label:'E-mail du parent',type:'email'},
       {name:'detail',label:'Formule ou stage et dates',required:true,value:options.detail || (options.type === 'stage' ? 'Stage — dates à préciser' : 'Cours à l’unité')},
-      {name:'tarif',label:'Tarif total (€)',type:'number',required:true,min:'0.01',step:'0.01',value:options.type === 'stage' ? '840' : '25'},
+      {name:'tarif',label:'Tarif total (€)',type:'number',required:true,min:'0.01',step:'0.01',value:options.type === 'stage' ? '840' : '30'},
       {name:'statut',label:'Statut initial',type:'select',value:'en attente',options:[{value:'en attente',label:'En attente de validation'},{value:'validée',label:'Validée'}]}
     ]});
     if (!valeurs) { return; }
@@ -1675,7 +1675,7 @@
       {name:'heure',label:'Heure du cours',type:'time',required:true,value:core.time(heureInitiale) || '10:00'}]});
     if (!valeurs) { return; }
     await operation('nouvel-inscrit',async function () {
-      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'25 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:lignesAvecAge('Ajoutée à la main depuis l’espace académie.',valeurs.age),cours_date:date,cours_heure:valeurs.heure});
+      var d=await creerDemande({type:'cours',enfant:valeurs.enfant.trim(),parent_nom:'',parent_email:valeurs.email.trim(),detail:'Cours à l’unité',tarif:'30 € / cours',statut:'validée',decide:new Date().toISOString(),lignes:lignesAvecAge('Ajoutée à la main depuis l’espace académie.',valeurs.age),cours_date:date,cours_heure:valeurs.heure});
       if (d.parent_email && await confirmer('Inscrit ajouté. Envoyer les informations du cours à '+d.parent_email+' ?')) { await envoyerInfosCours(d,true); }
     });
   }

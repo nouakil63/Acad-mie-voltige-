@@ -107,7 +107,7 @@ var CLE_PROSPECTION = 'CHANGEZ-MOI';
 
 /* Liens de paiement Stripe (publics) */
 var PAIEMENTS = {
-  cours_unite:     { libelle: 'Payer le cours (25 €)',        url: 'https://buy.stripe.com/3cI3cvcVPfvo72od2a4ow00' },
+  cours_unite:     { libelle: 'Payer le cours (30 €)',        url: 'https://buy.stripe.com/3cI28rbRL97072o4vE4ow07' },
   cours_trimestre: { libelle: 'Payer le trimestre (325 €)',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
   stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' },
   /* Les stages se règlent en deux temps : l'acompte de 300 € à
@@ -207,7 +207,7 @@ function doPost(e) {
     ['Formule', nettoyer(d.formule)],
     ['Créneau', nettoyer(d.creneau)],
     ['Tarif', nettoyer(d.tarif)],
-    ['Règlement choisi', paiement === 'unite' ? 'Au cours (25 €)' : paiement === 'trimestre' ? 'Au trimestre (325 €)' : '—'],
+    ['Règlement choisi', paiement === 'unite' ? 'Au cours (30 €)' : paiement === 'trimestre' ? 'Au trimestre (325 €)' : '—'],
     ['Voltigeur', enfant],
     ['Date de naissance', nettoyer(d.enfantNaissance)],
     ['Gabarit', nettoyer(d.gabarit)],
