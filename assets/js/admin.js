@@ -890,7 +890,7 @@
   function montantNumerique(texte) { return core.money(texte); }
 
   async function marquerPaye(d) {
-    var valeurs = await ui.form({title:'Enregistrer un règlement',description:d.enfant + ' · indiquez le règlement complet déjà reçu. Pour corriger le prix convenu, modifiez d’abord le tarif de la demande.',submitLabel:'Enregistrer le règlement',
+    var valeurs = await ui.form({title:'Enregistrer un règlement',description:d.enfant + ' · un règlement payé par le lien Stripe est rapproché tout seul : ne notez ici que ce que vous avez reçu autrement, par virement. Pour corriger le prix convenu, modifiez d’abord le tarif de la demande.',submitLabel:'Enregistrer le règlement',
       fields:[{name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(core.total(d))},
         {name:'date',label:'Date du règlement',type:'date',required:true,max:isoLocal(new Date()),value:isoLocal(new Date())},
         champMoyen()]});
@@ -1118,8 +1118,8 @@
       actions.principale(lienAction('Modifier le montant', function () { modifierMontant(d); }));
       secondaires.appendChild(actionSensible('Retirer la marque « payé »', function () { annulerPaye(d); }));
     } else {
-      actions.principale(lienAction('Marquer payé', function () { marquerPaye(d); }));
-      secondaires.appendChild(lienAction('Relancer le paiement', function () { relancer(d, 'paiement'); }));
+      actions.principale(lienAction('Relancer le paiement', function () { relancer(d, 'paiement'); }));
+      secondaires.appendChild(lienAction('Noter un règlement reçu par virement', function () { marquerPaye(d); }));
     }
     if (d.type !== 'stage' && groupe !== 'annule') {
       secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
@@ -1395,7 +1395,7 @@
     } else if (d.paye) {
       badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '') + ' · ' + core.methodLabel(d.paye_moyen)));
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
-      paiementCours = lienAction('Marquer payé', function () { marquerPaye(d); });
+      paiementCours = lienAction('Noter un règlement reçu par virement', function () { marquerPaye(d); });
     }
 
     if (estCours(d)) {
@@ -1407,9 +1407,8 @@
         actions.principale(lienAction('Planifier le cours', function () { planifierCours(d); }));
         if (paiementCours) { secondaires.appendChild(paiementCours); }
       } else {
-        var renvoyer = lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); });
-        if (paiementCours) { actions.principale(paiementCours); secondaires.appendChild(renvoyer); }
-        else { actions.principale(renvoyer); }
+        actions.principale(lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); }));
+        if (paiementCours) { secondaires.appendChild(paiementCours); }
         secondaires.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
       }
     }
