@@ -1430,6 +1430,16 @@
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
       actions.principale(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
     }
+    /* Les mêmes marquages que dans l'onglet Paiements : le dossier s'ouvre
+       aussi bien d'ici, et un virement se note sans changer d'onglet. */
+    if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && !(d.acompte_paye && d.solde_paye)) {
+      if (!d.acompte_paye) {
+        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { marquerAcompte(d); }));
+      } else if (!d.solde_paye) {
+        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { marquerSolde(d); }));
+      }
+      secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { reglerTotalite(d); }));
+    }
 
     if (d.lignes) {
       var plus = elementFiche('details', 'crm-dossier-details');
