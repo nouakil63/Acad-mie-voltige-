@@ -245,6 +245,16 @@
     tuile(encaisseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts en tout', true);
     tuile(rembourseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'remboursements déclarés', true);
 
+    /* D'où vient l'argent reçu : le lien de paiement Stripe, ou un virement
+       noté à la main. Les versements enregistrés avant le suivi des moyens
+       restent comptés à part, pour que le détail redonne toujours le total. */
+    var repartition = core.receivedByMethod(demandes);
+    tuile(repartition.stripe.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus par Stripe', true);
+    tuile(repartition.virement.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus par virement', true);
+    if (repartition.inconnu > 0) {
+      tuile(repartition.inconnu.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus, moyen non précisé', true);
+    }
+
     /* « À traiter » : tout ce qui attend un clic, avec les actions directes. */
     function tacheAccueil(d, detail) {
       var li = elementFiche('li','crm-task-item');
@@ -477,13 +487,30 @@
     });
   }
 
+  /* Comment ce versement est arrivé. Un règlement noté à la main vient
+     presque toujours d'un virement : c'est la proposition par défaut.
+     « Stripe » reste possible pour un paiement en ligne noté avant le
+     rapprochement, afin que les deux totaux ne se marchent pas dessus. */
+  function champMoyen() {
+    return {name:'moyen',label:'Reçu par',type:'select',value:'virement',options:[
+      {value:'virement',label:'Virement bancaire'},
+      {value:'stripe',label:'Stripe (lien de paiement)'}]};
+  }
+  function moyenChoisi(valeurs) { return valeurs && valeurs.moyen === 'stripe' ? 'stripe' : 'virement'; }
+
   async function marquerAcompte(d) {
-    if (!await confirmer('Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()) });
+    var valeurs = await ui.form({title:'Acompte reçu',submitLabel:'Enregistrer l’acompte',
+      description:'Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + '.',
+      fields:[champMoyen()]});
+    if (!valeurs) { return; }
+    patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()), acompte_moyen: moyenChoisi(valeurs) });
   }
   async function marquerSolde(d) {
-    if (!await confirmer('Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()) });
+    var valeurs = await ui.form({title:'Solde reçu',submitLabel:'Enregistrer le solde',
+      description:'Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + '.',
+      fields:[champMoyen()]});
+    if (!valeurs) { return; }
+    patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()), solde_moyen: moyenChoisi(valeurs) });
   }
   async function annulerDemande(d) {
     var suiviStripe = resumesRemboursements[d.id] || {};
@@ -527,15 +554,20 @@
 
   async function retirerMarques(d) {
     if (!await confirmer('Retirer les marques « payé » (acompte + solde) sur le stage de ' + (d.enfant || 'ce voltigeur') + ' ?')) { return; }
-    patchDemande(d, { acompte_paye: false, acompte_le: null, solde_paye: false, solde_le: null, paye: false, paye_le: null, paye_montant: null });
+    patchDemande(d, { acompte_paye: false, acompte_le: null, acompte_moyen: null, solde_paye: false, solde_le: null, solde_moyen: null,
+      paye: false, paye_le: null, paye_montant: null, paye_moyen: null });
   }
 
   /* Un stage réglé d'un coup (par exemple payé en entier avant la mise
      en place de l'acompte) : tout est noté en un clic. */
   async function reglerTotalite(d) {
-    if (!await confirmer('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde) ?')) { return; }
+    var valeurs = await ui.form({title:'Réglé en totalité',submitLabel:'Enregistrer le règlement',
+      description:'Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde). ' +
+        'Un versement déjà noté garde sa date et son moyen.',
+      fields:[champMoyen()]});
+    if (!valeurs) { return; }
     var jour = isoLocal(new Date());
-    patchDemande(d, core.totalPaymentPatch(d, jour));
+    patchDemande(d, core.totalPaymentPatch(d, jour, moyenChoisi(valeurs)));
   }
 
   /* ---- La vérification des paiements sur Stripe ----
@@ -860,15 +892,16 @@
   async function marquerPaye(d) {
     var valeurs = await ui.form({title:'Enregistrer un règlement',description:d.enfant + ' · indiquez le règlement complet déjà reçu. Pour corriger le prix convenu, modifiez d’abord le tarif de la demande.',submitLabel:'Enregistrer le règlement',
       fields:[{name:'montant',label:'Montant total encaissé (€)',type:'number',required:true,min:String(core.total(d) || 0.01),step:'0.01',value:String(core.total(d))},
-        {name:'date',label:'Date du règlement',type:'date',required:true,max:isoLocal(new Date()),value:isoLocal(new Date())}]});
+        {name:'date',label:'Date du règlement',type:'date',required:true,max:isoLocal(new Date()),value:isoLocal(new Date())},
+        champMoyen()]});
     if (!valeurs) { return; }
     if (Number(valeurs.montant) <= 0) { notifier('Le montant doit être supérieur à zéro.',true); return; }
-    return patchDemande(d,{paye:true,paye_le:valeurs.date,paye_montant:Number(valeurs.montant) + ' €'});
+    return patchDemande(d,{paye:true,paye_le:valeurs.date,paye_montant:Number(valeurs.montant) + ' €',paye_moyen:moyenChoisi(valeurs)});
   }
 
   async function annulerPaye(d) {
     if (await confirmer('Retirer le règlement déclaré pour ' + d.enfant + ' ? Aucun remboursement bancaire ne sera effectué.',true)) {
-      return patchDemande(d,{paye:false,paye_le:null,paye_montant:null});
+      return patchDemande(d,{paye:false,paye_le:null,paye_montant:null,paye_moyen:null});
     }
   }
 
@@ -1046,10 +1079,10 @@
       badges.appendChild(elementFiche('span', 'pastille refusee', 'Inscription annulée'));
       badges.appendChild(elementFiche('span', 'crm-record-meta', remboursement ? 'Remboursement déclaré' : 'Sans remboursement'));
     } else if (d.type === 'stage') {
-      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
-      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu · ' + core.methodLabel(d.acompte_moyen) : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu · ' + core.methodLabel(d.solde_moyen) : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      badges.appendChild(pastilleEtat(reste > 0 ? 'Partiellement réglé' : 'Réglé', reste === 0));
+      badges.appendChild(pastilleEtat((reste > 0 ? 'Partiellement réglé' : 'Réglé') + ' · ' + core.methodLabel(d.paye_moyen), reste === 0));
     } else {
       badges.appendChild(pastilleEtat('À régler', false));
     }
@@ -1357,10 +1390,10 @@
     if (d.annule) {
       badges.appendChild(elementFiche('span', 'pastille refusee', 'Annulée'));
     } else if (d.type === 'stage' && classeStatut(d.statut) === 'validee') {
-      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu' : 'Acompte dû', !!d.acompte_paye));
-      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu' : 'Solde dû', !!d.solde_paye));
+      badges.appendChild(pastilleEtat(d.acompte_paye ? 'Acompte reçu · ' + core.methodLabel(d.acompte_moyen) : 'Acompte dû', !!d.acompte_paye));
+      badges.appendChild(pastilleEtat(d.solde_paye ? 'Solde reçu · ' + core.methodLabel(d.solde_moyen) : 'Solde dû', !!d.solde_paye));
     } else if (d.paye) {
-      badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '')));
+      badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '') + ' · ' + core.methodLabel(d.paye_moyen)));
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
       paiementCours = lienAction('Marquer payé', function () { marquerPaye(d); });
     }
