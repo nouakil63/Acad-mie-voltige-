@@ -500,14 +500,16 @@
 
   async function marquerAcompte(d) {
     var valeurs = await ui.form({title:'Acompte reçu',submitLabel:'Enregistrer l’acompte',
-      description:'Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') + '.',
+      description:'Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') +
+        '. Un acompte payé par le lien Stripe est rapproché tout seul : ne le notez ici que s’il est arrivé autrement, par virement.',
       fields:[champMoyen()]});
     if (!valeurs) { return; }
     patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()), acompte_moyen: moyenChoisi(valeurs) });
   }
   async function marquerSolde(d) {
     var valeurs = await ui.form({title:'Solde reçu',submitLabel:'Enregistrer le solde',
-      description:'Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') + '.',
+      description:'Noter le solde comme reçu pour ' + (d.enfant || 'ce voltigeur') +
+        '. Un solde payé par le lien Stripe est rapproché tout seul : ne le notez ici que s’il est arrivé autrement, par virement.',
       fields:[champMoyen()]});
     if (!valeurs) { return; }
     patchDemande(d, { solde_paye: true, solde_le: isoLocal(new Date()), solde_moyen: moyenChoisi(valeurs) });
@@ -563,6 +565,7 @@
   async function reglerTotalite(d) {
     var valeurs = await ui.form({title:'Réglé en totalité',submitLabel:'Enregistrer le règlement',
       description:'Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité (acompte + solde). ' +
+        'Un règlement payé par le lien Stripe est rapproché tout seul : ne le notez ici que s’il est arrivé autrement, par virement. ' +
         'Un versement déjà noté garde sa date et son moyen.',
       fields:[champMoyen()]});
     if (!valeurs) { return; }
@@ -1102,14 +1105,14 @@
       actions.principale(lienAction('Rétablir l’inscription', function () { retablirDemande(d); }));
     } else if (d.type === 'stage') {
       if (!d.acompte_paye) {
-        actions.principale(lienAction('Acompte reçu', function () { marquerAcompte(d); }));
-        secondaires.appendChild(lienAction('Relancer l’acompte', function () { relancer(d, 'acompte'); }));
+        actions.principale(lienAction('Relancer l’acompte', function () { relancer(d, 'acompte'); }));
+        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { marquerAcompte(d); }));
       } else if (!d.solde_paye) {
-        actions.principale(lienAction('Solde reçu', function () { marquerSolde(d); }));
-        secondaires.appendChild(lienAction('Relancer le solde', function () { relancer(d, 'solde'); }));
+        actions.principale(lienAction('Relancer le solde', function () { relancer(d, 'solde'); }));
+        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { marquerSolde(d); }));
       }
       if (!(d.acompte_paye && d.solde_paye)) {
-        secondaires.appendChild(lienAction('Réglé en totalité', function () { reglerTotalite(d); }));
+        secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { reglerTotalite(d); }));
       } else {
         secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { retirerMarques(d); }));
       }
