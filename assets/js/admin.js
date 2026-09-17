@@ -89,7 +89,7 @@
     }
   }
   async function operation(cle, action) {
-    if (operations.has(cle)) { return null; }
+    if (operations.has(cle)) { notifier('Action déjà en cours. Patientez un instant.'); return null; }
     operations.add(cle);
     try { return await action(); }
     catch (erreur) { notifier(erreur.message || 'L’action n’a pas abouti. Réessayez.', true); return null; }
@@ -268,7 +268,7 @@
       return {ligne:li,actions:actions};
     }
     function ouvrirDepuisAccueil(d) {
-      var bouton = lienAction('Ouvrir le dossier', function () { allerDemande(d); });
+      var bouton = lienAction('Ouvrir le dossier', function () { return allerDemande(d); });
       bouton.setAttribute('data-record-open','accueil-demande:' + d.id);
       return bouton;
     }
@@ -279,7 +279,7 @@
       enAttente.forEach(function (d) {
         var tache = tacheAccueil(d,(d.type === 'stage' ? 'Stage' : 'Cours') + ' · À valider');
         if (d.jeton_d && d.jeton_s) {
-          tache.actions.appendChild(lienAction('Valider', function () { decider(d, 'valider', null, null); }));
+          tache.actions.appendChild(lienAction('Valider', function () { return decider(d, 'valider', null, null); }));
         } else {
           tache.actions.appendChild(lienAction('Marquer validée', async function () {
             if (!await confirmer('Noter la demande de ' + (d.enfant || 'ce voltigeur') + ' comme validée ? (Aucun mail ne part.)')) { return; }
@@ -291,7 +291,7 @@
       });
       coursAPlanifier().forEach(function (d) {
         var tache = tacheAccueil(d,'Cours · Créneau à prévoir');
-        tache.actions.appendChild(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        tache.actions.appendChild(lienAction('Planifier le cours', function () { return planifierCours(d); }));
         tache.actions.appendChild(ouvrirDepuisAccueil(d));
         lTraiter.appendChild(tache.ligne);
       });
@@ -309,7 +309,7 @@
     lRelances.innerHTML = '';
     aRelancer.forEach(function (d) {
       var tache = tacheAccueil(d,'Stage · ' + (!d.acompte_paye ? 'Acompte de 300 € en attente' : 'Solde à relancer'));
-      tache.actions.appendChild(lienAction('Relancer', function () { relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
+      tache.actions.appendChild(lienAction('Relancer', function () { return relancer(d, d.acompte_paye ? 'solde' : 'acompte'); }));
       tache.actions.appendChild(ouvrirDepuisAccueil(d));
       lRelances.appendChild(tache.ligne);
     });
@@ -992,7 +992,7 @@
     copie.appendChild(elementFiche('span', 'crm-task-title', genre === 'stage' ? titre.replace(/\s*\([^)]*\)\s*$/, '') : titre));
     copie.appendChild(elementFiche('span', 'crm-task-meta', contexte));
     ligne.appendChild(copie);
-    var ouvrir = lienAction('Voir', function () { ouvrirDetail(genre, cle); });
+    var ouvrir = lienAction('Voir', function () { return ouvrirDetail(genre, cle); });
     ouvrir.classList.add('crm-agenda-open');
     ouvrir.setAttribute('aria-label', 'Voir les inscrits : ' + titre + (date ? ' du ' + jourLisible(date) : ''));
     ouvrir.setAttribute('data-record-open', 'accueil-' + genre + ':' + cle);
@@ -1102,30 +1102,30 @@
     var actions = actionsFiche(d, detail);
     var secondaires = actions.secondaires;
     if (groupe === 'annule') {
-      actions.principale(lienAction('Rétablir l’inscription', function () { retablirDemande(d); }));
+      actions.principale(lienAction('Rétablir l’inscription', function () { return retablirDemande(d); }));
     } else if (d.type === 'stage') {
       if (!d.acompte_paye) {
-        actions.principale(lienAction('Relancer l’acompte', function () { relancer(d, 'acompte'); }));
-        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { marquerAcompte(d); }));
+        actions.principale(lienAction('Relancer l’acompte', function () { return relancer(d, 'acompte'); }));
+        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { return marquerAcompte(d); }));
       } else if (!d.solde_paye) {
-        actions.principale(lienAction('Relancer le solde', function () { relancer(d, 'solde'); }));
-        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { marquerSolde(d); }));
+        actions.principale(lienAction('Relancer le solde', function () { return relancer(d, 'solde'); }));
+        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { return marquerSolde(d); }));
       }
       if (!(d.acompte_paye && d.solde_paye)) {
-        secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { reglerTotalite(d); }));
+        secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { return reglerTotalite(d); }));
       } else {
-        secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { retirerMarques(d); }));
+        secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { return retirerMarques(d); }));
       }
-      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { return annulerDemande(d); }));
     } else if (groupe === 'regle') {
-      actions.principale(lienAction('Modifier le montant', function () { modifierMontant(d); }));
-      secondaires.appendChild(actionSensible('Retirer la marque « payé »', function () { annulerPaye(d); }));
+      actions.principale(lienAction('Modifier le montant', function () { return modifierMontant(d); }));
+      secondaires.appendChild(actionSensible('Retirer la marque « payé »', function () { return annulerPaye(d); }));
     } else {
-      actions.principale(lienAction('Relancer le paiement', function () { relancer(d, 'paiement'); }));
-      secondaires.appendChild(lienAction('Noter un règlement reçu par virement', function () { marquerPaye(d); }));
+      actions.principale(lienAction('Relancer le paiement', function () { return relancer(d, 'paiement'); }));
+      secondaires.appendChild(lienAction('Noter un règlement reçu par virement', function () { return marquerPaye(d); }));
     }
     if (d.type !== 'stage' && groupe !== 'annule') {
-      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { annulerDemande(d); }));
+      secondaires.appendChild(actionSensible('Annuler / déclarer un remboursement', function () { return annulerDemande(d); }));
     }
     if (STRIPE_ACTIF && (recu > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
@@ -1372,7 +1372,7 @@
     var paiementCours;
 
     if (classeStatut(d.statut) === 'attente' && d.jeton_d && d.jeton_s) {
-      var valider = actions.principale(lienAction('Valider', function () { decider(d, 'valider', null, c); }));
+      var valider = actions.principale(lienAction('Valider', function () { return decider(d, 'valider', null, c); }));
       var motif = elementFiche('select', 'crm-refusal-reason');
       motif.setAttribute('aria-label', 'Motif du refus pour ' + (d.enfant || 'ce voltigeur'));
       Object.keys(MOTIFS).forEach(function (cle) {
@@ -1381,7 +1381,7 @@
         motif.appendChild(o);
       });
       secondaires.appendChild(motif);
-      var refuser = actionSensible('Refuser', function () { decider(d, 'refuser', motif.value, c); });
+      var refuser = actionSensible('Refuser', function () { return decider(d, 'refuser', motif.value, c); });
       secondaires.appendChild(refuser);
       var etat = elementFiche('span', 'crm-record-meta crm-action-status');
       etat.setAttribute('role', 'status');
@@ -1398,7 +1398,7 @@
     } else if (d.paye) {
       badges.appendChild(elementFiche('span', 'pastille validee', 'Payé' + (d.paye_montant ? ' · ' + d.paye_montant : '') + ' · ' + core.methodLabel(d.paye_moyen)));
     } else if (d.type !== 'stage' && classeStatut(d.statut) === 'validee') {
-      paiementCours = lienAction('Noter un règlement reçu par virement', function () { marquerPaye(d); });
+      paiementCours = lienAction('Noter un règlement reçu par virement', function () { return marquerPaye(d); });
     }
 
     if (estCours(d)) {
@@ -1407,12 +1407,12 @@
         etatTd.appendChild(elementFiche('span', 'crm-record-schedule', jourLisible(d.cours_date) + (d.cours_heure ? ' · ' + d.cours_heure : '')));
       }
       if (!d.cours_date) {
-        actions.principale(lienAction('Planifier le cours', function () { planifierCours(d); }));
+        actions.principale(lienAction('Planifier le cours', function () { return planifierCours(d); }));
         if (paiementCours) { secondaires.appendChild(paiementCours); }
       } else {
-        actions.principale(lienAction('Renvoyer les infos et le lien', function () { envoyerInfosCours(d); }));
+        actions.principale(lienAction('Renvoyer les infos et le lien', function () { return envoyerInfosCours(d); }));
         if (paiementCours) { secondaires.appendChild(paiementCours); }
-        secondaires.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
+        secondaires.appendChild(lienAction('Modifier le créneau', function () { return planifierCours(d); }));
       }
     }
 
@@ -1428,17 +1428,17 @@
       }));
     }
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
-      actions.principale(lienAction('Envoyer le lien de paiement', function () { envoyerLienPaiement(d); }));
+      actions.principale(lienAction('Envoyer le lien de paiement', function () { return envoyerLienPaiement(d); }));
     }
     /* Les mêmes marquages que dans l'onglet Paiements : le dossier s'ouvre
        aussi bien d'ici, et un virement se note sans changer d'onglet. */
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && !(d.acompte_paye && d.solde_paye)) {
       if (!d.acompte_paye) {
-        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { marquerAcompte(d); }));
+        secondaires.appendChild(lienAction('Noter l’acompte reçu par virement', function () { return marquerAcompte(d); }));
       } else if (!d.solde_paye) {
-        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { marquerSolde(d); }));
+        secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { return marquerSolde(d); }));
       }
-      secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { reglerTotalite(d); }));
+      secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { return reglerTotalite(d); }));
     }
 
     if (d.lignes) {
@@ -1447,11 +1447,11 @@
       plus.appendChild(elementFiche('pre', '', d.lignes));
       secondaires.appendChild(plus);
     }
-    secondaires.appendChild(lienAction('Dossier à imprimer', function () { ouvrirDossier(d); }));
-    secondaires.appendChild(lienAction('Modifier', function () { modifierDemande(d); }));
-    if (!d.annule) { secondaires.appendChild(actionSensible('Annuler l’inscription', function () { annulerDemande(d); })); }
-    else { secondaires.appendChild(lienAction('Rétablir l’inscription', function () { retablirDemande(d); })); }
-    secondaires.appendChild(actionSensible('Supprimer', function () { supprimerDemande(d); }));
+    secondaires.appendChild(lienAction('Dossier à imprimer', function () { return ouvrirDossier(d); }));
+    secondaires.appendChild(lienAction('Modifier', function () { return modifierDemande(d); }));
+    if (!d.annule) { secondaires.appendChild(actionSensible('Annuler l’inscription', function () { return annulerDemande(d); })); }
+    else { secondaires.appendChild(lienAction('Rétablir l’inscription', function () { return retablirDemande(d); })); }
+    secondaires.appendChild(actionSensible('Supprimer', function () { return supprimerDemande(d); }));
     ajouterSuiviRemboursement(etatTd,d);
     if (STRIPE_ACTIF && (dejaEncaisse(d) > 0 || d.annule)) { secondaires.appendChild(lienAction('Remboursements Stripe',function () { ouvrirRemboursements(d); })); }
     actions.terminer();
@@ -1542,7 +1542,18 @@
     b.type = 'button';
     b.className = 'lien-doux';
     b.textContent = texte;
-    b.addEventListener('click', surClic);
+    b.addEventListener('click', async function (ev) {
+      if (b.disabled) { return; }
+      b.disabled = true;
+      b.setAttribute('aria-busy', 'true');
+      try { return await surClic(ev); }
+      finally {
+        /* Un rendu a pu remplacer ce bouton entre-temps : le réactiver
+           reste sans effet, et la nouvelle copie est déjà utilisable. */
+        b.disabled = false;
+        b.removeAttribute('aria-busy');
+      }
+    });
     return b;
   }
 
@@ -1666,10 +1677,10 @@
       titre.textContent = 'Cours du ' + jourLisible(date) + (heure ? ' · ' + heure : '');
       inscrits.forEach(function (d) {
         var fiche = inscrit(d);
-        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
-        fiche.actions.appendChild(lienAction('Renvoyer les infos', function () { envoyerInfosCours(d); }));
-        fiche.actions.appendChild(lienAction('Modifier le créneau', function () { planifierCours(d); }));
-        fiche.actions.appendChild(actionSensible('Retirer', function () { retirerDuPlanning(d); }));
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { return allerDemande(d); }));
+        fiche.actions.appendChild(lienAction('Renvoyer les infos', function () { return envoyerInfosCours(d); }));
+        fiche.actions.appendChild(lienAction('Modifier le créneau', function () { return planifierCours(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { return retirerDuPlanning(d); }));
         liste.appendChild(fiche.ligne);
       });
       if (!inscrits.length) {
@@ -1692,8 +1703,8 @@
       titre.textContent = cle;
       lesInscrits.forEach(function (d) {
         var fiche = inscrit(d);
-        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { allerDemande(d); }));
-        fiche.actions.appendChild(actionSensible('Retirer', function () { supprimerDemande(d); }));
+        fiche.actions.appendChild(lienAction('Ouvrir le dossier', function () { return allerDemande(d); }));
+        fiche.actions.appendChild(actionSensible('Retirer', function () { return supprimerDemande(d); }));
         liste.appendChild(fiche.ligne);
       });
       actions.appendChild(boutonAjout(function () { ajouterInscritStage(cle); }));
@@ -2139,7 +2150,7 @@
   }
   function ajouterOuvertureDossier(ligne, cellule, genre, id, nom) {
     ligne.setAttribute('data-record-kind', genre); ligne.setAttribute('data-record-id', String(id));
-    var bouton = lienAction('Ouvrir le dossier', function () { ouvrirDetail(genre,id); });
+    var bouton = lienAction('Ouvrir le dossier', function () { return ouvrirDetail(genre,id); });
     bouton.className = 'crm-open-record';
     bouton.setAttribute('data-record-open', genre + ':' + id);
     bouton.setAttribute('aria-label','Ouvrir le dossier de ' + (nom || 'cette famille'));
