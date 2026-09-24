@@ -2203,17 +2203,30 @@
             : d.paye ? 'payé ' + (d.paye_montant || '') : 'non payé'];
       }));
   });
+  /* Le moyen de chaque versement reçu, comme sur les pastilles du dossier :
+     un stage détaille l'acompte et le solde, un cours son règlement. */
+  function moyensRecus(d) {
+    if (d.type === 'stage') {
+      var versements = [];
+      if (d.acompte_paye) { versements.push('acompte : ' + core.methodLabel(d.acompte_moyen)); }
+      if (d.solde_paye) { versements.push('solde : ' + core.methodLabel(d.solde_moyen)); }
+      return versements.join(' · ');
+    }
+    return d.paye ? core.methodLabel(d.paye_moyen) : '';
+  }
   el('b-export-paiements').addEventListener('click', function () {
     exporterExcel('paiements-academie.xls', 'Les paiements',
       [{ titre: 'Type', largeur: 50 }, { titre: 'Voltigeur', largeur: 125 }, { titre: 'Parent', largeur: 120 },
        { titre: 'E-mail', largeur: 165 }, { titre: 'Tarif', largeur: 95 }, { titre: 'Encaissé (€)', largeur: 75 },
-       { titre: 'Reste dû (€)', largeur: 75 }, { titre: 'État', largeur: 150 }, { titre: 'Réglé le', largeur: 80 }],
+       { titre: 'Reste dû (€)', largeur: 75 }, { titre: 'État', largeur: 150 },
+       { titre: 'Moyen de règlement', largeur: 170 }, { titre: 'Réglé le', largeur: 80 }],
       demandes.filter(function (d) {
         return (classeStatut(d.statut) === 'validee' || d.annule) && core.matches(d, el('f-paiement-recherche') ? el('f-paiement-recherche').value : '');
       }).map(function (d) {
         return [d.type, d.enfant, d.parent_nom, d.parent_email, d.tarif, dejaEncaisse(d), resteAEncaisser(d),
           d.annule ? 'annulé' + (montantNumerique(d.rembourse_montant) ? ' · remboursé ' + d.rembourse_montant : '')
             : resteAEncaisser(d) > 0 ? 'en attente' : 'réglé',
+          moyensRecus(d),
           d.solde_le || d.paye_le || d.acompte_le || ''];
       }));
   });
