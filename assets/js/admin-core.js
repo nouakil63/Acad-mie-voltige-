@@ -38,7 +38,7 @@
   function totalPaymentPatch(d, day, moyen) {
     // Un versement déjà noté garde sa date et son moyen : le règlement
     // en une fois ne réécrit que ce qui manquait encore.
-    var choisi = moyen === 'stripe' || moyen === 'virement' ? moyen : null;
+    var choisi = method(moyen) === 'inconnu' ? null : method(moyen);
     return {
       acompte_paye: true,
       acompte_le: d.acompte_paye ? d.acompte_le || null : day,
@@ -71,13 +71,13 @@
   // colonne reste « inconnu » : il n'est jamais deviné, seulement affiché
   // à part pour que la somme des moyens reste égale à l'encaissé brut.
   function method(value) {
-    return value === 'stripe' || value === 'virement' ? value : 'inconnu';
+    return value === 'stripe' || value === 'virement' || value === 'georges' ? value : 'inconnu';
   }
   function methodLabel(value) {
-    return { stripe: 'Stripe', virement: 'virement', inconnu: 'moyen non précisé' }[method(value)];
+    return { stripe: 'Stripe', virement: 'virement', georges: 'vu avec Georges', inconnu: 'moyen non précisé' }[method(value)];
   }
   function receivedByMethod(rows, month) {
-    var split = { stripe: 0, virement: 0, inconnu: 0 };
+    var split = { stripe: 0, virement: 0, georges: 0, inconnu: 0 };
     function during(day) { return !month || String(day || '').slice(0, 7) === month; }
     function add(moyen, amount) {
       if (!(amount > 0)) { return; }
