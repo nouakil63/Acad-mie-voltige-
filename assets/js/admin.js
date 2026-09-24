@@ -251,6 +251,9 @@
     var repartition = core.receivedByMethod(demandes);
     tuile(repartition.stripe.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus par Stripe', true);
     tuile(repartition.virement.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus par virement', true);
+    if (repartition.georges > 0) {
+      tuile(repartition.georges.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'réglés vus avec Georges', true);
+    }
     if (repartition.inconnu > 0) {
       tuile(repartition.inconnu.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'reçus, moyen non précisé', true);
     }
@@ -494,9 +497,12 @@
   function champMoyen() {
     return {name:'moyen',label:'Reçu par',type:'select',value:'virement',options:[
       {value:'virement',label:'Virement bancaire'},
-      {value:'stripe',label:'Stripe (lien de paiement)'}]};
+      {value:'stripe',label:'Stripe (lien de paiement)'},
+      {value:'georges',label:'Vu avec Georges'}]};
   }
-  function moyenChoisi(valeurs) { return valeurs && valeurs.moyen === 'stripe' ? 'stripe' : 'virement'; }
+  function moyenChoisi(valeurs) {
+    return valeurs && (valeurs.moyen === 'stripe' || valeurs.moyen === 'georges') ? valeurs.moyen : 'virement';
+  }
 
   async function marquerAcompte(d) {
     var valeurs = await ui.form({title:'Acompte reçu',submitLabel:'Enregistrer l’acompte',
@@ -571,6 +577,14 @@
     if (!valeurs) { return; }
     var jour = isoLocal(new Date());
     patchDemande(d, core.totalPaymentPatch(d, jour, moyenChoisi(valeurs)));
+  }
+
+  /* Un règlement convenu directement avec Georges : le stage est noté
+     réglé en totalité, avec « vu avec Georges » comme moyen. */
+  async function reglerVuAvecGeorges(d) {
+    if (!await confirmer('Noter le stage de ' + (d.enfant || 'ce voltigeur') + ' comme réglé en totalité, vu avec Georges ?' +
+      '\nUn versement déjà noté garde sa date et son moyen.')) { return; }
+    patchDemande(d, core.totalPaymentPatch(d, isoLocal(new Date()), 'georges'));
   }
 
   /* ---- La vérification des paiements sur Stripe ----
@@ -1113,6 +1127,7 @@
       }
       if (!(d.acompte_paye && d.solde_paye)) {
         secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { return reglerTotalite(d); }));
+        secondaires.appendChild(lienAction('Noter le règlement vu avec Georges', function () { return reglerVuAvecGeorges(d); }));
       } else {
         secondaires.appendChild(actionSensible('Retirer les marques « payé »', function () { return retirerMarques(d); }));
       }
@@ -1439,6 +1454,7 @@
         secondaires.appendChild(lienAction('Noter le solde reçu par virement', function () { return marquerSolde(d); }));
       }
       secondaires.appendChild(lienAction('Noter la totalité reçue par virement', function () { return reglerTotalite(d); }));
+      secondaires.appendChild(lienAction('Noter le règlement vu avec Georges', function () { return reglerVuAvecGeorges(d); }));
     }
 
     if (d.lignes) {

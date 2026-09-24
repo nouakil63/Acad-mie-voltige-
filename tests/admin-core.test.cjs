@@ -173,27 +173,29 @@ test('répartition par moyen : le détail redonne toujours l’encaissé brut', 
     {type:'cours',tarif:'30 €',statut:'validée',paye:false}
   ];
   const tout = core.receivedByMethod(rows);
-  assert.deepEqual(tout,{stripe:865,virement:330,inconnu:25});
+  assert.deepEqual(tout,{stripe:865,virement:330,georges:0,inconnu:25});
   const brut = rows.reduce((somme,d)=>somme + core.paid(d),0);
-  assert.equal(tout.stripe + tout.virement + tout.inconnu,brut);
+  assert.equal(tout.stripe + tout.virement + tout.georges + tout.inconnu,brut);
 
   const septembre = core.receivedByMethod(rows,'2026-09');
-  assert.deepEqual(septembre,{stripe:540,virement:330,inconnu:25});
-  assert.equal(septembre.stripe + septembre.virement + septembre.inconnu,
+  assert.deepEqual(septembre,{stripe:540,virement:330,georges:0,inconnu:25});
+  assert.equal(septembre.stripe + septembre.virement + septembre.georges + septembre.inconnu,
     rows.reduce((somme,d)=>somme + core.receivedInMonth(d,'2026-09'),0));
-  assert.deepEqual(core.receivedByMethod([]),{stripe:0,virement:0,inconnu:0});
-  assert.deepEqual(core.receivedByMethod(rows,'2026-07'),{stripe:0,virement:0,inconnu:0});
+  assert.deepEqual(core.receivedByMethod([]),{stripe:0,virement:0,georges:0,inconnu:0});
+  assert.deepEqual(core.receivedByMethod(rows,'2026-07'),{stripe:0,virement:0,georges:0,inconnu:0});
 });
 
 test('un moyen inattendu est classé « non précisé » plutôt que compté comme reçu en ligne', () => {
   assert.equal(core.method('stripe'),'stripe');
   assert.equal(core.method('virement'),'virement');
+  assert.equal(core.method('georges'),'georges');
   ['especes','Stripe','VIREMENT','',null,undefined,0].forEach(v=>assert.equal(core.method(v),'inconnu'));
   assert.equal(core.methodLabel('stripe'),'Stripe');
   assert.equal(core.methodLabel('virement'),'virement');
+  assert.equal(core.methodLabel('georges'),'vu avec Georges');
   assert.equal(core.methodLabel('cheque'),'moyen non précisé');
   const bricole = [{type:'cours',tarif:'30 €',statut:'validée',paye:true,paye_montant:'30 €',paye_le:'2026-09-06',paye_moyen:'especes'}];
-  assert.deepEqual(core.receivedByMethod(bricole),{stripe:0,virement:0,inconnu:30});
+  assert.deepEqual(core.receivedByMethod(bricole),{stripe:0,virement:0,georges:0,inconnu:30});
 });
 
 test('solder un stage en une fois conserve le moyen des versements déjà notés', () => {
@@ -202,9 +204,12 @@ test('solder un stage en une fois conserve le moyen des versements déjà notés
   assert.equal(patch.acompte_moyen,'stripe');
   assert.equal(patch.solde_moyen,'virement');
   assert.equal(patch.paye_moyen,'virement');
-  assert.deepEqual(core.receivedByMethod([{...stage,...patch}]),{stripe:300,virement:540,inconnu:0});
+  assert.deepEqual(core.receivedByMethod([{...stage,...patch}]),{stripe:300,virement:540,georges:0,inconnu:0});
   /* sans moyen transmis, rien n'est inventé : le versement reste non précisé */
   assert.equal(core.totalPaymentPatch(stage,'2026-09-11').solde_moyen,null);
   assert.equal(core.totalPaymentPatch(stage,'2026-09-11','especes').solde_moyen,null);
+  /* un règlement vu avec Georges solde le stage avec ce moyen */
+  assert.equal(core.totalPaymentPatch(stage,'2026-09-11','georges').solde_moyen,'georges');
+  assert.equal(core.totalPaymentPatch(stage,'2026-09-11','georges').acompte_moyen,'stripe');
   assert.equal(stage.solde_moyen,undefined);
 });

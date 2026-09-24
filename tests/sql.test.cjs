@@ -350,3 +350,29 @@ test('migration moyens : reprise de l’historique, contrainte et estampille Str
     assert.equal((await db.query("select count(*)::int as n from pg_constraint where conname='demandes_moyens_connus'")).rows[0].n, 1);
   });
 });
+
+test('migration « vu avec Georges » : moyen accepté, contrainte conservée, rejouable', async t => {
+  const db = await database(); t.after(() => db.close());
+  await db.exec(sql('20260911_paiements_crm.sql'));
+  await db.exec(sql('20260917_moyens_paiement_crm.sql'));
+  const stage = await demande(db, { type: 'stage', tarif: '840 €' });
+
+  // Avant la migration, « georges » est refusé par la contrainte v23.
+  await assert.rejects(db.query("update demandes set paye_moyen='georges' where id=$1", [stage]), /demandes_moyens_connus/);
+
+  await db.exec(sql('20260924_moyen_georges_crm.sql'));
+  await db.query("update demandes set acompte_paye=true,acompte_le=current_date,acompte_moyen='georges'," +
+    "solde_paye=true,solde_le=current_date,solde_moyen='georges',paye=true,paye_le=current_date," +
+    "paye_montant='840 €',paye_moyen='georges' where id=$1", [stage]);
+  const row = (await db.query('select acompte_moyen,solde_moyen,paye_moyen,paye from demandes where id=$1', [stage])).rows[0];
+  assert.equal(row.acompte_moyen, 'georges');
+  assert.equal(row.solde_moyen, 'georges');
+  assert.equal(row.paye_moyen, 'georges');
+  assert.equal(row.paye, true);
+
+  // Un moyen inventé reste refusé, et la migration se rejoue sans rien perdre.
+  await assert.rejects(db.query("update demandes set paye_moyen='especes' where id=$1", [stage]), /demandes_moyens_connus/);
+  await db.exec(sql('20260924_moyen_georges_crm.sql'));
+  assert.equal((await db.query('select paye_moyen from demandes where id=$1', [stage])).rows[0].paye_moyen, 'georges');
+  assert.equal((await db.query("select count(*)::int as n from pg_constraint where conname='demandes_moyens_connus'")).rows[0].n, 1);
+});
