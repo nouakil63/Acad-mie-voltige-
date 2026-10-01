@@ -1224,7 +1224,7 @@
     var cpVille = String(champs['Code postal / ville'] || '').trim().split(/\s+/);
     return {
       type: d.type,
-      annee: '2026/2027',
+      annee: d.type === 'stage' ? '' : '2026/2027',
       formule: champs['Formule'] || champs['Stage'] || '',
       creneau: champs['Créneau'] || champs['Dates'] || '',
       tarif: champs['Tarif'] || d.tarif || '',
