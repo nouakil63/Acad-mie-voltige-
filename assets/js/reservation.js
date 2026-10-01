@@ -6,8 +6,8 @@
   'use strict';
 
   var STAGES = [
-    { nom: 'Stage de la Toussaint — semaine 1, 6–14 ans', dates: 'Du 19 au 24 octobre 2026', prix: 840 },
-    { nom: 'Stage de la Toussaint — semaine 2, 6–14 ans', dates: 'Du 26 au 31 octobre 2026', prix: 840 }
+    { nom: 'Stage de la Toussaint — semaine 1, 6–14 ans', periode: 'Toussaint 2026', dates: 'Du 19 au 24 octobre 2026', prix: 840 },
+    { nom: 'Stage de la Toussaint — semaine 2, 6–14 ans', periode: 'Toussaint 2026', dates: 'Du 26 au 31 octobre 2026', prix: 840 }
   ];
 
   var form = document.getElementById('form-resa');
@@ -154,7 +154,8 @@
       .filter(function (x) { return x; }).join(' · ');
     return {
       type: 'stage',
-      annee: '2026/2027',
+      /* un stage n'a pas d'année scolaire : l'en-tête du dossier porte sa période */
+      periode: s.periode,
       formule: s.nom, creneau: s.dates, tarif: s.prix + ' € / semaine',
       enfantPrenom: texte('enfant-prenom'), enfantNom: texte('enfant-nom'),
       enfantNaissance: texte('enfant-naissance'), enfantLieu: texte('enfant-lieu'),

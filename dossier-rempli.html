@@ -81,7 +81,7 @@
       <h1 id="d-titre">Fiche d'inscription · Cours à l'année</h1>
       <div class="sous">Académie de voltige équestre · Fleur &amp; Georges Cotrait · Auberville</div>
     </div>
-    <div class="annee"><small>Année scolaire</small><span id="d-annee">2026 / 2027</span></div>
+    <div class="annee"><small id="d-annee-etiq">Année scolaire</small><span id="d-annee">2026 / 2027</span></div>
   </div>
 
   <h2>Responsable légal</h2>
@@ -222,8 +222,23 @@
     return m ? m[3] + '/' + m[2] + '/' + m[1] : iso;
   }
 
-  met('d-annee', d.annee || '2026 / 2027');
+  /* la période d'un stage (« Toussaint 2026 ») : donnée par le formulaire, sinon
+     déduite du nom du stage et de l'année de ses dates, sinon les dates elles-mêmes */
+  function periodeStage() {
+    if (d.periode) { return d.periode; }
+    var saison = /toussaint|noël|noel|hiver|printemps|pâques|paques|été|ete|automne/i.exec(d.formule || '');
+    var an = /\b(20\d{2})\b/.exec(d.creneau || '');
+    if (saison && an) {
+      var mot = saison[0].charAt(0).toUpperCase() + saison[0].slice(1).toLowerCase();
+      return mot + ' ' + an[1];
+    }
+    return d.creneau || '';
+  }
+
   if (d.type === 'stage') {
+    /* un stage n'est pas rattaché à une année scolaire : l'encart porte sa période */
+    met('d-annee-etiq', 'Stage');
+    met('d-annee', periodeStage());
     met('d-titre', "Fiche d'inscription · Stage");
     met('d-titre-formule', 'Stage choisi');
     met('d-etiq-formule', 'Stage :');
@@ -249,6 +264,7 @@
       met('d-facture-ce', d.factureCE);
     }
   } else {
+    met('d-annee', d.annee || '2026 / 2027');
     /* le dossier des cours ne comporte pas ces rubriques de la fiche de stage */
     document.getElementById('bloc-famille-stage').remove();
     document.getElementById('bloc-enfant-stage').remove();
