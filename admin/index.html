@@ -220,7 +220,7 @@
       </div>
       <details class="crm-guide crm-page-guide">
         <summary>Comment traiter une demande ?</summary>
-        <p>Pour un stage, validez la demande pour envoyer le lien de paiement de l’acompte. Pour un cours, validez puis appelez la famille : vous pourrez ensuite enregistrer le créneau et envoyer les informations de paiement. Un refus envoie un message avec le motif choisi.</p>
+        <p>Pour un stage, validez la demande pour envoyer le RIB de l’académie et le montant de l’acompte. Pour un cours, validez puis appelez la famille : vous pourrez ensuite enregistrer le créneau et envoyer les informations du cours avec le RIB. Un refus envoie un message avec le motif choisi.</p>
       </details>
     </section>
 
@@ -286,7 +286,7 @@
           <div id="a-annules" class="crm-data-list"></div>
         </section>
       </div>
-      <aside class="crm-stripe-panel" aria-labelledby="crm-stripe-title">
+      <aside class="crm-stripe-panel" id="p-stripe" aria-labelledby="crm-stripe-title">
         <div class="crm-stripe-heading"><span class="crm-stripe-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></svg></span><div><h3 id="crm-stripe-title">Stripe</h3><p id="crm-stripe-description">Stripe est en attente d’activation. Le rapprochement et les remboursements seront disponibles une fois la connexion vérifiée.</p></div></div>
         <button type="button" class="btn btn-contour" id="b-stripe" disabled><span>En attente d’activation</span></button>
         <p id="m-stripe" class="crm-stripe-status" role="status" aria-live="polite"></p>
@@ -318,15 +318,15 @@
 <p id="crm-live-alert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></p>
 
 <script>
-/* Stripe activé dans le CRM : service Google v25 publié, clés en place et
-   migrations SQL jouées (voir README-CRM.md). Retirer cette ligne pour
-   revenir à l'état « en attente d'activation ». */
-window.AV_CRM_STRIPE_ACTIF = true;
+/* Stripe n'est plus utilisé depuis octobre 2026 : les familles règlent par
+   virement et les règlements se notent à la main. Remettre true (avec le
+   service Google et ses clés) pour rouvrir le rapprochement Stripe. */
+window.AV_CRM_STRIPE_ACTIF = false;
 </script>
 <script src="../assets/js/compte-config.js?v=2"></script>
 <script src="../assets/js/nuage.js?v=3"></script>
 <script src="../assets/js/admin-core.js?v=25"></script>
 <script src="../assets/js/admin-ui.js?v=25"></script>
-<script src="../assets/js/admin.js?v=36"></script>
+<script src="../assets/js/admin.js?v=37"></script>
 </body>
 </html>

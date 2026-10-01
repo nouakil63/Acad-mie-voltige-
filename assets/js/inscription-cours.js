@@ -2,15 +2,9 @@
    le voltigeur, la famille, puis la formule (à l'unité ou au trimestre).
    Pas de date à choisir : la demande part vers l'académie, Fleur appelle
    la famille pour convenir du créneau du samedi, puis envoie depuis le CRM
-   les infos du cours et le lien de paiement. */
+   les infos du cours et le RIB pour le règlement par virement. */
 (function () {
   'use strict';
-
-  /* liens de paiement Stripe (publics), rappelés dans la messagerie de secours */
-  var PAIEMENTS = {
-    unite: 'https://buy.stripe.com/3cI28rbRL97072o4vE4ow07',      /* 30 € — cours à l'unité */
-    trimestre: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01'   /* 325 € — trimestre */
-  };
 
   var form = document.getElementById('form-cours');
   if (!form) { return; }
@@ -133,7 +127,7 @@
     if (p) {
       p.innerHTML = 'L’académie vient de la recevoir et la valide sous 24 h maximum. ' +
         'Fleur vous appelle ensuite pour convenir de la date et de l’heure de votre cours du samedi, ' +
-        'puis vous recevrez un e-mail avec le récapitulatif et le lien de paiement sécurisé. ' +
+        'puis vous recevrez un e-mail avec le récapitulatif et le RIB de l’académie pour régler par virement. ' +
         'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
     }
     c.classList.add('visible');
@@ -209,15 +203,7 @@
       dossier.recommandations ? 'Recommandations : ' + dossier.recommandations : '',
       '',
       'J’ai compris que cette demande sera validée sous 24 h maximum,',
-      'et que je recevrai alors un lien de paiement sécurisé par e-mail.',
-      '',
-      '--------------------------------------------------',
-      'Pour l’académie — à joindre à la réponse de validation :',
-      '· Paiement du cours à l’unité (30 €) :',
-      PAIEMENTS.unite,
-      '· Paiement du trimestre (325 €) :',
-      PAIEMENTS.trimestre,
-      '--------------------------------------------------',
+      'et que je recevrai alors les coordonnées bancaires de l’académie par e-mail pour régler par virement.',
     ].filter(function (l) { return l !== ''; }).join('\n');
     var sujet = 'Demande d’inscription cours · ' + (dossier.formule || 'le samedi');
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +

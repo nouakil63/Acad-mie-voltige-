@@ -253,8 +253,21 @@ test('Routine : applique seulement les propositions ; même chemin serveur que l
   assert.deepEqual(calls, [[ID_A, SESSION, 'routine']]);
 });
 
-test('Routine : erreur de synchronisation bloque les relances', () => {
+test('Routine : Stripe désactivé, aucune synchronisation et les relances tournent', () => {
   const { ctx } = runtime();
+  let synchronisations = 0, relances = 0;
+  ctx.rapprocherStripeAuto = () => { synchronisations++; throw new Error('Stripe indisponible'); };
+  ctx.relancesAuto = (aVerifier) => { relances++; assert.equal(aVerifier.length, 0); };
+  ctx.rappelsVeille = () => {};
+  assert.equal(ctx.routineQuotidienne().stripe, 'desactive');
+  assert.equal(synchronisations, 0);
+  assert.equal(relances, 1);
+  assert.equal(ctx.synchroniserStripe(), null);
+});
+
+test('Routine : Stripe réactivé, une erreur de synchronisation bloque les relances', () => {
+  const { ctx } = runtime();
+  ctx.STRIPE_ACTIF = true;
   ctx.rapprocherStripeAuto = () => { throw new Error('Stripe indisponible'); };
   let relances = 0;
   ctx.relancesAuto = () => { relances++; };
@@ -335,4 +348,35 @@ test('Décision : réserve, compare l’état, envoie puis confirme exactement u
   assert.equal(result.code, 'ok valide');
   assert.deepEqual(etapes, ['reserve', 'statut', 'envoye', 'termine']);
   assert.equal(r.mails.length, 1);
+});
+
+test('Virement : la validation d’un stage, les relances et les infos du cours portent le RIB, jamais un lien Stripe', () => {
+  const r = runtime();
+  const stage = r.ctx.fabriquerJeton({ type: 'stage', enfant: 'Camille', parentEmail: 'parent@example.fr', detail: 'stage de la Toussaint', parentNom: 'Parent' });
+  assert.equal(r.ctx.envoyerDecision('valider', '', stage.d, stage.s).code, 'ok valide');
+  const validation = r.mails[0];
+  assert.match(validation[2], /acompte de 300 €/);
+  assert.match(validation[2], /IBAN : FR76 1010 7007 3400 1280 1766 775/);
+  assert.match(validation[2], /BIC : BREDFRPPXXX/);
+  assert.match(validation[2], /Référence du virement : Acompte Camille/);
+  assert.match(validation[3].htmlBody, /SARL FGC/);
+  assert.doesNotMatch(validation[3].htmlBody, /stripe/i);
+
+  const cours = r.ctx.fabriquerJeton({ type: 'cours', enfant: 'Camille', parentEmail: 'parent@example.fr', detail: 'Voltige', parentNom: 'Parent' });
+  assert.equal(r.ctx.envoyerDecision('valider', '', cours.d, cours.s).code, 'ok valide');
+  assert.doesNotMatch(r.mails[1][2], /IBAN/);
+  assert.match(r.mails[1][2], /RIB suivront par e-mail/);
+
+  assert.equal(r.ctx.traiterRelance({ relance: 'solde', d: stage.d, s: stage.s }).text, 'ok relance;parent@example.fr');
+  assert.match(r.mails[2][2], /Solde Camille/);
+  assert.match(r.mails[2][3].htmlBody, /540 &#8364; \(solde\)/);
+  assert.doesNotMatch(r.mails[2][3].htmlBody, /stripe/i);
+
+  r.ctx.adminDepuisJeton = () => 'admin@example.fr';
+  assert.equal(r.ctx.traiterInfosCours({ jeton: 'x', email: 'parent@example.fr', enfant: 'Camille', quand: 'samedi 10 octobre', heure: '10:00', paiement: 'trimestre' }).text, 'ok infos;parent@example.fr');
+  assert.match(r.mails[3][2], /325 € \(trimestre\)/);
+  assert.match(r.mails[3][2], /IBAN : FR76/);
+  assert.doesNotMatch(r.mails[3][3].htmlBody, /stripe/i);
+
+  assert.equal(r.ctx.doPost({ postData: { contents: JSON.stringify({ type: 'stripe' }) } }).text, 'stripe desactive');
 });

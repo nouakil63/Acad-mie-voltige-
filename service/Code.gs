@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '26';
+var VERSION_SCRIPT = '27';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -105,24 +105,57 @@ function autoriserRecuperationPdf() {
    Sans cela, l'envoi automatique de prospection reste désactivé. */
 var CLE_PROSPECTION = 'CHANGEZ-MOI';
 
-/* Liens de paiement Stripe (publics) */
-var PAIEMENTS = {
-  cours_unite:     { libelle: 'Payer le cours (30 €)',        url: 'https://buy.stripe.com/3cI28rbRL97072o4vE4ow07' },
-  cours_trimestre: { libelle: 'Payer le trimestre (325 €)',   url: 'https://buy.stripe.com/dRmeVd2hbab41I4gem4ow01' },
-  stage:           { libelle: 'Payer la semaine de stage (840 €)', url: 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04' },
-  /* Les stages se règlent en deux temps : l'acompte de 300 € à
-     l'inscription, le solde (540 €) au plus tard 30 jours avant le
-     début du stage. CRÉEZ ces deux liens de paiement dans Stripe
-     (300 € et 540 €) et collez-les ici à la place de COLLEZ-ICI…
-     Tant qu'ils n'y sont pas, le mail de validation garde l'ancien
-     paiement en une fois (840 €). */
-  stage_acompte:   { libelle: 'Payer l’acompte du stage (300 €)', url: 'https://buy.stripe.com/cNiaEX1d7ab42M8bY64ow05' },
-  stage_solde:     { libelle: 'Payer le solde du stage (540 €)',  url: 'https://buy.stripe.com/dRmbJ19JD970euQ1js4ow06' }
+/* ============ Le règlement par virement bancaire ============
+   Depuis octobre 2026, les familles règlent par virement : plus aucun
+   lien de paiement en ligne. Le RIB ci-dessous part dans le mail de
+   validation d'un stage, dans les infos du cours et dans les relances.
+   Les propriétés du script RIB_TITULAIRE, RIB_IBAN, RIB_BIC priment
+   sur ces constantes si elles sont renseignées. */
+var VIREMENT = {
+  titulaire: 'SARL FGC',
+  iban: 'FR76 1010 7007 3400 1280 1766 775',
+  bic: 'BREDFRPPXXX',
+  banque: 'BRED'
 };
+/* Un stage se règle en deux temps : l'acompte à l'inscription, le solde
+   au plus tard 30 jours avant le début du stage. */
+var TARIFS_STAGE = { acompte: '300 €', solde: '540 €', total: '840 €' };
+var TARIFS_COURS = { unite: '30 €', trimestre: '325 €' };
 
-function lienPret(p) {
-  return p && p.url && p.url.indexOf('COLLEZ') !== 0;
+function rib() {
+  return {
+    titulaire: configuration('RIB_TITULAIRE', VIREMENT.titulaire),
+    iban: configuration('RIB_IBAN', VIREMENT.iban),
+    bic: configuration('RIB_BIC', VIREMENT.bic),
+    banque: configuration('RIB_BANQUE', VIREMENT.banque)
+  };
 }
+
+/* Les lignes du tableau RIB d'un mail (gabaritMail) : montant, référence à
+   indiquer sur le virement, puis les coordonnées du compte. */
+function lignesVirement(montant, reference) {
+  var r = rib();
+  var lignes = [['Montant', montant], ['Référence du virement', reference],
+    ['Titulaire', r.titulaire], ['IBAN', r.iban], ['BIC', r.bic]];
+  if (r.banque) { lignes.push(['Banque', r.banque]); }
+  return lignes;
+}
+
+/* La même chose en texte brut, pour la version sans HTML du mail. */
+function texteVirement(montant, reference) {
+  return lignesVirement(montant, reference).map(function (l) { return l[0] + ' : ' + l[1]; }).join('\n');
+}
+
+/* La phrase qui précède le RIB dans chaque mail. */
+function consigneVirement() {
+  return 'Merci de régler par virement bancaire avec les coordonnées ci-dessous, en indiquant bien la référence : ' +
+    'c’est elle qui nous permet de retrouver votre règlement.';
+}
+
+/* Stripe n'est plus utilisé : les appels du CRM et les automatismes
+   répondent « désactivé » sans toucher à l'API. Le code reste en place
+   pour relire l'historique des anciens paiements si besoin. */
+var STRIPE_ACTIF = false;
 
 /* ============ La lecture des paiements Stripe (espace académie) ======
    Le bouton « Vérifier les paiements Stripe » de la plateforme admin
@@ -138,16 +171,6 @@ function lienPret(p) {
    Tant qu'elle n'est pas collée, le bouton explique simplement que la
    vérification n'est pas encore disponible. */
 var STRIPE_CLE = 'COLLEZ-ICI-LA-CLE-STRIPE-RESTREINTE';
-
-/* Liens d'essai à 0 € : ils apparaissent dans les mails de validation
-   pour tester le parcours de paiement sans payer.
-   ⚠️ Les vrais parents les voient aussi : mettre ESSAIS_ACTIFS à false
-   (puis publier une « Nouvelle version ») dès que les tests sont finis. */
-var ESSAIS_ACTIFS = false;
-var PAIEMENTS_TEST = {
-  cours: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/4gMfZh6xrcjc5Ykd2a4ow02' },
-  stage: { libelle: 'Essai à 0 € (test)', url: 'https://buy.stripe.com/8x28wP3lf970cmIaU24ow03' }
-};
 
 /* Motifs de refus : un clic dans le mail de l'académie, et le parent
    reçoit automatiquement un message courtois avec ce motif.
@@ -186,6 +209,7 @@ function doPost(e) {
   if (d && d.type === 'prospection') { return envoyerProspection(d); }
   if (d && d.type === 'decision') { return traiterDecisionPost(d); }
   if (d && d.type === 'relance') { return traiterRelance(d); }
+  if (d && /^stripe(-|$)/.test(String(d.type)) && !STRIPE_ACTIF) { return reponseTexte('stripe desactive'); }
   if (d && d.type === 'stripe') { return traiterStripe(d); }
   if (d && d.type === 'stripe-rapprocher') { return traiterRapprochementStripe(d); }
   if (d && d.type === 'stripe-remboursements') { return traiterEtatRemboursementsStripe(d); }
@@ -199,8 +223,8 @@ function doPost(e) {
   var enfant = nettoyer(d.enfantPrenom) + ' ' + nettoyer(d.enfantNom);
   var sujet = (d.type === 'cours' ? 'Demande d’inscription aux cours de ' : 'Réservation de stage de ') + enfant;
 
-  /* Règlement choisi pour les cours : le mail de validation ne proposera
-     que le lien de paiement correspondant. */
+  /* Règlement choisi pour les cours : les mails indiqueront le montant
+     correspondant (cours à l'unité ou trimestre). */
   var paiement = (d.paiement === 'unite' || d.paiement === 'trimestre') ? d.paiement : '';
 
   var lignes = d.type === 'cours' ? [
@@ -255,10 +279,10 @@ function doPost(e) {
   var html = gabaritMail(
     d.type === 'cours' ? 'Nouvelle demande d’inscription aux cours' : 'Nouvelle réservation de stage',
     d.type === 'cours'
-      ? 'Reçue à l’instant depuis le site. Un clic sur « Valider » prévient le parent que Fleur va l’appeler pour convenir du créneau ; après l’appel, la date, l’heure et le lien de paiement partent en un clic depuis l’espace académie.'
-      : 'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le lien de paiement.',
+      ? 'Reçue à l’instant depuis le site. Un clic sur « Valider » prévient le parent que Fleur va l’appeler pour convenir du créneau ; après l’appel, la date, l’heure et le RIB pour le virement partent en un clic depuis l’espace académie.'
+      : 'Reçue à l’instant depuis le site. Un clic sur « Valider » envoie automatiquement au parent le mail de validation avec le RIB de l’académie pour régler l’acompte par virement.',
     lignes,
-    [{ texte: d.type === 'cours' ? '✅ Valider : Fleur appellera la famille' : '✅ Valider : envoyer le lien de paiement', url: urlValider, plein: true }],
+    [{ texte: d.type === 'cours' ? '✅ Valider : Fleur appellera la famille' : '✅ Valider : envoyer le RIB à la famille', url: urlValider, plein: true }],
     'Vous pouvez aussi simplement répondre à ce message : votre réponse partira vers ' + nettoyer(d.parentEmail) + '.',
     boutonsRefus,
     'Ou refuser en un clic : le parent reçoit automatiquement un message courtois avec le motif choisi.'
@@ -472,54 +496,36 @@ function envoyerDecision(action, motifCle, dTok, sTok) {
       parentEmail: donnees.parentEmail, enfant: donnees.enfant, motifBouton: motif.bouton };
   }
 
-  var boutons, intro;
+  var intro, lignes = [], texteBrut;
   if (donnees.type === 'cours') {
-    /* Pas de lien de paiement a cette etape : Fleur appelle la famille
-       pour convenir de la date et de l'heure du cours du samedi, puis le
-       CRM envoie le recapitulatif et le lien de paiement. */
+    /* Pas de RIB a cette etape : Fleur appelle la famille pour convenir
+       de la date et de l'heure du cours du samedi, puis le CRM envoie le
+       recapitulatif et les coordonnees bancaires. */
     intro = 'Bonne nouvelle : la demande d’inscription de <b>' + donnees.enfant + '</b> aux cours (' + donnees.detail + ') est validée ! ' +
       'Fleur vous appelle très vite pour convenir ensemble de la date et de l’heure du cours, le samedi. ' +
-      'Vous recevrez ensuite un e-mail avec le récapitulatif et le lien de paiement sécurisé.';
-    boutons = [];
-  } else if (lienPret(PAIEMENTS.stage_acompte)) {
-    intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
-      'Pour la garantir, réglez l’acompte de 300 € en ligne, en toute sécurité. ' +
-      'Le solde (540 €) sera à régler au plus tard 30 jours avant le début du stage.';
-    boutons = [
-      { texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true }
-    ];
-    if (lienPret(PAIEMENTS.stage_solde)) {
-      boutons.push({ texte: PAIEMENTS.stage_solde.libelle, url: PAIEMENTS.stage_solde.url, plein: false });
-    }
+      'Vous recevrez ensuite un e-mail avec le récapitulatif et le RIB de l’académie pour régler par virement.';
+    texteBrut = 'Fleur vous appelle très vite pour convenir de la date et de l’heure du cours ; le récapitulatif et le RIB suivront par e-mail.';
   } else {
+    var reference = 'Acompte ' + donnees.enfant;
     intro = 'Bonne nouvelle : la réservation de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est confirmée ! ' +
-      'Pour finaliser l’inscription, réglez en ligne, en toute sécurité :';
-    boutons = [
-      { texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true }
-    ];
-  }
-
-  var boutonsEssai = null, libelleEssai = null;
-  if (ESSAIS_ACTIFS && donnees.type !== 'cours') {
-    var essai = PAIEMENTS_TEST.stage;
-    boutonsEssai = [{ texte: essai.libelle, url: essai.url, plein: false }];
-    libelleEssai = 'Lien d’essai pendant nos tests : il ne débite rien.';
+      'Pour la garantir, l’acompte de ' + TARIFS_STAGE.acompte + ' est à régler par virement bancaire. ' + consigneVirement() +
+      '<br><br>Le solde (' + TARIFS_STAGE.solde + ') sera à régler, par virement également, au plus tard 30 jours avant le début du stage.';
+    lignes = lignesVirement(TARIFS_STAGE.acompte + ' (acompte)', reference);
+    texteBrut = 'Pour la garantir, réglez l’acompte de ' + TARIFS_STAGE.acompte + ' par virement, en indiquant la référence.\n' +
+      texteVirement(TARIFS_STAGE.acompte + ' (acompte)', reference) +
+      '\nLe solde (' + TARIFS_STAGE.solde + ') est à régler au plus tard 30 jours avant le début du stage.';
   }
 
   var html = gabaritMail(
     'Votre demande est validée ! 🎉',
     intro,
+    lignes,
     [],
-    boutons,
-    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.',
-    boutonsEssai,
-    libelleEssai
+    'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'
   );
 
   GmailApp.sendEmail(donnees.parentEmail, 'Votre inscription est validée !',
-    'Bonne nouvelle : la demande pour ' + donnees.enfant + ' est validée. ' +
-    (boutons.length ? 'Lien de paiement : ' + boutons[0].url
-      : 'Fleur vous appelle très vite pour convenir de la date et de l’heure du cours ; le lien de paiement suivra par e-mail.'), {
+    'Bonne nouvelle : la demande pour ' + donnees.enfant + ' est validée. ' + texteBrut, {
     htmlBody: html,
     replyTo: ADRESSE_ACADEMIE,
     name: 'Académie de voltige équestre'
@@ -528,8 +534,8 @@ function envoyerDecision(action, motifCle, dTok, sTok) {
   return { code: 'ok valide', titre: 'C’est validé ✅',
     texte: (donnees.type === 'cours'
       ? 'Le mail de validation vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>. ' +
-        'Appelez la famille pour convenir du créneau, puis envoyez la date, l’heure et le lien de paiement depuis l’espace académie.'
-      : 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.') +
+        'Appelez la famille pour convenir du créneau, puis envoyez la date, l’heure et le RIB depuis l’espace académie.'
+      : 'Le mail de validation avec le RIB de l’académie vient de partir vers <b>' + donnees.parentEmail + '</b> pour <b>' + donnees.enfant + '</b>.') +
       '<br><br>Vous pouvez fermer cette page.',
     parentEmail: donnees.parentEmail, enfant: donnees.enfant };
 }
@@ -557,8 +563,8 @@ function traiterRelance(d) {
   var c = contenusRelance(donnees, String(d.relance || ''), nettoyer(d.montant));
   if (!c) { return reponseTexte('relance inconnue'); }
   GmailApp.sendEmail(donnees.parentEmail, c.titre.replace(/<[^>]+>/g, ''),
-    c.intro.replace(/<[^>]+>/g, ''), {
-    htmlBody: gabaritMail(c.titre, c.intro, [], c.boutons, c.pied),
+    c.intro.replace(/<[^>]+>/g, '') + (c.texte ? '\n\n' + c.texte : ''), {
+    htmlBody: gabaritMail(c.titre, c.intro, c.lignes || [], c.boutons, c.pied),
     replyTo: ADRESSE_ACADEMIE,
     name: 'Académie de voltige équestre'
   });
@@ -570,30 +576,29 @@ function traiterRelance(d) {
 function contenusRelance(donnees, sous, montant) {
   var pied = 'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
     'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.';
-  var titre, intro, boutons = [];
+  var titre, intro, boutons = [], lignes = [], texte = '';
 
   if (sous === 'acompte') {
     titre = 'Un petit rappel pour ' + donnees.enfant;
     intro = 'La place de <b>' + donnees.enfant + '</b> pour le ' + donnees.detail + ' est réservée : ' +
-      'il ne manque que l’acompte de 300 € pour la garantir. Le solde (540 €) sera à régler au plus tard 30 jours avant le début du stage.';
-    if (lienPret(PAIEMENTS.stage_acompte)) { boutons.push({ texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true }); }
+      'il ne manque que l’acompte de ' + TARIFS_STAGE.acompte + ' pour la garantir. ' + consigneVirement() +
+      '<br><br>Le solde (' + TARIFS_STAGE.solde + ') sera à régler au plus tard 30 jours avant le début du stage.';
+    lignes = lignesVirement(TARIFS_STAGE.acompte + ' (acompte)', 'Acompte ' + donnees.enfant);
   } else if (sous === 'solde') {
     titre = 'Le solde du stage de ' + donnees.enfant;
     intro = 'Le ' + donnees.detail + ' approche pour <b>' + donnees.enfant + '</b> ! ' +
-      'Le solde du stage (540 €) est à régler au plus tard 30 jours avant le début du stage.';
-    if (lienPret(PAIEMENTS.stage_solde)) { boutons.push({ texte: PAIEMENTS.stage_solde.libelle, url: PAIEMENTS.stage_solde.url, plein: true }); }
-    else if (lienPret(PAIEMENTS.stage)) { boutons.push({ texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true }); }
+      'Le solde du stage (' + TARIFS_STAGE.solde + ') est à régler au plus tard 30 jours avant le début du stage. ' + consigneVirement();
+    lignes = lignesVirement(TARIFS_STAGE.solde + ' (solde)', 'Solde ' + donnees.enfant);
   } else if (sous === 'paiement') {
     titre = 'Un petit rappel pour ' + donnees.enfant;
     intro = 'La demande de <b>' + donnees.enfant + '</b> (' + donnees.detail + ') est validée : ' +
-      'il ne reste que le règlement pour finaliser l’inscription.';
+      'il ne reste que le règlement pour finaliser l’inscription. ' + consigneVirement();
     if (donnees.type === 'cours') {
-      if (donnees.paiement === 'trimestre') { boutons.push({ texte: PAIEMENTS.cours_trimestre.libelle, url: PAIEMENTS.cours_trimestre.url, plein: true }); }
-      else { boutons.push({ texte: PAIEMENTS.cours_unite.libelle, url: PAIEMENTS.cours_unite.url, plein: true }); }
-    } else if (lienPret(PAIEMENTS.stage_acompte)) {
-      boutons.push({ texte: PAIEMENTS.stage_acompte.libelle, url: PAIEMENTS.stage_acompte.url, plein: true });
+      lignes = donnees.paiement === 'trimestre'
+        ? lignesVirement(TARIFS_COURS.trimestre + ' (trimestre)', 'Cours ' + donnees.enfant)
+        : lignesVirement(TARIFS_COURS.unite + ' (cours à l’unité)', 'Cours ' + donnees.enfant);
     } else {
-      boutons.push({ texte: PAIEMENTS.stage.libelle, url: PAIEMENTS.stage.url, plein: true });
+      lignes = lignesVirement(TARIFS_STAGE.acompte + ' (acompte)', 'Acompte ' + donnees.enfant);
     }
   } else if (sous === 'annulation') {
     titre = 'Au sujet du stage de ' + donnees.enfant;
@@ -606,7 +611,8 @@ function contenusRelance(donnees, sous, montant) {
   } else {
     return null;
   }
-  return { titre: titre, intro: intro, boutons: boutons, pied: pied };
+  if (lignes.length) { texte = lignes.map(function (l) { return l[0] + ' : ' + l[1]; }).join('\n'); }
+  return { titre: titre, intro: intro, boutons: boutons, lignes: lignes, texte: texte, pied: pied };
 }
 
 /* ============ Qui est derriere un jeton de session Supabase ============ */
@@ -1273,6 +1279,7 @@ function synchroniserStripeLot() {
 }
 
 function synchroniserStripe() {
+  if (!STRIPE_ACTIF) { Logger.log('Stripe désactivé : rien à synchroniser.'); return null; }
   var verrou = verrouillerStripe();
   try { var resultat = synchroniserStripeLot(); Logger.log(JSON.stringify(resultat)); return resultat; }
   finally { verrou.releaseLock(); }
@@ -1323,9 +1330,9 @@ function traiterPlaceLibre(d) {
   return reponseTexte('ok place;' + email);
 }
 
-/* ============ Les infos du cours + le lien de paiement ============
+/* ============ Les infos du cours + le RIB pour le virement ============
    Fleur a appelé la famille et noté la date et l'heure sur le CRM :
-   la plateforme envoie ici le récapitulatif aux parents, avec le lien
+   la plateforme envoie ici le récapitulatif aux parents, avec le RIB
    de paiement de la formule choisie (à l'unité ou au trimestre). */
 function traiterInfosCours(d) {
   if (!adminDepuisJeton(String(d.jeton || ''))) { return reponseTexte('acces refuse'); }
@@ -1334,16 +1341,16 @@ function traiterInfosCours(d) {
   var enfant = nettoyer(d.enfant) || 'votre voltigeur';
   var quand = nettoyer(d.quand) || 'samedi';
   var heure = nettoyer(d.heure);
-  var bouton = d.paiement === 'trimestre' ? PAIEMENTS.cours_trimestre : PAIEMENTS.cours_unite;
+  var montant = d.paiement === 'trimestre' ? TARIFS_COURS.trimestre + ' (trimestre)' : TARIFS_COURS.unite + ' (cours à l’unité)';
+  var lignes = lignesVirement(montant, 'Cours ' + enfant);
   var titre = 'Votre cours de voltige est fixé !';
   var intro = 'Comme convenu au téléphone, <b>' + enfant + '</b> est attendu(e) au cours de voltige le <b>' + quand + '</b>' +
     (heure ? ', <b>' + heure + '</b>' : '') + ', à l’académie (Auberville).' +
-    '<br><br>Pour finaliser l’inscription, réglez en ligne, en toute sécurité :';
-  var boutons = [{ texte: bouton.libelle, url: bouton.url, plein: true }];
+    '<br><br>Pour finaliser l’inscription, ' + consigneVirement().charAt(0).toLowerCase() + consigneVirement().slice(1);
   GmailApp.sendEmail(email, titre,
     enfant + ' est attendu(e) au cours de voltige le ' + quand + (heure ? ', ' + heure : '') +
-    ', à l’académie (Auberville). Lien de paiement : ' + bouton.url, {
-    htmlBody: gabaritMail(titre, intro, [], boutons,
+    ', à l’académie (Auberville). Règlement par virement :\n' + texteVirement(montant, 'Cours ' + enfant), {
+    htmlBody: gabaritMail(titre, intro, lignes, [],
       'Un empêchement ou une question ? Répondez simplement à ce message. À très vite à l’académie !<br>' +
       'Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
     replyTo: ADRESSE_ACADEMIE,
@@ -1357,7 +1364,7 @@ function traiterInfosCours(d) {
    choisissez la fonction « installerRoutine » dans le menu déroulant,
    cliquez « Exécuter », et acceptez l'autorisation demandée.
    Ensuite, chaque matin vers 7h, le script tout seul :
-   1. lit les paiements reçus sur Stripe et les note dans la base ;
+   1. (Stripe désactivé : les virements se notent à la main dans le CRM)
    2. relance l'acompte des stages impayés depuis plus de 7 jours ;
    3. relance le solde des stages à moins de 45 jours du début ;
       (une seule relance automatique par sujet et par demande)
@@ -1372,9 +1379,10 @@ function installerRoutine() {
 
 function routineQuotidienne() {
   if (!supabasePret()) { throw erreurService('supabase_non_configuree', 'Configurer Supabase avant la routine.'); }
-  // Si Stripe échoue, ne pas relancer des familles dont le paiement pourrait
-  // être reçu mais non synchronisé. L'échec apparaît dans les exécutions Google.
-  var bilan = rapprocherStripeAuto();
+  // Stripe n'est plus utilisé : les virements se notent à la main dans le CRM.
+  // (Si Stripe était réactivé : ne pas relancer une famille dont le paiement
+  // pourrait être reçu mais non synchronisé.)
+  var bilan = STRIPE_ACTIF ? rapprocherStripeAuto() : { stripe: 'desactive', demandes_a_verifier: [] };
   relancesAuto(bilan.demandes_a_verifier);
   rappelsVeille();
   Logger.log('Routine terminée : ' + JSON.stringify(bilan));
@@ -1469,8 +1477,9 @@ function noterLienPaiementEnvoye(id) {
 function envoyerRelanceAuto(donnees, sous) {
   var c = contenusRelance(donnees, sous, '');
   if (!c) { return false; }
-  GmailApp.sendEmail(donnees.parentEmail, c.titre.replace(/<[^>]+>/g, ''), c.intro.replace(/<[^>]+>/g, ''), {
-    htmlBody: gabaritMail(c.titre, c.intro, [], c.boutons, c.pied),
+  GmailApp.sendEmail(donnees.parentEmail, c.titre.replace(/<[^>]+>/g, ''),
+    c.intro.replace(/<[^>]+>/g, '') + (c.texte ? '\n\n' + c.texte : ''), {
+    htmlBody: gabaritMail(c.titre, c.intro, c.lignes || [], c.boutons, c.pied),
     replyTo: ADRESSE_ACADEMIE,
     name: 'Académie de voltige équestre'
   });
