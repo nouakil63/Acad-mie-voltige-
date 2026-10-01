@@ -33,7 +33,8 @@ function runtime(fetch) {
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url'),
       base64DecodeWebSafe: data => Buffer.from(data, 'base64url'),
       computeHmacSha256Signature: (data, secret) => crypto.createHmac('sha256', secret).update(data).digest(),
-      newBlob: data => ({ getDataAsString: () => Buffer.from(data).toString('utf8') }),
+      newBlob: data => { const blob = { getDataAsString: () => Buffer.from(data).toString('utf8'),
+        getAs: type => Object.assign(blob, { type }), setName: name => Object.assign(blob, { name }) }; return blob; },
       formatDate: date => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris',
         year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
     },
@@ -379,4 +380,33 @@ test('Virement : la validation d’un stage, les relances et les infos du cours 
   assert.doesNotMatch(r.mails[3][3].htmlBody, /stripe/i);
 
   assert.equal(r.ctx.doPost({ postData: { contents: JSON.stringify({ type: 'stripe' }) } }).text, 'stripe desactive');
+});
+
+test('Passage au virement : seules les familles qui n’ont pas fini de régler reçoivent le RIB, une fois', () => {
+  const r = runtime();
+  const rows = [
+    demande({ type: 'stage', tarif: '840 €', enfant: 'Camille', parent_email: 'a@example.fr' }),
+    demande({ type: 'stage', tarif: '840 €', enfant: 'Lou', parent_email: 'b@example.fr', acompte_paye: true }),
+    demande({ type: 'stage', tarif: '840 €', enfant: 'Max', parent_email: 'c@example.fr', acompte_paye: true, solde_paye: true }),
+    demande({ type: 'cours', tarif: '325 €', detail: 'Au trimestre', enfant: 'Zoé', parent_email: 'd@example.fr' }),
+    demande({ type: 'cours', tarif: '30 €', enfant: 'Tom', parent_email: 'e@example.fr', paye: true }),
+    demande({ type: 'stage', tarif: '840 €', enfant: 'Sam', parent_email: 'f@example.fr', lien_paiement_envoye_le: new Date().toISOString() }),
+    demande({ type: 'stage', tarif: '840 €', enfant: 'Ana', parent_email: '' })
+  ];
+  r.ctx.supabaseLireTout = () => rows;
+  const notes = [];
+  r.ctx.supabaseEcrire = (chemin, corps) => { notes.push(corps); return [corps]; };
+  assert.equal(r.ctx.apercuRelanceVirement(), 4);
+  assert.equal(r.mails.length, 0);
+  const bilan = r.ctx.envoyerRelanceVirement();
+  assert.deepEqual([bilan.envoyes, bilan.sautes], [3, 1]);
+  assert.deepEqual(r.mails.map(m => m[0]), ['a@example.fr', 'b@example.fr', 'd@example.fr']);
+  assert.match(r.mails[0][2], /Référence du virement : Acompte Camille/);
+  assert.match(r.mails[1][2], /540 € \(solde\)/);
+  assert.match(r.mails[2][2], /325 € \(trimestre\)/);
+  assert.match(r.mails[0][3].htmlBody, /par virement bancaire/);
+  assert.doesNotMatch(r.mails[0][3].htmlBody, /stripe/i);
+  assert.equal(r.mails[0][3].attachments[0].name, 'RIB - Académie de voltige équestre.pdf');
+  assert.equal(notes.length, 3);
+  assert.ok(notes.every(n => n.lien_paiement_envoye_le));
 });
