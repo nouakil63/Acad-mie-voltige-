@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '25';
+var VERSION_SCRIPT = '26';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -1440,6 +1440,7 @@ function relancesAuto(demandesAVerifier) {
         (maintenant - new Date(d.cree)) > 7 * 24 * 3600 * 1000) {
       if (envoyerRelanceAuto(donnees, 'acompte')) {
         supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), { relance_acompte_le: jour });
+        noterLienPaiementEnvoye(d.id);
       }
       return;
     }
@@ -1448,9 +1449,21 @@ function relancesAuto(demandesAVerifier) {
         debut > maintenant && (debut - maintenant) < 45 * 24 * 3600 * 1000) {
       if (envoyerRelanceAuto(donnees, 'solde')) {
         supabaseEcrire('demandes?id=eq.' + encodeURIComponent(d.id), { relance_solde_le: jour });
+        noterLienPaiementEnvoye(d.id);
       }
     }
   });
+}
+
+/* Date et heure du dernier lien de paiement envoyé, affichées dans le CRM.
+   Écriture séparée et tolérante : la relance reste notée même si la
+   migration 20261001_lien_paiement_crm.sql n'est pas encore passée. */
+function noterLienPaiementEnvoye(id) {
+  try {
+    supabaseEcrire('demandes?id=eq.' + encodeURIComponent(id), { lien_paiement_envoye_le: new Date().toISOString() });
+  } catch (e) {
+    Logger.log('Date du lien de paiement non notée pour la demande ' + id + ' : ' + e);
+  }
 }
 
 function envoyerRelanceAuto(donnees, sous) {
