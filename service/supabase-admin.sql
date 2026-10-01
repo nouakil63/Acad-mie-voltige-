@@ -269,3 +269,7 @@ alter table public.demandes add column if not exists relance_solde_le date;
 alter table public.demandes add column if not exists cours_date date;
 alter table public.demandes add column if not exists cours_heure text;
 alter table public.demandes add column if not exists infos_envoyees_le date;
+
+-- Date et heure du dernier lien de paiement envoyé à la famille (envoi
+-- depuis l'espace académie ou relance automatique), affichées sur le dossier.
+alter table public.demandes add column if not exists lien_paiement_envoye_le timestamptz;

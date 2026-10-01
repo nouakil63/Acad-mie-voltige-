@@ -376,3 +376,18 @@ test('migration « vu avec Georges » : moyen accepté, contrainte conservée, r
   assert.equal((await db.query('select paye_moyen from demandes where id=$1', [stage])).rows[0].paye_moyen, 'georges');
   assert.equal((await db.query("select count(*)::int as n from pg_constraint where conname='demandes_moyens_connus'")).rows[0].n, 1);
 });
+
+test('migration lien de paiement : date et heure de l’envoi conservées, rejouable, sans effet sur l’existant', async t => {
+  const db = await database(); t.after(() => db.close());
+  await db.exec(sql('20260911_paiements_crm.sql'));
+  const stage = await demande(db, { type: 'stage', tarif: '840 €' });
+
+  await db.exec(sql('20261001_lien_paiement_crm.sql'));
+  assert.equal((await db.query('select lien_paiement_envoye_le from demandes where id=$1', [stage])).rows[0].lien_paiement_envoye_le, null);
+  await db.query("update demandes set lien_paiement_envoye_le='2026-10-01T07:12:00Z' where id=$1", [stage]);
+  const envoye = (await db.query('select lien_paiement_envoye_le from demandes where id=$1', [stage])).rows[0].lien_paiement_envoye_le;
+  assert.equal(new Date(envoye).toISOString(), '2026-10-01T07:12:00.000Z');
+
+  await db.exec(sql('20261001_lien_paiement_crm.sql'));
+  assert.equal(new Date((await db.query('select lien_paiement_envoye_le from demandes where id=$1', [stage])).rows[0].lien_paiement_envoye_le).toISOString(), '2026-10-01T07:12:00.000Z');
+});

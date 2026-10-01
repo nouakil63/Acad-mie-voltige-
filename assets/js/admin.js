@@ -424,7 +424,28 @@
         paiement:formuleDe(d),montant:montant || ''});
       if (texte.split(';')[0] !== 'ok relance') { throw new Error('Le service n’a pas confirmé l’envoi de ce message.'); }
       notifier('E-mail envoyé à ' + d.parent_email + '.');
+      /* Le dossier garde la date et l'heure du dernier lien de paiement envoyé.
+         Le mail est parti quoi qu'il arrive : un échec ici ne doit pas le faire renvoyer. */
+      if (sous !== 'annulation') {
+        var sauve = await patchDemande(d, {lien_paiement_envoye_le: new Date().toISOString()});
+        if (!sauve) { notifier('E-mail envoyé, mais la date d’envoi n’a pas pu être notée sur le dossier.', true); }
+      }
     });
+  }
+
+  /* Quand le dernier lien de paiement est parti vers la famille : envoi depuis
+     l'espace académie (date et heure), sinon relance automatique du script
+     (date seule), sinon l'e-mail de validation qui contenait déjà le lien. */
+  function suiviLienPaiement(d) {
+    if (d.lien_paiement_envoye_le) { return 'Lien de paiement envoyé le ' + quandLisible(d.lien_paiement_envoye_le); }
+    var relance = d.relance_solde_le ? ['solde', d.relance_solde_le] : d.relance_acompte_le ? ['acompte', d.relance_acompte_le] : null;
+    if (relance) { return 'Relance automatique (' + relance[0] + ') envoyée le ' + new Date(relance[1] + 'T12:00:00').toLocaleDateString('fr-FR'); }
+    if (d.jeton_d && d.jeton_s && d.decide) { return 'Lien de paiement envoyé avec la validation le ' + quandLisible(d.decide); }
+    return 'Lien de paiement : aucun envoi noté';
+  }
+  function ajouterSuiviLienPaiement(etat, d) {
+    if (d.type !== 'stage' || classeStatut(d.statut) !== 'validee' || d.annule) { return; }
+    etat.appendChild(elementFiche('span', 'crm-record-meta crm-record-date crm-payment-link', suiviLienPaiement(d)));
   }
 
   /* Le bon mail de paiement selon la demande : acompte (300 €) puis
@@ -1110,6 +1131,7 @@
         ? 'Réglé le ' + new Date((d.solde_le || d.paye_le || d.acompte_le) + 'T12:00:00').toLocaleDateString('fr-FR')
         : d.cree ? 'Demande du ' + quandLisible(d.cree) : '';
     if (dateTexte) { etat.appendChild(elementFiche('span', 'crm-record-meta crm-record-date', dateTexte)); }
+    if (groupe === 'du') { ajouterSuiviLienPaiement(etat, d); }
     ajouterSuiviRemboursement(etat,d);
     ligne.appendChild(etat);
 
@@ -1381,6 +1403,7 @@
     var badges = elementFiche('div', 'crm-status-badges');
     badges.appendChild(elementFiche('span', 'pastille ' + classeStatut(d.statut), d.statut || 'en attente'));
     etatTd.appendChild(badges);
+    ajouterSuiviLienPaiement(etatTd, d);
     c.appendChild(etatTd);
     var actions = actionsFiche(d, detail);
     var secondaires = actions.secondaires;
