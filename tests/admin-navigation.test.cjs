@@ -265,7 +265,7 @@ test('sans Stripe, annuler reste une déclaration vérifiée et un remboursement
   assert.deepEqual(calls,[]);
 });
 
-test('un lien de paiement envoyé note sa date et son heure sur le dossier ; une annulation non',async()=>{
+test('un RIB envoyé note sa date et son heure sur le dossier ; une annulation non',async()=>{
   const {app,window,ui,calls}=application('#demandes',false,{});
   Object.assign(window.AVCrmCore,require('../assets/js/admin-core.js'));
   const patches=[];
@@ -285,14 +285,14 @@ test('un lien de paiement envoyé note sa date et son heure sur le dossier ; une
   assert.match(ui.notices.at(-1),/date d’envoi n’a pas pu être notée/);
 });
 
-test('le suivi du lien de paiement lit l’envoi manuel, sinon la relance automatique, sinon la validation',()=>{
+test('le suivi du RIB lit l’envoi manuel, sinon la relance automatique, sinon la validation',()=>{
   const {app}=application('#demandes',false,{});
   const base={type:'stage',statut:'validée',jeton_d:'d',jeton_s:'s',decide:'2026-09-30T06:41:00Z'};
-  assert.match(app.manual.suiviLienPaiement({...base,lien_paiement_envoye_le:'2026-10-01T07:12:00Z',relance_acompte_le:'2026-10-05'}),/^Lien de paiement envoyé le 01\/10\/2026 à \d{2}:\d{2}$/);
+  assert.match(app.manual.suiviLienPaiement({...base,lien_paiement_envoye_le:'2026-10-01T07:12:00Z',relance_acompte_le:'2026-10-05'}),/^RIB envoyé le 01\/10\/2026 à \d{2}:\d{2}$/);
   assert.match(app.manual.suiviLienPaiement({...base,relance_acompte_le:'2026-10-05'}),/^Relance automatique \(acompte\) envoyée le 05\/10\/2026$/);
   assert.match(app.manual.suiviLienPaiement({...base,relance_acompte_le:'2026-10-05',relance_solde_le:'2026-10-12'}),/^Relance automatique \(solde\)/);
-  assert.match(app.manual.suiviLienPaiement(base),/^Lien de paiement envoyé avec la validation le 30\/09\/2026/);
-  assert.equal(app.manual.suiviLienPaiement({type:'stage',statut:'validée',decide:'2026-09-30T06:41:00Z'}),'Lien de paiement : aucun envoi noté');
+  assert.match(app.manual.suiviLienPaiement(base),/^RIB envoyé avec la validation le 30\/09\/2026/);
+  assert.equal(app.manual.suiviLienPaiement({type:'stage',statut:'validée',decide:'2026-09-30T06:41:00Z'}),'RIB : aucun envoi noté');
 });
 
 // Les mutations restent les vraies fonctions du contrôleur : seule la réponse

@@ -4,7 +4,7 @@
      dossier d'inscription rempli.
    - Les cours : les familles ne choisissent plus leurs dates. Fleur
      appelle, note la date et l'heure sur la demande, et la plateforme
-     envoie aux parents les infos du cours avec le lien de paiement.
+     envoie aux parents les infos du cours avec le RIB pour le virement.
    - Le planning des cours planifiés et des stages.
    - La base clients : les comptes familles et les notes. */
 (function () {
@@ -245,7 +245,7 @@
     tuile(encaisseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'encaissés bruts en tout', true);
     tuile(rembourseTotal.toLocaleString('fr-FR', {maximumFractionDigits:2}) + ' €', 'remboursements déclarés', true);
 
-    /* D'où vient l'argent reçu : le lien de paiement Stripe, ou un virement
+    /* D'où vient l'argent reçu : un virement (le cas normal), Stripe pour l'historique,
        noté à la main. Les versements enregistrés avant le suivi des moyens
        restent comptés à part, pour que le détail redonne toujours le total. */
     var repartition = core.receivedByMethod(demandes);
@@ -424,7 +424,7 @@
         paiement:formuleDe(d),montant:montant || ''});
       if (texte.split(';')[0] !== 'ok relance') { throw new Error('Le service n’a pas confirmé l’envoi de ce message.'); }
       notifier('E-mail envoyé à ' + d.parent_email + '.');
-      /* Le dossier garde la date et l'heure du dernier lien de paiement envoyé.
+      /* Le dossier garde la date et l'heure du dernier envoi du RIB.
          Le mail est parti quoi qu'il arrive : un échec ici ne doit pas le faire renvoyer. */
       if (sous !== 'annulation') {
         var sauve = await patchDemande(d, {lien_paiement_envoye_le: new Date().toISOString()});
@@ -433,30 +433,30 @@
     });
   }
 
-  /* Quand le dernier lien de paiement est parti vers la famille : envoi depuis
+  /* Quand le RIB est parti pour la dernière fois vers la famille : envoi depuis
      l'espace académie (date et heure), sinon relance automatique du script
      (date seule), sinon l'e-mail de validation qui contenait déjà le lien. */
   function suiviLienPaiement(d) {
-    if (d.lien_paiement_envoye_le) { return 'Lien de paiement envoyé le ' + quandLisible(d.lien_paiement_envoye_le); }
+    if (d.lien_paiement_envoye_le) { return 'RIB envoyé le ' + quandLisible(d.lien_paiement_envoye_le); }
     var relance = d.relance_solde_le ? ['solde', d.relance_solde_le] : d.relance_acompte_le ? ['acompte', d.relance_acompte_le] : null;
     if (relance) { return 'Relance automatique (' + relance[0] + ') envoyée le ' + new Date(relance[1] + 'T12:00:00').toLocaleDateString('fr-FR'); }
-    if (d.jeton_d && d.jeton_s && d.decide) { return 'Lien de paiement envoyé avec la validation le ' + quandLisible(d.decide); }
-    return 'Lien de paiement : aucun envoi noté';
+    if (d.jeton_d && d.jeton_s && d.decide) { return 'RIB envoyé avec la validation le ' + quandLisible(d.decide); }
+    return 'RIB : aucun envoi noté';
   }
   function ajouterSuiviLienPaiement(etat, d) {
     if (d.type !== 'stage' || classeStatut(d.statut) !== 'validee' || d.annule) { return; }
     etat.appendChild(elementFiche('span', 'crm-record-meta crm-record-date crm-payment-link', suiviLienPaiement(d)));
   }
 
-  /* Le bon mail de paiement selon la demande : acompte (300 €) puis
-     solde pour un stage, paiement direct pour un cours. */
+  /* Le bon mail de règlement selon la demande : acompte (300 €) puis
+     solde pour un stage, paiement direct pour un cours. Chacun contient le RIB. */
   function envoyerLienPaiement(d, silencieux) {
     var sous = d.type === 'stage' ? (d.acompte_paye ? 'solde' : 'acompte') : 'paiement';
     relancer(d, sous, null, silencieux);
   }
 
   /* ---- planifier un cours : Fleur a appelé, elle note la date et
-     l'heure, et la plateforme envoie les infos + le lien de paiement ---- */
+     l'heure, et la plateforme envoie les infos + le RIB pour le virement ---- */
   function formuleDe(d) {
     if (/trimestre/i.test(d.detail || '')) { return 'trimestre'; }
     if (/Règlement choisi : Au trimestre/.test(d.lignes || '')) { return 'trimestre'; }
@@ -473,7 +473,7 @@
     if (!valeurs) { return; }
     var enregistre = await patchDemande(d, {cours_date:valeurs.date,cours_heure:valeurs.heure,infos_envoyees_le:null});
     if (!enregistre) { return; }
-    if (d.parent_email && await confirmer('Le créneau est enregistré. Envoyer à ' + d.parent_email + ' la date, l’heure et le lien de paiement ?')) {
+    if (d.parent_email && await confirmer('Le créneau est enregistré. Envoyer à ' + d.parent_email + ' la date, l’heure et le RIB pour le virement ?')) {
       await envoyerInfosCours(d, true);
     }
   }
@@ -489,13 +489,13 @@
   async function envoyerInfosCours(d, silencieux) {
     if (!d.cours_date) { return planifierCours(d); }
     if (!/.+@.+\..+/.test(d.parent_email || '')) { notifier('Ajoutez une adresse e-mail à cette demande pour prévenir la famille.', true); return; }
-    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' les informations du cours du ' + jourLisible(d.cours_date) + ' à ' + d.cours_heure + ' et le lien de paiement ?')) { return; }
+    if (!silencieux && !await confirmer('Envoyer à ' + d.parent_email + ' les informations du cours du ' + jourLisible(d.cours_date) + ' à ' + d.cours_heure + ' et le RIB pour le virement ?')) { return; }
     return operation('infos:' + d.id, async function () {
       var texte = await appelService({type:'infos-cours',email:d.parent_email,enfant:d.enfant || '',
         quand:jourLisible(d.cours_date),heure:d.cours_heure || '',paiement:formuleDe(d)});
       if (texte.indexOf('ok infos') !== 0) { throw new Error('Le service n’a pas confirmé l’envoi. Actualisez puis réessayez.'); }
       var sauve = await patchDemande(d, {infos_envoyees_le:isoLocal(new Date())});
-      notifier(sauve ? 'Informations et lien de paiement envoyés à la famille.' : 'E-mail envoyé, mais son suivi n’a pas pu être enregistré. Actualisez avant de renvoyer.', !sauve);
+      notifier(sauve ? 'Informations et RIB envoyés à la famille.' : 'E-mail envoyé, mais son suivi n’a pas pu être enregistré. Actualisez avant de renvoyer.', !sauve);
     });
   }
 
@@ -516,10 +516,10 @@
      « Stripe » reste possible pour un paiement en ligne noté avant le
      rapprochement, afin que les deux totaux ne se marchent pas dessus. */
   function champMoyen() {
-    return {name:'moyen',label:'Reçu par',type:'select',value:'virement',options:[
-      {value:'virement',label:'Virement bancaire'},
-      {value:'stripe',label:'Stripe (lien de paiement)'},
-      {value:'georges',label:'Vu avec Georges'}]};
+    var options = [{value:'virement',label:'Virement bancaire'}];
+    if (STRIPE_ACTIF) { options.push({value:'stripe',label:'Stripe (lien de paiement)'}); }
+    options.push({value:'georges',label:'Vu avec Georges'});
+    return {name:'moyen',label:'Reçu par',type:'select',value:'virement',options:options};
   }
   function moyenChoisi(valeurs) {
     return valeurs && (valeurs.moyen === 'stripe' || valeurs.moyen === 'georges') ? valeurs.moyen : 'virement';
@@ -528,7 +528,7 @@
   async function marquerAcompte(d) {
     var valeurs = await ui.form({title:'Acompte reçu',submitLabel:'Enregistrer l’acompte',
       description:'Noter l’acompte de 300 € comme reçu pour ' + (d.enfant || 'ce voltigeur') +
-        '. Un acompte payé par le lien Stripe est rapproché tout seul : ne le notez ici que s’il est arrivé autrement, par virement.',
+        ', une fois le virement arrivé sur le compte de l’académie.',
       fields:[champMoyen()]});
     if (!valeurs) { return; }
     patchDemande(d, { acompte_paye: true, acompte_le: isoLocal(new Date()), acompte_moyen: moyenChoisi(valeurs) });
@@ -1448,7 +1448,7 @@
         actions.principale(lienAction('Planifier le cours', function () { return planifierCours(d); }));
         if (paiementCours) { secondaires.appendChild(paiementCours); }
       } else {
-        actions.principale(lienAction('Renvoyer les infos et le lien', function () { return envoyerInfosCours(d); }));
+        actions.principale(lienAction('Renvoyer les infos et le RIB', function () { return envoyerInfosCours(d); }));
         if (paiementCours) { secondaires.appendChild(paiementCours); }
         secondaires.appendChild(lienAction('Modifier le créneau', function () { return planifierCours(d); }));
       }
@@ -1466,7 +1466,7 @@
       }));
     }
     if (d.type === 'stage' && classeStatut(d.statut) === 'validee' && !d.annule && resteAEncaisser(d) > 0) {
-      actions.principale(lienAction('Envoyer le lien de paiement', function () { return envoyerLienPaiement(d); }));
+      actions.principale(lienAction('Envoyer le RIB pour le règlement', function () { return envoyerLienPaiement(d); }));
     }
     /* Les mêmes marquages que dans l'onglet Paiements : le dossier s'ouvre
        aussi bien d'ici, et un virement se note sans changer d'onglet. */
@@ -2290,6 +2290,7 @@
     retourNavigation();
   }); }
   if (el('crm-refunds-refresh')) { el('crm-refunds-refresh').addEventListener('click',function () { if (dossierRemboursement) { chargerVueRemboursements(dossierRemboursement); } }); }
+  if (el('p-stripe')) { el('p-stripe').hidden = !STRIPE_ACTIF; }
   el('b-stripe').disabled = !STRIPE_ACTIF;
   el('b-stripe').textContent = STRIPE_ACTIF ? 'Vérifier les paiements Stripe' : 'En attente d’activation';
   el('crm-stripe-title').textContent = STRIPE_ACTIF ? 'Rapprocher les paiements Stripe' : 'Stripe';

@@ -57,8 +57,8 @@
 
   if (action === 'valider') {
     titre.textContent = 'Valider cette demande ?';
-    texte.innerHTML = 'Le parent recevra aussitôt le <b>mail de validation avec le lien de paiement sécurisé</b>.';
-    bouton.textContent = '✅ Oui, valider et envoyer le lien de paiement';
+    texte.innerHTML = 'Le parent recevra aussitôt le <b>mail de validation avec le RIB de l’académie</b> pour régler par virement.';
+    bouton.textContent = '✅ Oui, valider et envoyer le RIB';
   } else {
     titre.textContent = 'Refuser cette demande ?';
     texte.innerHTML = 'Le parent recevra un <b>message courtois de refus</b>' +
@@ -80,7 +80,7 @@
       var morceaux = t.split(';');
       if (morceaux[0] === 'ok valide') {
         titre.innerHTML = '<span class="ok">C’est validé ✅</span>';
-        texte.innerHTML = 'Le mail de validation avec le lien de paiement vient de partir vers <b>' + morceaux[1] + '</b> pour <b>' + morceaux[2] + '</b>.<br><br>Vous pouvez fermer cette page.';
+        texte.innerHTML = 'Le mail de validation avec le RIB vient de partir vers <b>' + morceaux[1] + '</b> pour <b>' + morceaux[2] + '</b>.<br><br>Vous pouvez fermer cette page.';
         bouton.hidden = true; pied.hidden = true;
       } else if (morceaux[0] === 'ok refuse') {
         titre.innerHTML = '<span class="ok">Refus envoyé</span>';

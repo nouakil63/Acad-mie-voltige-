@@ -308,6 +308,10 @@ test('réponse POST incohérente : garde une réserve incertaine', () => {
 
 test('rafraîchissement horaire inclut paiements associés anciens et ne crée jamais de remboursement', () => {
   const h = harness({ gate: true });
+  // Stripe est désactivé par défaut : la synchronisation horaire ne fait rien.
+  assert.equal(h.ctx.synchroniserStripe(), null);
+  assert.equal(h.state.snapshots.length, 0);
+  h.ctx.STRIPE_ACTIF = true;
   assert.equal(h.ctx.synchroniserStripe().synchronises, 1);
   assert.equal(h.state.snapshots.length, 1); assert.equal(h.state.posts.length, 0);
   assert.equal(h.props.get('STRIPE_SYNC_CURSOR'), '');

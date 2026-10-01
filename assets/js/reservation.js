@@ -1,6 +1,6 @@
 /* Parcours de réservation de stage — quatre étapes, récapitulatif en direct,
    signature en ligne. La demande part vers l'académie, qui confirme la place et
-   envoie le lien de paiement. Les réponses remplissent aussi le dossier
+   envoie son RIB pour le règlement par virement. Les réponses remplissent aussi le dossier
    d'inscription téléchargeable. */
 (function () {
   'use strict';
@@ -131,9 +131,6 @@
   }
   majRecap();
 
-  /* lien de paiement Stripe du stage (public), joint à la demande pour la réponse de confirmation */
-  var PAIEMENT_STAGE = 'https://buy.stripe.com/8x23cv5tn82WcmIaU24ow04'; /* 840 € — semaine de stage */
-
   /* Service d'envoi automatique (Google Apps Script du compte de l'académie).
      Tant que l'adresse est vide, le site repasse par la messagerie du visiteur. */
   var URL_SERVICE = window.AV_SERVICE_URL || 'https://script.google.com/macros/s/AKfycbyDW_h6BmR4QpKs1l_917hrml-CUjDQCb-GdyNEPfLufxDhgPwsCRP9Wxwnnk-ByZc/exec';
@@ -193,7 +190,7 @@
     if (h) { h.textContent = 'Votre demande est envoyée !'; }
     if (p) {
       p.innerHTML = 'L’académie vient de la recevoir et vous confirme la disponibilité très vite ; ' +
-        'vous recevrez alors un e-mail avec le lien de paiement sécurisé. ' +
+        'vous recevrez alors un e-mail avec le RIB de l’académie pour régler l’acompte par virement. ' +
         'Une question ? Écrivez-nous à <a href="mailto:academiedevoltige@gmail.com" style="font-weight:700">academiedevoltige@gmail.com</a>.';
     }
     c.classList.add('visible');
@@ -309,12 +306,6 @@
       '',
       'Droit à l\'image et autorisation médicale acceptés, signé en ligne le ' + dossier.signeLe + '.',
       'Merci de me confirmer la disponibilité.',
-      '',
-      '--------------------------------------------------',
-      'Pour l\'académie — à joindre à la réponse de confirmation :',
-      '· Paiement du stage :',
-      PAIEMENT_STAGE,
-      '--------------------------------------------------',
     ].filter(function (l) { return l !== ''; }).join('\n');
     var sujet = 'Réservation — ' + s.nom + ' (' + s.dates + ')';
     window.location.href = 'mailto:academiedevoltige@gmail.com?subject=' +
