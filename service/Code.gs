@@ -27,7 +27,7 @@ var SITE = 'https://academiedevoltige.com';
 
 /* Numéro de version du script : ouvrez l'adresse /exec dans un
    navigateur pour vérifier quelle version est réellement en ligne. */
-var VERSION_SCRIPT = '27';
+var VERSION_SCRIPT = '28';
 
 /* ============ L'espace académie (page admin.html du site) ============
    Chaque demande reçue est aussi rangée dans la base Supabase de
@@ -1484,6 +1484,105 @@ function envoyerRelanceAuto(donnees, sous) {
     name: 'Académie de voltige équestre'
   });
   return true;
+}
+
+/* ============ Passage au virement : prévenir les familles qui n'ont pas réglé ============
+   À exécuter UNE SEULE FOIS depuis l'éditeur, après publication de la version 28 :
+   1. choisir « apercuRelanceVirement » dans le menu déroulant, Exécuter :
+      le journal liste les familles concernées et le montant, sans rien envoyer ;
+   2. choisir « envoyerRelanceVirement », Exécuter : chaque famille reçoit le
+      mail avec le RIB (dans le mail et en PDF joint), et le dossier garde la
+      date d'envoi. Un dossier déjà prévenu dans les dernières 24 h est sauté. */
+function dossiersAPrevenirVirement() {
+  var lignes = supabaseLireTout('demandes?select=*&statut=eq.' + encodeURIComponent('validée') + '&annule=eq.false&order=id.asc');
+  var liste = [];
+  lignes.forEach(function (d) {
+    if (!d.parent_email || !/.+@.+\..+/.test(d.parent_email)) { return; }
+    var sous = '';
+    if (d.type === 'stage') { sous = !d.acompte_paye ? 'acompte' : !d.solde_paye ? 'solde' : ''; }
+    else if (d.type === 'cours') { sous = d.paye ? '' : 'paiement'; }
+    if (!sous) { return; }
+    liste.push({ demande: d, sous: sous });
+  });
+  return liste;
+}
+
+function contenusChangementVirement(d, sous) {
+  var enfant = d.enfant || 'votre voltigeur';
+  var detail = d.detail || (d.type === 'stage' ? 'votre stage' : 'votre inscription');
+  var paiement = /trimestre/i.test(detail) ? 'trimestre' : 'unite';
+  var montant, reference, reste;
+  if (sous === 'acompte') { montant = TARIFS_STAGE.acompte + ' (acompte)'; reference = 'Acompte ' + enfant;
+    reste = 'l’acompte de ' + TARIFS_STAGE.acompte + ' qui garantit la place de <b>' + enfant + '</b> pour le ' + detail +
+      '. Le solde (' + TARIFS_STAGE.solde + ') sera à régler au plus tard 30 jours avant le début du stage'; }
+  else if (sous === 'solde') { montant = TARIFS_STAGE.solde + ' (solde)'; reference = 'Solde ' + enfant;
+    reste = 'le solde de ' + TARIFS_STAGE.solde + ' du ' + detail + ' de <b>' + enfant + '</b>, à régler au plus tard 30 jours avant le début du stage'; }
+  else { montant = (paiement === 'trimestre' ? TARIFS_COURS.trimestre + ' (trimestre)' : TARIFS_COURS.unite + ' (cours à l’unité)'); reference = 'Cours ' + enfant;
+    reste = 'le règlement des cours de <b>' + enfant + '</b> (' + detail + ')'; }
+  var intro = 'Bonjour, un petit changement à l’académie : <b>les règlements se font désormais par virement bancaire</b>, ' +
+    'nous ne proposons plus le paiement en ligne. Si vous aviez déjà réglé par ce moyen, vous pouvez ignorer ce message.' +
+    '<br><br>Il reste à régler ' + reste + '. ' + consigneVirement() +
+    '<br><br>Vous trouverez aussi notre RIB en pièce jointe.';
+  return { titre: 'Nouveau : le règlement par virement', intro: intro, lignes: lignesVirement(montant, reference),
+    texte: texteVirement(montant, reference) };
+}
+
+/* Le RIB en PDF, fabriqué à partir d'une page HTML. Sans conversion
+   possible, le mail part quand même : le RIB est aussi dans le corps. */
+function pieceJointeRib() {
+  try {
+    var r = rib();
+    var html = '<html><body style="font-family:Arial,sans-serif;padding:32px;color:#1D1216">' +
+      '<h1 style="font-size:20px;margin:0 0 4px">Relevé d’identité bancaire</h1>' +
+      '<p style="margin:0 0 24px;color:#5f5458">Académie de voltige équestre · Fleur &amp; Georges Cotrait · Auberville</p>' +
+      '<table cellpadding="8" style="border-collapse:collapse;font-size:15px">' +
+      '<tr><td style="color:#8a7f83">Titulaire</td><td><b>' + r.titulaire + '</b></td></tr>' +
+      '<tr><td style="color:#8a7f83">IBAN</td><td><b>' + r.iban + '</b></td></tr>' +
+      '<tr><td style="color:#8a7f83">BIC</td><td><b>' + r.bic + '</b></td></tr>' +
+      (r.banque ? '<tr><td style="color:#8a7f83">Banque</td><td><b>' + r.banque + '</b></td></tr>' : '') +
+      '</table><p style="margin-top:24px;color:#5f5458;font-size:13px">Merci d’indiquer en référence du virement le prénom et le nom du voltigeur, précédés de « Acompte », « Solde » ou « Cours ».</p>' +
+      '</body></html>';
+    return Utilities.newBlob(enEntites(html), 'text/html', 'rib.html').getAs('application/pdf')
+      .setName('RIB - Académie de voltige équestre.pdf');
+  } catch (e) {
+    Logger.log('RIB en PDF non joint : ' + e);
+    return null;
+  }
+}
+
+function apercuRelanceVirement() {
+  var liste = dossiersAPrevenirVirement();
+  liste.forEach(function (l) {
+    Logger.log((l.demande.enfant || '?') + ' · ' + l.demande.parent_email + ' · ' + l.demande.type + ' · reste : ' + l.sous);
+  });
+  Logger.log(liste.length + ' famille(s) à prévenir. Rien n’a été envoyé.');
+  return liste.length;
+}
+
+function envoyerRelanceVirement() {
+  var verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) { throw erreurService('envoi_en_cours', 'Un envoi est déjà en cours.'); }
+  try {
+    var pdf = pieceJointeRib();
+    var envoyes = 0, sautes = 0, maintenant = Date.now();
+    dossiersAPrevenirVirement().forEach(function (l) {
+      var d = l.demande;
+      if (d.lien_paiement_envoye_le && maintenant - new Date(d.lien_paiement_envoye_le).getTime() < 24 * 3600 * 1000) { sautes++; return; }
+      var c = contenusChangementVirement(d, l.sous);
+      var options = {
+        htmlBody: gabaritMail(c.titre, c.intro, c.lignes, [],
+          'Une question ? Répondez simplement à ce message. À très vite à l’académie !<br>Fleur & Georges Cotrait, Académie de voltige équestre, Auberville.'),
+        replyTo: ADRESSE_ACADEMIE,
+        name: 'Académie de voltige équestre'
+      };
+      if (pdf) { options.attachments = [pdf]; }
+      GmailApp.sendEmail(d.parent_email, c.titre, c.intro.replace(/<[^>]+>/g, '') + '\n\n' + c.texte, options);
+      noterLienPaiementEnvoye(d.id);
+      envoyes++;
+    });
+    Logger.log(envoyes + ' mail(s) envoyé(s), ' + sautes + ' dossier(s) déjà prévenu(s) récemment.');
+    return { envoyes: envoyes, sautes: sautes };
+  } finally { verrou.releaseLock(); }
 }
 
 /* 4. Le rappel de la veille aux familles dont le cours est demain
