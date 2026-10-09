@@ -70,6 +70,114 @@
       display:block;margin:18px 0 2px;font-size:12px;font-weight:800;
       letter-spacing:.14em;text-transform:uppercase;color:var(--rouge);
     }
+
+    /* ============ Informations stage ============ */
+    .is-bloc + .is-bloc{margin-top:clamp(48px,7vw,72px)}
+    .is-sous-titre{
+      display:flex;align-items:baseline;gap:14px;margin-bottom:20px;
+      padding-bottom:14px;border-bottom:1px solid var(--texte);
+    }
+    .is-sous-titre h3{font-size:clamp(22px,3vw,28px)}
+    .is-sous-titre .eyebrow{margin-left:auto;white-space:nowrap}
+
+    /* arrivée / retour */
+    .is-rdv-grille{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .is-rdv{padding:28px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--trait)}
+    .is-rdv.arrivee{
+      background:color-mix(in srgb, var(--rouge) 6%, var(--blanc));
+      border-color:color-mix(in srgb, var(--rouge) 16%, var(--blanc));
+    }
+    .is-rdv.retour{background:var(--encre);color:var(--blanc);border-color:var(--encre)}
+    .is-rdv .eyebrow{color:var(--rouge)}
+    .is-rdv.retour .eyebrow{color:var(--rouge-vif)}
+    .is-jour{
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      letter-spacing:var(--display-track);font-size:clamp(34px,5vw,48px);line-height:1;
+    }
+    .is-heure{
+      align-self:flex-start;font-size:13px;font-weight:800;letter-spacing:.08em;
+      padding:7px 14px;border-radius:999px;background:var(--rouge);color:var(--blanc);
+      font-variant-numeric:tabular-nums;
+    }
+    .is-rdv ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;font-size:15px}
+    .is-rdv li{padding-left:22px;position:relative}
+    .is-rdv li::before{content:"—";position:absolute;left:0;color:var(--rouge)}
+    .is-rdv.retour li::before{color:var(--rouge-vif)}
+    .is-rdv.arrivee ul{color:var(--texte-2)}
+    .is-rdv.retour ul{color:color-mix(in srgb, var(--blanc) 80%, transparent)}
+    .is-rdv li b{color:var(--texte);font-weight:700}
+    .is-rdv.retour li b{color:var(--blanc)}
+
+    /* encadrés « obligatoire » */
+    .is-alerte{
+      border-left:3px solid var(--rouge);padding:12px 16px;margin-top:4px;
+      background:var(--blanc);font-size:14.5px;line-height:1.55;color:var(--texte);
+    }
+    .is-rdv.retour .is-alerte{background:color-mix(in srgb, var(--blanc) 8%, transparent);color:var(--blanc);border-color:var(--rouge-vif)}
+    .is-alerte b{font-weight:800}
+    .is-tag{
+      display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--rouge);border:1px solid currentColor;border-radius:999px;padding:2px 8px;margin-left:6px;
+      vertical-align:2px;white-space:nowrap;
+    }
+
+    /* bon à savoir : santé, assurance, inscriptions, recommandations */
+    .is-grille{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .is-grille .regle p{font-size:15px;color:var(--texte-2)}
+    .is-grille .regle p + p,.is-grille .regle p + ul,.is-grille .regle ul + p{margin-top:10px}
+    .is-grille .regle b{color:var(--texte);font-weight:700}
+    .is-etapes{counter-reset:etape}
+    .is-etapes li{counter-increment:etape;padding-left:34px !important}
+    .is-etapes li::before{
+      content:counter(etape) !important;top:1px;width:22px;height:22px;border-radius:50%;
+      background:var(--rouge);color:var(--blanc) !important;font-size:12px;font-weight:800;
+      display:grid;place-items:center;line-height:1;
+    }
+    .is-tel{
+      display:inline-block;margin:6px 0 2px;text-decoration:none;color:var(--rouge);
+      font-family:var(--display);font-weight:var(--display-wght);font-stretch:var(--display-stretch);
+      font-size:clamp(26px,3.4vw,32px);letter-spacing:.01em;font-variant-numeric:tabular-nums;
+    }
+    .is-creneaux{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .is-creneaux span{
+      font-size:13px;font-weight:750;padding:6px 12px;border-radius:999px;
+      border:1px solid var(--trait);background:var(--blanc);font-variant-numeric:tabular-nums;
+    }
+
+    /* accès */
+    .is-acces{display:grid;grid-template-columns:1.5fr 1fr;gap:clamp(24px,4vw,48px);align-items:start}
+    .is-acces-route h4{
+      margin:0 0 14px;font-size:12px;font-weight:800;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--rouge);
+    }
+    .is-acces-route h4 small{font-size:inherit;font-weight:600;color:var(--texte-2);letter-spacing:.08em}
+    .is-route{list-style:none;margin:0;padding:0;counter-reset:route;position:relative}
+    .is-route::before{
+      content:"";position:absolute;left:13px;top:14px;bottom:14px;width:2px;
+      background:repeating-linear-gradient(to bottom, var(--trait) 0 9px, transparent 9px 16px);
+    }
+    .is-route li{
+      counter-increment:route;position:relative;padding:0 0 16px 46px;
+      font-size:15.5px;line-height:1.55;color:var(--texte-2);
+    }
+    .is-route li:last-child{padding-bottom:0}
+    .is-route li::before{
+      content:counter(route);position:absolute;left:0;top:-2px;width:28px;height:28px;border-radius:50%;
+      display:grid;place-items:center;background:var(--blanc);border:2px solid var(--rouge);
+      color:var(--rouge);font-size:13px;font-weight:800;z-index:1;
+    }
+    .is-route li:last-child::before{background:var(--rouge);color:var(--blanc)}
+    .is-route b{color:var(--texte);font-weight:700}
+    .is-acces .infos-grille{grid-template-columns:1fr;gap:0}
+    .is-acces .info-bloc{padding:20px 0 16px;border-left:0}
+    .is-acces .info-bloc + .info-bloc{border-top:1px solid var(--trait)}
+
+    @media (max-width:860px){
+      .is-rdv-grille,.is-grille,.is-acces{grid-template-columns:1fr}
+      .is-rdv{padding:24px 20px}
+      .is-sous-titre{flex-wrap:wrap}
+      .is-sous-titre .eyebrow{margin-left:0}
+    }
   </style>
 </head>
 <body class="nav-toujours-blanche">
@@ -216,6 +324,123 @@
   </div>
 </section>
 
+<!-- ============ Informations stage ============ -->
+<section class="section" id="informations">
+  <div class="contenu">
+    <div class="section-head">
+      <p class="eyebrow reveal">Informations stage · voltige enfants</p>
+      <h2 class="reveal">Tout savoir avant le départ.</h2>
+      <p class="reveal">L'arrivée, le retour, la santé, l'assurance, l'inscription et la route : tout ce qu'il faut savoir pour préparer la semaine.</p>
+    </div>
+
+    <!-- arrivée / retour -->
+    <div class="is-bloc">
+      <div class="is-sous-titre reveal">
+        <h3>Arrivée &amp; retour</h3>
+        <span class="eyebrow">Du dimanche au samedi</span>
+      </div>
+      <div class="is-rdv-grille">
+        <article class="is-rdv arrivee reveal">
+          <p class="eyebrow">Arrivée</p>
+          <span class="is-jour">Le dimanche</span>
+          <span class="is-heure">Entre 16h00 et 17h00</span>
+          <ul>
+            <li>Accueil <b>à l'entrée de l'Académie de voltige</b></li>
+            <li>Visite du site</li>
+            <li>Prise de contact avec l'ensemble des moniteurs et animateurs</li>
+            <li>Attribution d'un poney de pansage pour la durée du stage</li>
+            <li>Dernières vérifications : numéros de téléphone, traitements et recommandations</li>
+          </ul>
+        </article>
+        <article class="is-rdv retour reveal">
+          <p class="eyebrow">Retour</p>
+          <span class="is-jour">Le samedi matin</span>
+          <span class="is-heure">Rendez-vous à 10h30</span>
+          <ul>
+            <li>Rendez-vous <b>à l'Académie de voltige</b> pour assister aux démonstrations</li>
+            <li><b>11h00 — théâtre :</b> lever de rideau</li>
+            <li>Suivi d'une <b>démonstration de voltige</b></li>
+          </ul>
+          <p class="is-alerte">En cas d'absence du représentant légal, une <b>autorisation écrite</b> de prise en charge pour le retour de l'enfant est <b>obligatoire</b>.</p>
+        </article>
+      </div>
+    </div>
+
+    <!-- bon à savoir -->
+    <div class="is-bloc">
+      <div class="is-sous-titre reveal">
+        <h3>Bon à savoir</h3>
+        <span class="eyebrow">À lire attentivement</span>
+      </div>
+      <div class="is-grille">
+        <div class="regle oui reveal">
+          <h3>Santé &amp; vaccins</h3>
+          <ul>
+            <li>La <b>fiche sanitaire</b> doit être remplie avec soin et accompagnée d'une <b>photocopie du carnet de vaccinations</b>.</li>
+            <li>Le stagiaire doit <b>obligatoirement être à jour de ses vaccins</b>.</li>
+            <li>Tous les frais médicaux engagés sont intégralement dus à l'organisateur.</li>
+          </ul>
+        </div>
+        <div class="regle oui reveal">
+          <h3>Conditions d'assurance</h3>
+          <p>L'Académie de voltige garantit, par extension de son contrat <b>« Responsabilité civile »</b>, la couverture de tous ses cavaliers.</p>
+          <p class="is-alerte">Si l'enfant n'est pas titulaire de sa <b>licence FFE</b> (assurance fédérale de l'année en cours), il est impératif de joindre au dossier d'inscription un <b>certificat médical d'aptitude à la pratique de l'équitation</b>.</p>
+        </div>
+        <div class="regle oui reveal">
+          <h3>Inscriptions</h3>
+          <p>Les inscriptions se font avant le séjour auprès de l'Académie de voltige équestre.</p>
+          <ul class="is-etapes">
+            <li>Une <b>fiche d'inscription</b> dûment remplie, datée et signée</li>
+            <li>La <b>photocopie du carnet de vaccinations</b> du stagiaire</li>
+            <li>Le <b>versement de l'acompte</b> : la réservation n'est effective qu'à réception</li>
+            <li>Le <b>solde</b> est à verser <b>1 mois avant</b> la date de début du stage</li>
+          </ul>
+        </div>
+        <div class="regle oui reveal">
+          <h3>Recommandations</h3>
+          <p>Les <b>téléphones portables, jeux électroniques (et autres) et la cigarette sont strictement interdits</b> : ils nuisent profondément à la pédagogie du club. L'Académie de voltige décline toute responsabilité en cas de disparition.</p>
+          <p>Vous pouvez téléphoner à votre enfant au</p>
+          <a class="is-tel" href="tel:+33231880871">02 31 88 08 71</a>
+          <div class="is-creneaux"><span>12h30 — 13h30</span><span>19h30 — 20h30</span></div>
+          <p>… mais c'est à éviter, dans l'intérêt de l'enfant.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- accès -->
+    <div class="is-bloc" id="acces">
+      <div class="is-sous-titre reveal">
+        <h3>Accès</h3>
+        <span class="eyebrow">Entre Deauville et Cabourg</span>
+      </div>
+      <div class="is-acces">
+        <div class="is-acces-route reveal">
+          <h4>En venant de Paris <small>· environ 2h00 — 200&nbsp;km</small></h4>
+          <ol class="is-route">
+            <li>Prendre l'<b>A14</b> ou l'<b>A13</b> direction Rouen, Le Havre, Caen.</li>
+            <li>Après l'échangeur de <b>Pont-l'Évêque</b>, prendre la prochaine sortie <b>La Haie Tondue</b>.</li>
+            <li>Au rond-point, direction <b>Villers-sur-Mer</b>, puis franchir trois ronds-points espacés de 4&nbsp;km chacun (toujours direction Villers-sur-Mer).</li>
+            <li>Au <b>3<sup>e</sup> rond-point, prendre à droite</b>. Faire 400&nbsp;m, puis prendre à gauche <b>« Camping Bellevue »</b> (avant la descente).</li>
+            <li>À 50&nbsp;m, fourche à gauche : <b>121, chemin Blandin — Académie de voltige</b>.</li>
+          </ol>
+        </div>
+        <div class="infos-grille reveal">
+          <div class="info-bloc">
+            <p class="eyebrow">Situation</p>
+            <p>Entre Deauville et Cabourg, à <b>1,5&nbsp;km de la plage de Villers-sur-Mer</b>.</p>
+            <p class="note">GPS : lat. N 49° 18' 34" · long. W 0° 1' 9"</p>
+            <a class="lien-fleche" href="https://www.google.com/maps/search/?api=1&amp;query=121+chemin+Blandin+14640+Auberville" target="_blank" rel="noopener">Itinéraire <i>→</i></a>
+          </div>
+          <div class="info-bloc">
+            <p class="eyebrow">En train</p>
+            <p>Nous n'organisons pas de convoyage par le train, mais nous pouvons <b>venir chercher vos enfants à la gare de Deauville</b>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ Compris / à prévoir ============ -->
 <section class="section" id="pratique">
   <div class="contenu">
@@ -237,30 +462,31 @@
       </div>
       <div class="regle oui reveal">
         <h3 class="">À mettre dans le sac — le trousseau</h3>
-        <p class="note-trousseau">Ni plus, ni moins —. Toutes les affaires doivent être marquées au nom de l'enfant.</p>
-        <b class="trousseau-titre">Tenues d'équitation</b>
+        <p class="note-trousseau">À respecter — ni plus, ni moins — merci. Toutes les affaires doivent être marquées au nom de l'enfant.</p>
+        <b class="trousseau-titre">Pour l'équitation et la voltige</b>
         <ul>
-          <li class="">1 blouson imperméable et chaud</li>
-          <li class="">1 bombe « 3 points » aux normes, obligatoire</li>
-          <li class="">1 paire de gants</li>
-          <li>1 paire de chaussures de sport pour la voltige (tennis)</li>
-          <li>3 pantalons d'équitation</li>
-          <li class="">4 pulls ou sweat-shirts</li>
-          <li class="">8 sous-pulls, tee-shirts ou polos</li>
-          <li>6 paires de chaussettes d'équitation ou grosses chaussettes</li>
-          <li class="">8 sous-vêtements (prévoir un change par jour)</li>
-          <li class="">1 tenue blanche pour la démonstration de voltige du samedi (pantalon d'équitation ou legging blanc, polo ou tee-shirt blanc)</li>
+          <li>1 blouson imperméable</li>
+          <li>1 bombe « 3 points » aux normes <span class="is-tag">Obligatoire</span></li>
+          <li>1 paire de chaussures de sport pour la voltige (baskets)</li>
+          <li>1 paire de gants d'équitation</li>
+          <li>1 tenue blanche pour la démonstration du samedi (ex. : legging et haut blancs)</li>
         </ul>
-        <b class="trousseau-titre">Tenues pour le soir</b>
+        <b class="trousseau-titre">Vêtements de la semaine</b>
         <ul>
-          <li class="">3 tenues complètes de ville selon la saison (pantalons, tee-shirts, pulls, sous-vêtements, socquettes, chaussures)</li>
-          <li class="">1 duvet — obligatoire</li>
+          <li>3 pantalons d'équitation ou joggings</li>
+          <li>2 ou 3 pantalons (jeans) en tenue de ville pour le dîner</li>
+          <li>4 pulls et/ou sweat-shirts</li>
+          <li>8 sous-pulls, tee-shirts ou chemises (prévoir un change par jour)</li>
+          <li>8 sous-vêtements et paires de chaussettes (prévoir au minimum un change par jour)</li>
+          <li>1 paire de chaussons pour le réfectoire</li>
+        </ul>
+        <b class="trousseau-titre">Pour la nuit et la toilette</b>
+        <ul>
+          <li>1 sac de couchage <span class="is-tag">Obligatoire</span></li>
           <li>1 pyjama</li>
-          <li>1 paire de chaussons</li>
-          <li class="">1 paire de tongs en plastique pour les douches</li>
-          <li>1 grande serviette de bain</li>
-          <li>1 sac de linge sale — obligatoire</li>
-          <li class="">1 trousse de toilette avec le nécessaire (prévoir le gel douche et le shampoing)</li>
+          <li>Nécessaire de toilette avec serviette de toilette (prévoir savon douche et shampoing) + élastiques pour les cheveux longs</li>
+          <li>1 paire de tongs en plastique pour les sanitaires</li>
+          <li>1 sac de linge sale</li>
         </ul>
       </div>
     </div>
