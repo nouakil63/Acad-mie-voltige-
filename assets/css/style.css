@@ -461,6 +461,7 @@ section[id],[id="accueil"]{scroll-margin-top:calc(var(--nav-h) + 8px)}
 .carte-corps .dates{
   font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
 }
+.carte-corps .arrivee-dimanche{margin-top:-7px;font-size:12.5px;font-style:italic;color:var(--texte-2)}
 .carte-corps h3{font-size:23px}
 .carte-corps p{font-size:14.5px;color:var(--texte-2);flex:1}
 .carte-pied{
