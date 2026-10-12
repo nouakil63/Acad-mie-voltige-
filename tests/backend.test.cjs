@@ -21,6 +21,8 @@ function runtime(fetch) {
   ]);
   const calls = [], mails = [];
   let lockAvailable = true;
+  const cache = new Map();
+  let mailEnPanne = false;
   const ctx = vm.createContext({
     console, Date, Math, Object, Number, Array, JSON,
     PropertiesService: { getScriptProperties: () => ({
@@ -30,6 +32,8 @@ function runtime(fetch) {
       releaseLock() {} }) },
     Utilities: {
       getUuid: () => crypto.randomUUID(),
+      DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
+      computeDigest: (algo, data) => crypto.createHash(algo).update(data, 'utf8').digest(),
       base64EncodeWebSafe: data => Buffer.from(data).toString('base64url'),
       base64DecodeWebSafe: data => Buffer.from(data, 'base64url'),
       computeHmacSha256Signature: (data, secret) => crypto.createHmac('sha256', secret).update(data).digest(),
@@ -43,13 +47,15 @@ function runtime(fetch) {
       if (!fetch) throw new Error('Unexpected network attempt blocked: ' + url);
       return fetch(url, options, calls.length);
     } },
-    GmailApp: { sendEmail(...args) { mails.push(args); } },
+    CacheService: { getScriptCache: () => ({ get: key => cache.get(key) || null,
+      put: (key, value) => { cache.set(key, value); }, remove: key => { cache.delete(key); } }) },
+    GmailApp: { sendEmail(...args) { if (mailEnPanne) { mailEnPanne = false; throw new Error('Gmail indisponible'); } mails.push(args); } },
     Logger: { log() {} },
     ContentService: { MimeType: { TEXT: 'text/plain' },
       createTextOutput: text => ({ text, setMimeType() { return this; } }) }
   });
   vm.runInContext(source, ctx, { filename: 'service/Code.gs' });
-  return { ctx, calls, mails, properties, lock(value) { lockAvailable = value; } };
+  return { ctx, calls, mails, properties, cache, lock(value) { lockAvailable = value; }, pannerMail() { mailEnPanne = true; } };
 }
 function session(overrides = {}) {
   return { id: SESSION, status: 'complete', payment_status: 'paid', livemode: true,
@@ -409,4 +415,39 @@ test('Passage au virement : seules les familles qui n’ont pas fini de régler 
   assert.equal(r.mails[0][3].attachments[0].name, 'RIB - Académie de voltige équestre.pdf');
   assert.equal(notes.length, 3);
   assert.ok(notes.every(n => n.lien_paiement_envoye_le));
+});
+
+test('anti-doublon : la même demande postée deux fois ne crée qu’un mail et une ligne', () => {
+  const r = runtime(() => response('', 201));
+  const demandeStage = JSON.stringify({ type: 'stage', stage: 'Stage de la Toussaint', dates: 'Du 19 au 24 octobre 2026',
+    enfantPrenom: 'Camille', enfantNom: 'Martin', parentNom: 'Alex Martin', parentEmail: 'parent@example.fr' });
+  assert.equal(r.ctx.doPost({ postData: { contents: demandeStage } }).text, 'ok');
+  assert.equal(r.ctx.doPost({ postData: { contents: demandeStage } }).text, 'ok');
+  assert.equal(r.mails.length, 1);
+  assert.equal(r.calls.filter(c => c.url.endsWith('/rest/v1/demandes')).length, 1);
+
+  const frereOuSoeur = demandeStage.replace('Camille', 'Léo');
+  assert.equal(r.ctx.doPost({ postData: { contents: frereOuSoeur } }).text, 'ok');
+  assert.equal(r.mails.length, 2);
+  assert.equal(r.calls.filter(c => c.url.endsWith('/rest/v1/demandes')).length, 2);
+});
+
+test('anti-doublon : un envoi qui échoue peut être renvoyé aussitôt', () => {
+  const r = runtime(() => response('', 201));
+  const demandeCours = JSON.stringify({ type: 'cours', formule: 'Cours du samedi', enfantPrenom: 'Camille',
+    enfantNom: 'Martin', parentNom: 'Alex Martin', parentEmail: 'parent@example.fr' });
+  r.pannerMail();
+  assert.throws(() => r.ctx.doPost({ postData: { contents: demandeCours } }), /Gmail indisponible/);
+  assert.equal(r.ctx.doPost({ postData: { contents: demandeCours } }).text, 'ok');
+  assert.equal(r.mails.length, 1);
+});
+
+test('anti-doublon : sans verrou disponible, la demande passe plutôt que d’être perdue', () => {
+  const r = runtime(() => response('', 201));
+  const demandeStage = JSON.stringify({ type: 'stage', stage: 'Stage', dates: 'Du 26 au 31 octobre 2026',
+    enfantPrenom: 'Camille', enfantNom: 'Martin', parentNom: 'Alex Martin', parentEmail: 'parent@example.fr' });
+  r.lock(false);
+  r.ctx.doPost({ postData: { contents: demandeStage } });
+  r.ctx.doPost({ postData: { contents: demandeStage } });
+  assert.equal(r.mails.length, 2);
 });

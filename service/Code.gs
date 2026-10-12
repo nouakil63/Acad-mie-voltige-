@@ -288,11 +288,20 @@ function doPost(e) {
     'Ou refuser en un clic : le parent reçoit automatiquement un message courtois avec le motif choisi.'
   );
 
-  GmailApp.sendEmail(ADRESSE_ACADEMIE, sujet, versTexte(lignes), {
-    htmlBody: html,
-    replyTo: nettoyer(d.parentEmail),
-    name: 'Site de l’académie'
-  });
+  /* Un double clic (ou un renvoi du navigateur) poste deux fois la même
+     demande : la seconde est ignorée pendant 10 minutes. */
+  var doublon = marquerDemandeRecue(e.postData.contents);
+  if (doublon.dejaRecue) { return reponseTexte('ok'); }
+  try {
+    GmailApp.sendEmail(ADRESSE_ACADEMIE, sujet, versTexte(lignes), {
+      htmlBody: html,
+      replyTo: nettoyer(d.parentEmail),
+      name: 'Site de l’académie'
+    });
+  } catch (err) {
+    doublon.oublier();
+    throw err;
+  }
 
   enregistrerDemande({
     type: d.type,
@@ -309,6 +318,27 @@ function doPost(e) {
   });
 
   return reponseTexte('ok');
+}
+
+/* Empreinte du contenu exact posté, gardée 10 minutes dans le cache du
+   script. Le verrou couvre deux envois quasi simultanés. Sans cache ni
+   verrou disponible, la demande passe : mieux vaut un doublon qu'une perte. */
+var DUREE_ANTI_DOUBLON = 600;
+function marquerDemandeRecue(contenu) {
+  var rien = { dejaRecue: false, oublier: function () {} };
+  if (typeof CacheService === 'undefined') { return rien; }
+  var octets = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(contenu), Utilities.Charset.UTF_8);
+  var cle = 'demande:' + Utilities.base64EncodeWebSafe(octets);
+  var cache = CacheService.getScriptCache();
+  var verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) { return rien; }
+  try {
+    if (cache.get(cle)) { return { dejaRecue: true, oublier: function () {} }; }
+    cache.put(cle, '1', DUREE_ANTI_DOUBLON);
+  } finally {
+    verrou.releaseLock();
+  }
+  return { dejaRecue: false, oublier: function () { cache.remove(cle); } };
 }
 
 /* ============ Envoi d'un mail de prospection depuis le builder ============ */
