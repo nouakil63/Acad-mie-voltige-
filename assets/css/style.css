@@ -68,6 +68,7 @@ img{max-width:100%;height:auto}
   position:relative;overflow:hidden;
   transition:color .35s var(--galop),border-color .35s var(--galop);
 }
+.btn:disabled{opacity:.6;cursor:wait}
 .btn::before{
   content:"";position:absolute;inset:0;background:var(--encre);border-radius:inherit;
   transform:scaleX(0);transform-origin:left;transition:transform .45s var(--galop);z-index:0;

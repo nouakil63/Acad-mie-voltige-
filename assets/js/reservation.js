@@ -197,10 +197,22 @@
   }
 
   /* ---- envoi ---- */
+  var envoiEnCours = false;
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var pas = form.querySelector('.pas[data-pas="' + dernierPas + '"]');
     if (!champsValides(pas)) { return; }
+    /* un seul envoi : le service met quelques secondes à répondre, un second
+       clic (ou Entrée) pendant ce temps créait une demande en double */
+    if (envoiEnCours) { return; }
+    envoiEnCours = true;
+    var bouton = form.querySelector('button[type="submit"]');
+    if (bouton) {
+      bouton.disabled = true;
+      bouton.setAttribute('aria-busy', 'true');
+      var libelle = bouton.querySelector('span') || bouton;
+      libelle.textContent = 'Envoi en cours…';
+    }
     var choisi = form.querySelector('input[name="stage"]:checked');
     var s = STAGES[choisi ? Number(choisi.value) : 0];
 
